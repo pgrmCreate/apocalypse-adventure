@@ -73,7 +73,7 @@
     }
 
     // État des lieux (pour conserver loot + objets posés)
-    const locationsState = {}; // { [locationId]: { lootNodes: HTMLElement[], discardNodes: HTMLElement[], lootGenerated: boolean } }
+    const locationsState = {}; // { [locationId]: { lootNodes: HTMLElement[], discardNodes: HTMLElement[], lootGenerated: boolean, defeatedCombats: Set<string> } }
 
     let itemCounter = 0;
     let currentSceneId = null;
@@ -1344,7 +1344,7 @@
         return min + Math.round(Math.random() * span);
     }
 
-    function startCombat(option) {
+    function startCombat(option, optionIndex) {
         const d = option.diceTest || {};
         const enemyName =
             option.enemyName || d.description || option.text || "adversaire";
@@ -1366,7 +1366,12 @@
             victoryEffect: option.successEffect,
             defeatEffect: option.failEffect,
             previousTimeContext: currentTimeContext,
-            distance: computeStartDistance(option)
+            distance: computeStartDistance(option),
+            originCombatId:
+                typeof optionIndex === "number"
+                    ? `${currentSceneId}:${optionIndex}`
+                    : null,
+            originLocationId: currentLocationId
         };
         currentTimeContext = "fast";
         updateGroundPanelVisibility();
@@ -1399,12 +1404,25 @@
         attackBtn.addEventListener("click", performMeleeAttack);
         choicesEl.appendChild(attackBtn);
 
-        const throwWeaponBtn = document.createElement("button");
-        throwWeaponBtn.classList.add("choice-btn");
-        throwWeaponBtn.textContent = "Attaque à distance (lancer)";
-        throwWeaponBtn.disabled = !hasThrowableWeapon();
-        throwWeaponBtn.addEventListener("click", performRangedAttack);
-        choicesEl.appendChild(throwWeaponBtn);
+        const throwableElements = getThrowableWeaponElements();
+        if (throwableElements.length === 0) {
+            const noThrow = document.createElement("div");
+            noThrow.classList.add("combat-distance");
+            noThrow.textContent = "Aucune arme de jet disponible.";
+            choicesEl.appendChild(noThrow);
+        } else {
+            const throwContainer = document.createElement("div");
+            throwContainer.classList.add("throw-buttons");
+            throwableElements.forEach(el => {
+                const btn = document.createElement("button");
+                btn.classList.add("choice-btn");
+                const itemName = el.dataset.name || "objet";
+                btn.textContent = `Lancer ${itemName}`;
+                btn.addEventListener("click", () => performRangedAttack(el));
+                throwContainer.appendChild(btn);
+            });
+            choicesEl.appendChild(throwContainer);
+        }
 
         const fleeBtn = document.createElement("button");
         fleeBtn.classList.add("choice-btn");
@@ -1452,7 +1470,7 @@
         if (combatState.active) renderCombatUI();
     }
 
-    function performRangedAttack() {
+    function performRangedAttack(throwable) {
         if (!combatState.active) return;
         const enemy = combatState.enemies[0];
         if (!enemy) {
@@ -1461,27 +1479,27 @@
         }
 
         const weaponEl = getEquippedWeaponElement();
-        const throwable = weaponEl && weaponEl.dataset.throwable === "true"
+        const chosenThrowable = throwable || (weaponEl && weaponEl.dataset.throwable === "true"
             ? weaponEl
-            : getThrowableWeaponElements()[0];
+            : getThrowableWeaponElements()[0]);
 
-        if (!throwable) {
+        if (!chosenThrowable) {
             logMessage("Aucune arme de jet disponible.");
             return;
         }
 
-        const base = parseFloat(throwable.dataset.baseDamage || "0") || 0;
+        const base = parseFloat(chosenThrowable.dataset.baseDamage || "0") || 0;
         const finesseBonus = hero.finesse * 0.8;
         const damage = Math.max(1, Math.round(base + finesseBonus));
         enemy.hp = Math.max(0, enemy.hp - damage);
 
         logMessage(
-            `Tu lances ${throwable.dataset.name} sur ${enemy.name}, infligeant ${damage} dégâts.`
+            `Tu lances ${chosenThrowable.dataset.name} sur ${enemy.name}, infligeant ${damage} dégâts.`
         );
         showToast(`Lancer réussi : ${damage} dégâts`, "success");
 
-        throwable.remove();
-        if (equippedWeaponTemplateId === throwable.dataset.templateId) {
+        chosenThrowable.remove();
+        if (equippedWeaponTemplateId === chosenThrowable.dataset.templateId) {
             equippedWeaponTemplateId = null;
         }
         updateEquippedWeaponUI();
@@ -1553,6 +1571,13 @@
         const effectToApply = victory
             ? combatState.victoryEffect
             : combatState.defeatEffect;
+
+        if (victory && combatState.originCombatId && combatState.originLocationId) {
+            const state = getLocationState(combatState.originLocationId);
+            if (state && state.defeatedCombats) {
+                state.defeatedCombats.add(combatState.originCombatId);
+            }
+        }
         showToast(victory ? "Victoire" : "Défaite", victory ? "success" : "danger");
         currentTimeContext = combatState.previousTimeContext || currentTimeContext;
         combatState = { active: false };
@@ -1618,15 +1643,31 @@
 
     /* --- Gestion des lieux & scènes --- */
 
+    function getLocationState(locationId) {
+        if (!locationId || locationId === "none") return null;
+        let state = locationsState[locationId];
+        if (!state) {
+            state = {
+                lootNodes: [],
+                discardNodes: [],
+                lootGenerated: false,
+                defeatedCombats: new Set()
+            };
+            locationsState[locationId] = state;
+        }
+        if (!state.defeatedCombats) {
+            state.defeatedCombats = new Set();
+        }
+        return state;
+    }
+
     function saveLocationState(locationId) {
         if (!locationId || locationId === "none") return;
         if (!lootEl || !discardEl) return;
 
-        let state = locationsState[locationId];
-        if (!state) {
-            state = { lootNodes: [], discardNodes: [], lootGenerated: true };
-            locationsState[locationId] = state;
-        }
+        const state = getLocationState(locationId);
+        if (!state) return;
+        state.lootGenerated = true;
 
         state.lootNodes = [];
         state.discardNodes = [];
@@ -1691,26 +1732,32 @@
 
         if (choicesEl) {
             choicesEl.innerHTML = "";
-            scene.options.forEach(option => {
+            scene.options.forEach((option, index) => {
                 const btn = document.createElement("button");
                 btn.classList.add("choice-btn");
                 btn.textContent = option.text;
-                btn.addEventListener("click", () => handleOption(option));
+                const isCombatOption =
+                    option.diceTest && option.diceTest.type === "combat";
+                const combatOptionId = isCombatOption
+                    ? `${scene.id}:${index}`
+                    : null;
+                const alreadyDefeated =
+                    isCombatOption &&
+                    state.defeatedCombats &&
+                    state.defeatedCombats.has(combatOptionId);
+                if (alreadyDefeated) {
+                    btn.disabled = true;
+                    btn.textContent = `${option.text} (ennemi vaincu)`;
+                }
+                btn.addEventListener("click", () => handleOption(option, index));
                 choicesEl.appendChild(btn);
             });
         }
 
         if (!lootEl || !discardEl) return;
 
-        let state = locationsState[currentLocationId];
-        if (!state) {
-            state = {
-                lootNodes: [],
-                discardNodes: [],
-                lootGenerated: false
-            };
-            locationsState[currentLocationId] = state;
-        }
+        const state = getLocationState(currentLocationId);
+        if (!state) return;
 
         lootEl.innerHTML = "";
         discardEl.innerHTML = "";
@@ -1732,7 +1779,7 @@
         updateCapacityUI();
     }
 
-    function handleOption(option) {
+    function handleOption(option, optionIndex = 0) {
         if (combatState.active) {
             logMessage("Tu es déjà en plein combat, concentre-toi !");
             return;
@@ -1751,6 +1798,21 @@
         }
 
         const scene = scenes[currentSceneId];
+        const locationState = getLocationState(currentLocationId);
+        const isCombatOption = option.diceTest && option.diceTest.type === "combat";
+        const combatOptionId = isCombatOption
+            ? `${currentSceneId}:${optionIndex}`
+            : null;
+
+        if (
+            isCombatOption &&
+            locationState &&
+            locationState.defeatedCombats &&
+            locationState.defeatedCombats.has(combatOptionId)
+        ) {
+            showToast("L'ennemi de ce lieu est déjà neutralisé.", "info");
+            return;
+        }
         if (
             scene &&
             scene.timeContext === "slow" &&
@@ -1766,7 +1828,7 @@
 
         if (option.diceTest) {
             if (option.diceTest.type === "combat") {
-                startCombat(option);
+                startCombat(option, optionIndex);
                 return;
             }
             resolveDiceOption(option);
