@@ -319,9 +319,8 @@ header h1 {
     display: flex;
     gap: 8px;
     margin-bottom: 8px;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    padding-bottom: 4px;
+    flex-wrap: wrap;
+    overflow-x: visible;
 }
 
 .ground-row .inventory-column,
@@ -510,5 +509,16 @@ footer {
 @media (max-width: 768px) {
     .layout {
         flex-direction: column;
+    }
+
+    .ground-row,
+    .personal-row {
+        flex-direction: column;
+    }
+
+    .ground-row .inventory-column,
+    .ground-row .discard-wrapper,
+    .personal-row .inventory-column {
+        flex-basis: 100%;
     }
 }
