@@ -33,8 +33,8 @@
 
     const heroDefaults = {
         name: "Alex",
-        hp: 10,
-        maxHp: 10,
+        hp: 30,
+        maxHp: 30,
         force: 2,
         finesse: 2,
         audace: 2,
@@ -83,6 +83,7 @@
     let equippedBagTemplateId = null;
     let wounds = [];
     let combatState = { active: false };
+    let lastNeedStatus = null;
 
     // DOM
     let storyTitleEl;
@@ -108,6 +109,8 @@
     let inventoryEl;
     let lootEl;
     let discardEl;
+
+    let toastContainerEl;
 
     let restartBtn;
     let equippedWeaponNameEl;
@@ -155,6 +158,8 @@
         craftListEl = document.getElementById("craft-list");
         groundPanelEl = document.getElementById("ground-panel");
 
+        toastContainerEl = document.getElementById("toast-container");
+
         restartBtn = document.getElementById("restart-btn");
         if (restartBtn) {
             restartBtn.addEventListener("click", restartGame);
@@ -198,6 +203,7 @@
         hero.audace = heroDefaults.audace;
         hero.hunger = heroDefaults.hunger;
         hero.thirst = heroDefaults.thirst;
+        lastNeedStatus = null;
         wounds = [];
 
         if (heroNameEl) {
@@ -247,9 +253,53 @@
         updateCapacityUI();
     }
 
+    function getNeedState() {
+        const totalNeed = hero.hunger + hero.thirst;
+        if (totalNeed <= 10) {
+            return {
+                label: "bien nourri",
+                healModifier: 1.2,
+                regenPerUnit: 1,
+                damagePerUnit: 0
+            };
+        }
+        if (totalNeed <= 25) {
+            return {
+                label: "nourri",
+                healModifier: 1,
+                regenPerUnit: 0.5,
+                damagePerUnit: 0
+            };
+        }
+        if (totalNeed <= 40) {
+            return {
+                label: "faim",
+                healModifier: 0.7,
+                regenPerUnit: 0,
+                damagePerUnit: 0
+            };
+        }
+        return {
+            label: "affamé",
+            healModifier: 0.5,
+            regenPerUnit: 0,
+            damagePerUnit: 0.6
+        };
+    }
+
     function updateNeedsUI() {
-        if (hungerEl) hungerEl.textContent = `${hero.hunger} / ${MAX_HUNGER}`;
-        if (thirstEl) thirstEl.textContent = `${hero.thirst} / ${MAX_THIRST}`;
+        const needState = getNeedState();
+        if (hungerEl) {
+            hungerEl.textContent = `${hero.hunger} / ${MAX_HUNGER} (${needState.label})`;
+        }
+        if (thirstEl) {
+            thirstEl.textContent = `${hero.thirst} / ${MAX_THIRST} (${needState.label})`;
+        }
+
+        if (needState.label !== lastNeedStatus) {
+            lastNeedStatus = needState.label;
+            logMessage(`Ton état alimentaire passe à : ${needState.label}.`);
+        }
     }
 
     function renderWounds() {
@@ -377,13 +427,15 @@
         if (!timeUnits || timeUnits <= 0 || !wounds.length) return;
 
         let bleedDamage = 0;
+        const needState = getNeedState();
         wounds.forEach(wound => {
             if (!wound.bandaged && wound.bleeding) {
                 bleedDamage += wound.bleedRate * timeUnits;
                 wound.remainingTime += timeUnits * 0.5;
             } else {
                 const healRate =
-                    1 + (wound.bandageQuality ? wound.bandageQuality * 0.6 : 0.4);
+                    (1 + (wound.bandageQuality ? wound.bandageQuality * 0.6 : 0.4)) *
+                    needState.healModifier;
                 wound.remainingTime -= timeUnits * healRate;
                 const regain = Math.max(0, Math.round(timeUnits * healRate * 0.3));
                 if (regain > 0) {
@@ -439,9 +491,35 @@
         }
 
         processWoundsOverTime(timeUnits);
+        applyNeedBasedRecovery(timeUnits);
 
         updateStatsUI();
         logMessage(`Le temps passe : faim +${timeUnits}, soif +${timeUnits}.`);
+    }
+
+    function applyNeedBasedRecovery(timeUnits) {
+        const needState = getNeedState();
+        const regen = Math.max(0, Math.round(needState.regenPerUnit * timeUnits));
+        if (regen > 0 && hero.hp > 0 && hero.hp < hero.maxHp) {
+            const before = hero.hp;
+            hero.hp = Math.min(hero.maxHp, hero.hp + regen);
+            const gained = hero.hp - before;
+            if (gained > 0) {
+                logMessage(
+                    `Ton corps récupère ${gained} PV grâce à tes réserves (${needState.label}).`
+                );
+            }
+        }
+
+        if (needState.damagePerUnit > 0 && hero.hp > 0) {
+            const penalty = Math.ceil(needState.damagePerUnit * timeUnits);
+            if (penalty > 0) {
+                hero.hp = Math.max(0, hero.hp - penalty);
+                logMessage(
+                    `Tu t'affaiblis (${needState.label}) et perds ${penalty} PV en attendant.`
+                );
+            }
+        }
     }
 
     /* --- Inventaire & objets --- */
@@ -532,9 +610,11 @@
         div.dataset.rarity = item.rarity;
 
         const hasWeapon = !!item.weaponStats;
+        const isThrowable = !!(item.weaponStats && item.weaponStats.throwable);
         const hasBag = !!item.bagStats;
         div.dataset.hasWeapon = hasWeapon ? "true" : "false";
         div.dataset.hasBag = hasBag ? "true" : "false";
+        div.dataset.throwable = isThrowable ? "true" : "false";
 
         if (hasWeapon) {
             div.dataset.baseDamage = String(item.weaponStats.baseDamage || 0);
@@ -1234,6 +1314,36 @@
         return inventoryEl.querySelector(".item.equipped-weapon");
     }
 
+    function getThrowableWeaponElements() {
+        if (!inventoryEl) return [];
+        return Array.from(
+            inventoryEl.querySelectorAll('.item[data-throwable="true"]')
+        );
+    }
+
+    function hasThrowableWeapon() {
+        return getThrowableWeaponElements().length > 0;
+    }
+
+    function describeDistance(distance) {
+        if (distance <= 0) return "au contact";
+        if (distance === 1) return "très proche";
+        if (distance === 2) return "à portée";
+        return "loin";
+    }
+
+    function computeStartDistance(option) {
+        const location = locations[currentLocationId] || {};
+        if (typeof option.startDistance === "number") {
+            return Math.max(0, Math.round(option.startDistance));
+        }
+        const range = option.startDistanceRange || location.enemyDistanceRange || {};
+        const min = Number.isFinite(range.min) ? Math.max(0, Math.round(range.min)) : 0;
+        const max = Number.isFinite(range.max) ? Math.max(min, Math.round(range.max)) : min + 1;
+        const span = Math.max(0, max - min);
+        return min + Math.round(Math.random() * span);
+    }
+
     function startCombat(option) {
         const d = option.diceTest || {};
         const enemyName =
@@ -1255,12 +1365,15 @@
             defeatScene: option.failScene || (d && d.failScene),
             victoryEffect: option.successEffect,
             defeatEffect: option.failEffect,
-            previousTimeContext: currentTimeContext
+            previousTimeContext: currentTimeContext,
+            distance: computeStartDistance(option)
         };
         currentTimeContext = "fast";
         updateGroundPanelVisibility();
         renderCombatUI();
         logMessage(`Un combat s'engage contre ${enemy.name}.`);
+        logMessage(`Le zombie est ${describeDistance(combatState.distance)}.`);
+        showToast(`Combat contre ${enemy.name}`, "info");
     }
 
     function renderCombatUI() {
@@ -1274,20 +1387,23 @@
             .map(e => `${e.name} (${e.hp}/${e.maxHp} PV)`).join(" • ");
         choicesEl.appendChild(status);
 
+        const distanceInfo = document.createElement("div");
+        distanceInfo.classList.add("combat-distance");
+        distanceInfo.textContent = `Distance : ${describeDistance(combatState.distance)}`;
+        choicesEl.appendChild(distanceInfo);
+
         const attackBtn = document.createElement("button");
         attackBtn.classList.add("choice-btn");
-        attackBtn.textContent = "Attaquer";
-        attackBtn.addEventListener("click", performPlayerAttack);
+        attackBtn.textContent = "Attaque au corps à corps";
+        attackBtn.disabled = !combatState.enemies.length;
+        attackBtn.addEventListener("click", performMeleeAttack);
         choicesEl.appendChild(attackBtn);
 
         const throwWeaponBtn = document.createElement("button");
         throwWeaponBtn.classList.add("choice-btn");
-        const equippedWeaponEl = getEquippedWeaponElement();
-        throwWeaponBtn.textContent = equippedWeaponEl
-            ? `Lancer ${equippedWeaponEl.dataset.name}`
-            : "Lancer une arme (aucune équipée)";
-        throwWeaponBtn.disabled = !equippedWeaponEl;
-        throwWeaponBtn.addEventListener("click", () => throwEquippedWeapon());
+        throwWeaponBtn.textContent = "Attaque à distance (lancer)";
+        throwWeaponBtn.disabled = !hasThrowableWeapon();
+        throwWeaponBtn.addEventListener("click", performRangedAttack);
         choicesEl.appendChild(throwWeaponBtn);
 
         const fleeBtn = document.createElement("button");
@@ -1297,11 +1413,21 @@
         choicesEl.appendChild(fleeBtn);
     }
 
-    function performPlayerAttack() {
+    function performMeleeAttack() {
         if (!combatState.active) return;
         const enemy = combatState.enemies[0];
         if (!enemy) {
             endCombat(true);
+            return;
+        }
+
+        if (combatState.distance > 1) {
+            combatState.distance = Math.max(0, combatState.distance - 1);
+            logMessage(
+                `Tu te rapproches de ${enemy.name} (${describeDistance(combatState.distance)}).`
+            );
+            enemyTurn();
+            if (combatState.active) renderCombatUI();
             return;
         }
 
@@ -1311,6 +1437,7 @@
         logMessage(
             `Tu attaques ${enemy.name} et infliges ${damage} dégâts (jet ${roll.rolls.join(", ")}).`
         );
+        showToast(`Coup porté : ${damage} dégâts`, "success");
 
         if (enemy.hp <= 0) {
             logMessage(`${enemy.name} s'effondre.`);
@@ -1325,7 +1452,7 @@
         if (combatState.active) renderCombatUI();
     }
 
-    function throwEquippedWeapon() {
+    function performRangedAttack() {
         if (!combatState.active) return;
         const enemy = combatState.enemies[0];
         if (!enemy) {
@@ -1334,21 +1461,27 @@
         }
 
         const weaponEl = getEquippedWeaponElement();
-        if (!weaponEl) {
-            logMessage("Aucune arme équipée à lancer.");
+        const throwable = weaponEl && weaponEl.dataset.throwable === "true"
+            ? weaponEl
+            : getThrowableWeaponElements()[0];
+
+        if (!throwable) {
+            logMessage("Aucune arme de jet disponible.");
             return;
         }
 
-        const base = parseFloat(weaponEl.dataset.baseDamage || "0") || 0;
-        const damage = Math.max(1, Math.round(base + hero.force));
+        const base = parseFloat(throwable.dataset.baseDamage || "0") || 0;
+        const finesseBonus = hero.finesse * 0.8;
+        const damage = Math.max(1, Math.round(base + finesseBonus));
         enemy.hp = Math.max(0, enemy.hp - damage);
 
         logMessage(
-            `Tu lances ${weaponEl.dataset.name} sur ${enemy.name}, infligeant ${damage} dégâts.`
+            `Tu lances ${throwable.dataset.name} sur ${enemy.name}, infligeant ${damage} dégâts.`
         );
+        showToast(`Lancer réussi : ${damage} dégâts`, "success");
 
-        weaponEl.remove();
-        if (equippedWeaponTemplateId === weaponEl.dataset.templateId) {
+        throwable.remove();
+        if (equippedWeaponTemplateId === throwable.dataset.templateId) {
             equippedWeaponTemplateId = null;
         }
         updateEquippedWeaponUI();
@@ -1380,9 +1513,11 @@
 
         if (total >= difficulty) {
             logMessage("Tu parviens à te dégager du combat !");
+            showToast("Fuite réussie", "success");
             endCombat(false);
         } else {
             logMessage("Tu n'arrives pas à fuir, l'ennemi en profite !");
+            showToast("Fuite ratée", "warning");
             enemyTurn();
             if (combatState.active) renderCombatUI();
         }
@@ -1392,11 +1527,19 @@
         if (!combatState.active) return;
         const enemy = combatState.enemies[0];
         if (!enemy) return;
+        if (combatState.distance > 0) {
+            combatState.distance = Math.max(0, combatState.distance - 1);
+            logMessage(
+                `${enemy.name} se rapproche (${describeDistance(combatState.distance)}).`
+            );
+            if (combatState.distance > 0) return;
+        }
         const roll = rollDice(6, 1);
         const damage = enemy.baseDamage + roll.sum;
         hero.hp = Math.max(0, hero.hp - damage);
         registerWound(Math.ceil(damage / 3));
         logMessage(`${enemy.name} riposte et inflige ${damage} dégâts.`);
+        showToast(`Tu es blessé : -${damage} PV`, "danger");
         updateStatsUI();
         if (hero.hp <= 0) {
             endCombat(false);
@@ -1410,6 +1553,7 @@
         const effectToApply = victory
             ? combatState.victoryEffect
             : combatState.defeatEffect;
+        showToast(victory ? "Victoire" : "Défaite", victory ? "success" : "danger");
         currentTimeContext = combatState.previousTimeContext || currentTimeContext;
         combatState = { active: false };
         updateGroundPanelVisibility();
@@ -1446,6 +1590,19 @@
             if (!last) break;
             logEl.removeChild(last);
         }
+    }
+
+    function showToast(text, type = "info") {
+        if (!toastContainerEl || !text) return;
+        const toast = document.createElement("div");
+        toast.className = `toast toast-${type}`;
+        toast.textContent = text;
+        toastContainerEl.appendChild(toast);
+
+        setTimeout(() => {
+            toast.classList.add("fade-out");
+            setTimeout(() => toast.remove(), 400);
+        }, 3000);
     }
 
     function rollDice(sides, count) {
@@ -1649,6 +1806,10 @@
         );
 
         const success = total >= d.difficulty;
+        showToast(
+            success ? "Jet réussi" : "Jet raté",
+            success ? "success" : "warning"
+        );
 
         if (success && option.successEffect) {
             applyEffect(option.successEffect);
