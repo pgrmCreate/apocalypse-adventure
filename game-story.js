@@ -39,9 +39,9 @@ window.GAME_STORY = {
                 "Tu retournes chaque pile de vêtements, chaque tiroir. Tu avais caché quelques bricoles utiles pour le jour où tu devrais sortir.",
             locationId: "apt_main",
             timeContext: "slow",
-            minLoot: ["matches", "bandage", "satchel"],
+            minLoot: ["bandage", "satchel"],
             randomLoot: ["cannedFood", "waterBottle"],
-            randomLootRarity: { 1: 1},
+            randomLootRarity: { 1: 0.8, 2: 0.2},
             options: [
                 {
                     text: "Revenir t'asseoir un instant",
