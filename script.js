@@ -5,7 +5,9 @@
     const MAX_HUNGER = 10;
     const MAX_THIRST = 10;
 
-    const itemDefs = (typeof ITEM_DEFINITIONS !== "undefined") ? ITEM_DEFINITIONS : {};
+    const ITEM_TEMPLATES = window.ITEM_TEMPLATES || {};
+    const GAME_STORY = window.GAME_STORY || { scenes: {} };
+    const scenes = GAME_STORY.scenes || {};
 
     const heroDefaults = {
         name: "Alex",
@@ -27,531 +29,8 @@
         thirst: heroDefaults.thirst
     };
 
-    // --- SCÈNES & LIEUX (appart → escaliers → hall → garage → ruelle → rue → supermarché) ---
-
-    const scenes = {
-        intro: {
-            id: "intro",
-            title: "Appartement barricadé",
-            text:
-                "Tu es reclus dans ton appartement du 3e étage. Les fenêtres sont condamnées, la porte est barrée par une armoire. Pourtant, il faudra bien sortir un jour.",
-            locationId: "apt_living",
-            timeContext: "slow",
-            options: [
-                {
-                    text: "Inspecter la cuisine",
-                    nextScene: "aptKitchen"
-                },
-                {
-                    text: "Inspecter la chambre",
-                    nextScene: "aptBedroom"
-                },
-                {
-                    text: "Sortir sur le palier du 3e étage",
-                    nextScene: "floor3Corridor"
-                }
-            ]
-        },
-
-        aptKitchen: {
-            id: "aptKitchen",
-            title: "Cuisine",
-            text:
-                "La cuisine est sens dessus dessous, mais quelques réserves ont survécu aux premiers jours du chaos.",
-            locationId: "apt_kitchen",
-            timeContext: "slow",
-            lootOnEnter: ["cannedFood", "waterBottle"],
-            randomLootPool: ["knife", "matches"],
-            randomLootCount: 1,
-            options: [
-                {
-                    text: "Retourner dans le salon",
-                    nextScene: "intro"
-                },
-                {
-                    text: "Sortir sur le palier du 3e étage",
-                    nextScene: "floor3Corridor"
-                }
-            ]
-        },
-
-        aptBedroom: {
-            id: "aptBedroom",
-            title: "Chambre",
-            text:
-                "Dans ta chambre, les tiroirs éventrés et le lit en vrac témoignent de tes nuits agitées.",
-            locationId: "apt_bedroom",
-            timeContext: "slow",
-            lootOnEnter: ["bandage", "smallBag"],
-            randomLootPool: ["medkit"],
-            randomLootCount: 1,
-            options: [
-                {
-                    text: "Retourner dans le salon",
-                    nextScene: "intro"
-                },
-                {
-                    text: "Sortir sur le palier du 3e étage",
-                    nextScene: "floor3Corridor"
-                }
-            ]
-        },
-
-        floor3Corridor: {
-            id: "floor3Corridor",
-            title: "Palier du 3e étage",
-            text:
-                "Le couloir du 3e est silencieux. La porte de ton voisin est entrouverte, et l’escalier descend dans la pénombre.",
-            locationId: "floor3_corridor",
-            timeContext: "slow",
-            randomLootPool: ["plank"],
-            randomLootCount: 1,
-            options: [
-                {
-                    text: "Rentrer dans ton appartement",
-                    nextScene: "intro"
-                },
-                {
-                    text: "Frapper chez le voisin",
-                    nextScene: "neighbor3"
-                },
-                {
-                    text: "Descendre l’escalier vers le 2e étage",
-                    nextScene: "stairs3"
-                }
-            ]
-        },
-
-        neighbor3: {
-            id: "neighbor3",
-            title: "Appartement du voisin (3e)",
-            text:
-                "L’appartement du voisin est sensiblement plus en désordre que le tien. Il est parti précipitamment… ou il n’est jamais parti.",
-            locationId: "neighbor3_apt",
-            timeContext: "slow",
-            lootOnEnter: ["cannedFood", "waterBottle"],
-            randomLootPool: ["matches", "bandage"],
-            randomLootCount: 1,
-            options: [
-                {
-                    text: "Revenir sur le palier",
-                    nextScene: "floor3Corridor"
-                }
-            ]
-        },
-
-        stairs3: {
-            id: "stairs3",
-            title: "Escalier du 3e",
-            text:
-                "À peine t’engages-tu dans l’escalier qu’un rôdeur lève la tête, à quelques marches en dessous. Impossible de l’ignorer.",
-            locationId: "stairs3",
-            timeContext: "fast",
-            options: [
-                {
-                    text: "L'affronter au corps à corps",
-                    diceTest: {
-                        type: "combat",
-                        diceCount: 2,
-                        diceSides: 6,
-                        difficulty: 12,
-                        description:
-                            "Tu frappes le zombie avec ton arme ou tes poings.",
-                        successScene: "stairs3FightWon",
-                        failScene: "stairs3Bitten"
-                    },
-                    successEffect: { audaceChange: 1 },
-                    failEffect: { hpChange: -5 }
-                },
-                {
-                    text: "Tenter de te faufiler en le contournant",
-                    diceTest: {
-                        type: "skill",
-                        diceCount: 2,
-                        diceSides: 6,
-                        stat: "finesse",
-                        difficulty: 8,
-                        description:
-                            "Tu descends lentement, en te collant au mur, espérant qu'il ne te remarque pas.",
-                        successScene: "stairs3SneakSuccess",
-                        failScene: "stairs3Bitten"
-                    },
-                    successEffect: {},
-                    failEffect: { hpChange: -2 }
-                }
-            ]
-        },
-
-        stairs3FightWon: {
-            id: "stairs3FightWon",
-            title: "Rôdeur neutralisé",
-            text:
-                "Le zombie s’effondre dans un bruit humide. À côté de lui, un sac de sport éventré laisse dépasser une batte.",
-            locationId: "stairs3",
-            timeContext: "fast",
-            lootOnEnter: ["bat"],
-            options: [
-                {
-                    text: "Descendre vers le 2e étage",
-                    nextScene: "floor2Corridor"
-                },
-                {
-                    text: "Remonter sur le palier du 3e",
-                    nextScene: "floor3Corridor"
-                }
-            ]
-        },
-
-        stairs3SneakSuccess: {
-            id: "stairs3SneakSuccess",
-            title: "Fuite réussie",
-            text:
-                "Ton cœur bat à tout rompre, mais tu parviens à passer à côté du rôdeur sans qu’il ne t’attrape.",
-            locationId: "stairs3",
-            timeContext: "fast",
-            options: [
-                {
-                    text: "Continuer vers le 2e étage",
-                    nextScene: "floor2Corridor"
-                }
-            ]
-        },
-
-        stairs3Bitten: {
-            id: "stairs3Bitten",
-            title: "Morsure",
-            text:
-                "Les dents du zombie se referment sur ton bras. La douleur est atroce, mais tu parviens à l’esquiver et tu dévales les marches.",
-            locationId: "stairs3",
-            timeContext: "fast",
-            options: [
-                {
-                    text: "Continuer malgré la douleur vers le 2e étage",
-                    nextScene: "floor2Corridor"
-                }
-            ]
-        },
-
-        floor2Corridor: {
-            id: "floor2Corridor",
-            title: "Palier du 2e étage",
-            text:
-                "Le couloir du 2e est jonché de sacs éventrés. Une porte est entrouverte, et l’escalier continue vers le bas.",
-            locationId: "floor2_corridor",
-            timeContext: "slow",
-            randomLootPool: ["plank", "matches"],
-            randomLootCount: 1,
-            options: [
-                {
-                    text: "Remonter vers le 3e étage",
-                    nextScene: "floor3Corridor"
-                },
-                {
-                    text: "Entrer dans l’appartement du 2e",
-                    nextScene: "neighbor2"
-                },
-                {
-                    text: "Descendre l’escalier vers le 1er",
-                    nextScene: "stairs2"
-                }
-            ]
-        },
-
-        neighbor2: {
-            id: "neighbor2",
-            title: "Appartement du 2e",
-            text:
-                "Une odeur de renfermé flotte dans l’air. Le logement semble abandonné depuis longtemps, mais quelques boîtes de conserve traînent encore.",
-            locationId: "neighbor2_apt",
-            timeContext: "slow",
-            lootOnEnter: ["cannedFood"],
-            randomLootPool: ["waterBottle", "bandage", "medkit"],
-            randomLootCount: 1,
-            options: [
-                {
-                    text: "Revenir sur le palier",
-                    nextScene: "floor2Corridor"
-                }
-            ]
-        },
-
-        stairs2: {
-            id: "stairs2",
-            title: "Escalier vers le 1er",
-            text:
-                "Les marches gémissent sous ton poids. Pas de rôdeur en vue pour l’instant.",
-            locationId: "stairs2",
-            timeContext: "slow",
-            options: [
-                {
-                    text: "Remonter vers le 2e étage",
-                    nextScene: "floor2Corridor"
-                },
-                {
-                    text: "Continuer vers le 1er étage",
-                    nextScene: "floor1Corridor"
-                }
-            ]
-        },
-
-        floor1Corridor: {
-            id: "floor1Corridor",
-            title: "Palier du 1er étage",
-            text:
-                "Le couloir du 1er est couvert de traces de sang séché. Une porte a été forcée, une autre reste close.",
-            locationId: "floor1_corridor",
-            timeContext: "slow",
-            randomLootPool: ["plank"],
-            randomLootCount: 1,
-            options: [
-                {
-                    text: "Monter au 2e étage",
-                    nextScene: "stairs2"
-                },
-                {
-                    text: "Entrer dans l’appartement forcé",
-                    nextScene: "neighbor1"
-                },
-                {
-                    text: "Descendre l’escalier vers le rez-de-chaussée",
-                    nextScene: "stairs1"
-                }
-            ]
-        },
-
-        neighbor1: {
-            id: "neighbor1",
-            title: "Appartement du 1er",
-            text:
-                "Tout a déjà été retourné ici, mais un survivant pressé oublie toujours quelque chose.",
-            locationId: "neighbor1_apt",
-            timeContext: "slow",
-            lootOnEnter: ["cannedFood"],
-            randomLootPool: ["waterBottle", "matches"],
-            randomLootCount: 1,
-            options: [
-                {
-                    text: "Revenir sur le palier",
-                    nextScene: "floor1Corridor"
-                }
-            ]
-        },
-
-        stairs1: {
-            id: "stairs1",
-            title: "Escalier vers le rez-de-chaussée",
-            text:
-                "Tu vois enfin la lumière du rez-de-chaussée filtrer à travers la cage d’escalier.",
-            locationId: "stairs1",
-            timeContext: "slow",
-            options: [
-                {
-                    text: "Remonter vers le 1er étage",
-                    nextScene: "floor1Corridor"
-                },
-                {
-                    text: "Descendre vers le hall d’entrée",
-                    nextScene: "lobby"
-                }
-            ]
-        },
-
-        lobby: {
-            id: "lobby",
-            title: "Hall d’entrée",
-            text:
-                "Le hall est jonché de prospectus et de sacs éventrés. La porte principale est solidement barricadée de l’extérieur.",
-            locationId: "lobby",
-            timeContext: "slow",
-            randomLootPool: ["waterBottle"],
-            randomLootCount: 1,
-            options: [
-                {
-                    text: "Essayer d’ouvrir la porte principale",
-                    nextScene: "lobbyDoorBlocked",
-                    timeCost: 0
-                },
-                {
-                    text: "Chercher l’accès au garage",
-                    nextScene: "lobbyGarage"
-                },
-                {
-                    text: "Remonter l’escalier",
-                    nextScene: "stairs1"
-                }
-            ]
-        },
-
-        lobbyDoorBlocked: {
-            id: "lobbyDoorBlocked",
-            title: "Porte principale bloquée",
-            text:
-                "Tu tires, tu pousses… rien à faire. Quelqu’un a empilé des meubles de l’autre côté. Par ici, impossible de sortir.",
-            locationId: "lobby",
-            timeContext: "fast",
-            options: [
-                {
-                    text: "Revenir dans le hall",
-                    nextScene: "lobby"
-                }
-            ]
-        },
-
-        lobbyGarage: {
-            id: "lobbyGarage",
-            title: "Couloir vers le garage",
-            text:
-                "Une lourde porte coupe-feu mène au sous-sol. Des panneaux indiquent “Parking” et “Locaux techniques”.",
-            locationId: "lobby_garage",
-            timeContext: "slow",
-            lootOnEnter: ["matches"],
-            randomLootPool: ["plank"],
-            randomLootCount: 1,
-            options: [
-                {
-                    text: "Descendre au garage",
-                    nextScene: "garage"
-                },
-                {
-                    text: "Revenir dans le hall",
-                    nextScene: "lobby"
-                }
-            ]
-        },
-
-        garage: {
-            id: "garage",
-            title: "Garage souterrain",
-            text:
-                "Le garage est plongé dans une semi-obscurité. Quelques voitures abandonnées, un établi, des cartons éventrés.",
-            locationId: "garage",
-            timeContext: "slow",
-            lootOnEnter: ["cannedFood", "waterBottle", "bigBag"],
-            randomLootPool: ["medkit", "bat"],
-            randomLootCount: 1,
-            options: [
-                {
-                    text: "Sortir par la rampe vers la ruelle",
-                    nextScene: "streetAlley"
-                },
-                {
-                    text: "Remonter vers le hall",
-                    nextScene: "lobby"
-                }
-            ]
-        },
-
-        streetAlley: {
-            id: "streetAlley",
-            title: "Ruelle derrière l’immeuble",
-            text:
-                "L’air extérieur te frappe au visage. La ruelle est étroite, encombrée de poubelles et de carcasses de voitures. Plus loin, tu devines l’enseigne d’un supermarché.",
-            locationId: "street_alley",
-            timeContext: "fast",
-            options: [
-                {
-                    text: "Revenir dans le garage",
-                    nextScene: "garage"
-                },
-                {
-                    text: "Longer les murs vers la rue principale",
-                    nextScene: "streetToMarket"
-                }
-            ]
-        },
-
-        streetToMarket: {
-            id: "streetToMarket",
-            title: "Rue vers le supermarché",
-            text:
-                "La rue est presque déserte. Des silhouettes lointaines vacillent entre les voitures abandonnées.",
-            locationId: "street",
-            timeContext: "fast",
-            options: [
-                {
-                    text: "Faire demi-tour vers la ruelle et le garage",
-                    nextScene: "streetAlley"
-                },
-                {
-                    text: "Avancer jusqu'au supermarché",
-                    nextScene: "market"
-                }
-            ]
-        },
-
-        market: {
-            id: "market",
-            title: "Supermarché pillé",
-            text:
-                "À l’intérieur du supermarché, les rayons sont ravagés, mais il reste encore quelques ressources. Tu pourrais te barricader ici pour la nuit.",
-            locationId: "market",
-            timeContext: "slow",
-            lootOnEnter: ["cannedFood", "cannedFood", "waterBottle", "medkit"],
-            randomLootPool: ["anvil", "bat"],
-            randomLootCount: 1,
-            options: [
-                {
-                    text:
-                        "Te barricader dans une réserve et tenter de dormir (nuit longue, tu auras faim et soif)",
-                    nextScene: "goodEnd",
-                    effect: { hpChange: 2 },
-                    timeCost: 7
-                },
-                {
-                    text:
-                        "Repartir aussitôt explorer un autre quartier, malgré les risques",
-                    nextScene: "badEnd",
-                    effect: { audaceChange: 1 },
-                    timeCost: 3
-                }
-            ]
-        },
-
-        goodEnd: {
-            id: "goodEnd",
-            title: "Une nuit de répit",
-            text:
-                "Tu cales des étagères contre les portes et t’installes derrière un comptoir. Pour la première fois depuis longtemps, tu as de quoi manger et un semblant d’abri. Demain sera un autre combat.",
-            locationId: "end_good",
-            timeContext: "slow",
-            options: [
-                {
-                    text: "Recommencer l’aventure avec un autre chemin",
-                    restart: true
-                }
-            ]
-        },
-
-        badEnd: {
-            id: "badEnd",
-            title: "Trop téméraire",
-            text:
-                "Tu t’éloignes du supermarché, attiré par une promesse floue de liberté. Les râles se multiplient. On n’entendra jamais ton dernier cri.",
-            locationId: "end_bad",
-            timeContext: "fast",
-            options: [
-                {
-                    text: "Recommencer (et peut-être être plus prudent)",
-                    restart: true
-                }
-            ]
-        },
-
-        gameOver: {
-            id: "gameOver",
-            title: "Tu ne te relèveras pas",
-            text:
-                "Le monde continuera de pourrir sans toi. Ta survie s’achève ici.",
-            locationId: "end_dead",
-            timeContext: "slow",
-            options: [
-                {
-                    text: "Recommencer depuis le début",
-                    restart: true
-                }
-            ]
-        }
-    };
+    // État des lieux (pour conserver loot + objets posés)
+    const locationsState = {}; // { [locationId]: { lootNodes: HTMLElement[], discardNodes: HTMLElement[], lootGenerated: boolean } }
 
     let itemCounter = 0;
     let currentSceneId = null;
@@ -559,9 +38,8 @@
     let currentTimeContext = "fast";
     let equippedWeaponTemplateId = null;
     let equippedBagTemplateId = null;
-    let locationStates = {};
 
-    // DOM refs
+    // DOM
     let storyTitleEl;
     let storyTextEl;
     let choicesEl;
@@ -589,6 +67,9 @@
     let selectedItemNameEl;
     let selectedItemInfoEl;
     let selectedItemButtonsEl;
+
+    let craftInfoEl;
+    let craftListEl;
 
     document.addEventListener("DOMContentLoaded", () => {
         storyTitleEl = document.getElementById("story-title");
@@ -618,6 +99,9 @@
         selectedItemInfoEl = document.getElementById("selected-item-info");
         selectedItemButtonsEl = document.getElementById("selected-item-buttons");
 
+        craftInfoEl = document.getElementById("craft-info");
+        craftListEl = document.getElementById("craft-list");
+
         restartBtn = document.getElementById("restart-btn");
         if (restartBtn) {
             restartBtn.addEventListener("click", restartGame);
@@ -636,7 +120,7 @@
         updateCapacityUI();
 
         renderScene("intro");
-        logMessage("Bienvenue, survivant. Clique sur un objet pour le voir, l'équiper ou le consommer.");
+        logMessage("Bienvenue, survivant. Clique sur un objet pour le voir, l'équiper, le consommer, le prendre ou le jeter.");
     });
 
     /* --- Héros & stats --- */
@@ -667,9 +151,12 @@
         if (selectedItemInfoEl) selectedItemInfoEl.textContent = "";
         if (selectedItemButtonsEl) selectedItemButtonsEl.innerHTML = "";
 
-        locationStates = {};
-        currentLocationId = null;
-        currentSceneId = null;
+        // reset lieux
+        for (const key in locationsState) {
+            if (Object.prototype.hasOwnProperty.call(locationsState, key)) {
+                delete locationsState[key];
+            }
+        }
 
         initHero();
         setupInitialInventory();
@@ -677,6 +164,8 @@
 
         if (logEl) logEl.innerHTML = "";
 
+        currentLocationId = null;
+        currentSceneId = null;
         renderScene("intro");
         logMessage("Nouvelle partie lancée.");
     }
@@ -715,7 +204,7 @@
         updateStatsUI();
     }
 
-    /* --- Temps & besoins (faim / soif) --- */
+    /* --- Temps / faim / soif --- */
 
     function applyTimeCost(timeUnits) {
         if (!timeUnits || timeUnits <= 0) return;
@@ -731,7 +220,7 @@
         }
         if (hero.thirst > MAX_THIRST) {
             const extra = hero.thirst - MAX_THIRST;
-            damage += extra * 2;
+            damage += extra * 2; // la soif fait plus mal
             hero.thirst = MAX_THIRST;
         }
 
@@ -755,7 +244,7 @@
         addItemToInventory("waterBottle");
         addItemToInventory("smallBag");
 
-        const firstBagEl = inventoryEl.querySelector('.item[data-is-bag="true"]');
+        const firstBagEl = inventoryEl.querySelector('.item[data-has-bag="true"]');
         if (firstBagEl instanceof HTMLElement) {
             equipBagFromElement(firstBagEl);
         }
@@ -768,67 +257,50 @@
         inventoryEl.appendChild(el);
     }
 
-    function createItemFromTemplate(templateId, existingInstanceId) {
-        const def = itemDefs[templateId];
-        if (!def) {
+    function createItemFromTemplate(templateId) {
+        const tpl = ITEM_TEMPLATES[templateId];
+        if (!tpl) {
             console.warn("Template introuvable:", templateId);
             return null;
         }
-
-        let instanceId;
-        if (existingInstanceId) {
-            instanceId = existingInstanceId;
-            const parts = instanceId.split("-");
-            const maybe = parseInt(parts[parts.length - 1], 10);
-            if (!Number.isNaN(maybe)) {
-                if (maybe > itemCounter) itemCounter = maybe;
-            }
-        } else {
-            itemCounter += 1;
-            instanceId = `${templateId}-${itemCounter}`;
-        }
-
-        const isWeapon = !!def.weaponStats;
-        const isBag = !!def.bagStats;
-
+        itemCounter += 1;
         return {
             templateId,
-            instanceId,
-            name: def.name,
-            value: def.value,
-            type: def.type || "divers",
-            isWeapon,
-            isBag,
-            baseDamage: isWeapon && typeof def.weaponStats.baseDamage === "number" ? def.weaponStats.baseDamage : 0,
-            forceMultiplier: isWeapon && typeof def.weaponStats.forceMultiplier === "number" ? def.weaponStats.forceMultiplier : 0,
-            finesseMultiplier: isWeapon && typeof def.weaponStats.finesseMultiplier === "number" ? def.weaponStats.finesseMultiplier : 0,
-            heal: def.heal || 0,
-            hungerRestore: def.hungerRestore || 0,
-            thirstRestore: def.thirstRestore || 0,
-            capacity: isBag && def.bagStats && typeof def.bagStats.capacity === "number" ? def.bagStats.capacity : 0
+            instanceId: `${templateId}-${itemCounter}`,
+            name: tpl.name,
+            value: tpl.value,
+            category: tpl.type || "divers",
+            weaponStats: tpl.weaponStats || null,
+            bagStats: tpl.bagStats || null,
+            heal: tpl.heal || 0,
+            hungerRestore: tpl.hungerRestore || 0,
+            thirstRestore: tpl.thirstRestore || 0
         };
     }
 
     function getItemShortTypeLabel(item) {
-        const parts = [];
-        if (item.isWeapon) {
-            parts.push(`arme dmg ${item.baseDamage}`);
+        if (item.weaponStats && item.bagStats) {
+            return `outil/sac & arme`;
         }
-        if (item.isBag) {
-            parts.push(`sac ${item.capacity}`);
+        if (item.weaponStats) {
+            return `arme`;
+        }
+        if (item.bagStats) {
+            return `sac, cap. ${item.bagStats.capacity}`;
+        }
+        if (item.heal > 0 && (item.hungerRestore > 0 || item.thirstRestore > 0)) {
+            return `soin & ration`;
         }
         if (item.heal > 0) {
-            parts.push(`+${item.heal} PV`);
+            return `+${item.heal} PV`;
         }
-        if (item.hungerRestore > 0) {
-            parts.push(`faim -${item.hungerRestore}`);
+        if (item.category === "consommable") {
+            return "consommable";
         }
-        if (item.thirstRestore > 0) {
-            parts.push(`soif -${item.thirstRestore}`);
+        if (item.category === "outil") {
+            return "outil";
         }
-        if (parts.length > 0) return parts.join(", ");
-        if (item.type) return item.type;
-        return "";
+        return item.category;
     }
 
     function createItemElement(item) {
@@ -839,16 +311,32 @@
         div.dataset.value = String(item.value);
         div.dataset.name = item.name;
         div.dataset.templateId = item.templateId;
-        div.dataset.type = item.type;
-        div.dataset.baseDamage = String(item.baseDamage);
-        div.dataset.forceMult = String(item.forceMultiplier);
-        div.dataset.finesseMult = String(item.finesseMultiplier);
-        div.dataset.heal = String(item.heal);
-        div.dataset.hungerRestore = String(item.hungerRestore);
-        div.dataset.thirstRestore = String(item.thirstRestore);
-        div.dataset.capacity = String(item.capacity);
-        div.dataset.isWeapon = String(item.isWeapon);
-        div.dataset.isBag = String(item.isBag);
+        div.dataset.category = item.category;
+
+        const hasWeapon = !!item.weaponStats;
+        const hasBag = !!item.bagStats;
+        div.dataset.hasWeapon = hasWeapon ? "true" : "false";
+        div.dataset.hasBag = hasBag ? "true" : "false";
+
+        if (hasWeapon) {
+            div.dataset.baseDamage = String(item.weaponStats.baseDamage || 0);
+            div.dataset.forceMult = String(item.weaponStats.forceMultiplier || 0);
+            div.dataset.finesseMult = String(item.weaponStats.finesseMultiplier || 0);
+        } else {
+            div.dataset.baseDamage = "0";
+            div.dataset.forceMult = "0";
+            div.dataset.finesseMult = "0";
+        }
+
+        if (hasBag) {
+            div.dataset.capacity = String(item.bagStats.capacity || 0);
+        } else {
+            div.dataset.capacity = "0";
+        }
+
+        div.dataset.heal = String(item.heal || 0);
+        div.dataset.hungerRestore = String(item.hungerRestore || 0);
+        div.dataset.thirstRestore = String(item.thirstRestore || 0);
 
         div.addEventListener("dragstart", handleDragStart);
         div.addEventListener("click", () => handleItemClick(div));
@@ -880,37 +368,178 @@
         return sum;
     }
 
-    function getEquippedBagDefinition() {
+    function getEquippedBagTemplate() {
         if (!equippedBagTemplateId) return null;
-        const def = itemDefs[equippedBagTemplateId];
-        if (!def || !def.bagStats) return null;
-        return def;
+        const tpl = ITEM_TEMPLATES[equippedBagTemplateId];
+        if (!tpl || !tpl.bagStats) return null;
+        return tpl;
     }
 
     function getCurrentMaxCapacity() {
-        const bagDef = getEquippedBagDefinition();
-        if (bagDef && bagDef.bagStats && typeof bagDef.bagStats.capacity === "number") {
-            return bagDef.bagStats.capacity;
+        const bagTpl = getEquippedBagTemplate();
+        if (bagTpl && bagTpl.bagStats && bagTpl.bagStats.capacity > 0) {
+            return bagTpl.bagStats.capacity;
         }
         return BASE_CAPACITY;
     }
 
     function updateCapacityUI() {
-        if (!capacityEl) return;
         const current = calculateInventoryLoad();
         const maxCap = getCurrentMaxCapacity();
 
-        capacityEl.textContent = `${current} / ${maxCap}`;
-        if (current > maxCap) {
-            capacityEl.classList.add("over-limit");
-        } else {
-            capacityEl.classList.remove("over-limit");
+        if (capacityEl) {
+            capacityEl.textContent = `${current} / ${maxCap}`;
+            if (current > maxCap) {
+                capacityEl.classList.add("over-limit");
+            } else {
+                capacityEl.classList.remove("over-limit");
+            }
         }
 
         if (bagNameEl) {
-            const bagDef = getEquippedBagDefinition();
-            bagNameEl.textContent = bagDef ? bagDef.name : "Aucun (poches seulement)";
+            const bagTpl = getEquippedBagTemplate();
+            bagNameEl.textContent = bagTpl
+                ? bagTpl.name
+                : "Aucun (poches seulement)";
         }
+
+        refreshCraftingUI();
+    }
+
+    /* --- Crafting --- */
+
+    function getInventoryTemplateCounts() {
+        const counts = {};
+        if (!inventoryEl) return counts;
+        inventoryEl.querySelectorAll(".item").forEach(el => {
+            const tplId = el.dataset.templateId;
+            if (!tplId) return;
+            counts[tplId] = (counts[tplId] || 0) + 1;
+        });
+        return counts;
+    }
+
+    function isRecipeCraftable(recipe, counts) {
+        if (!recipe || !Array.isArray(recipe.ingredients) || !recipe.ingredients.length) {
+            return false;
+        }
+        const needed = {};
+        recipe.ingredients.forEach(id => {
+            needed[id] = (needed[id] || 0) + 1;
+        });
+        for (const id in needed) {
+            if (!Object.prototype.hasOwnProperty.call(needed, id)) continue;
+            if (!counts[id] || counts[id] < needed[id]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function computeCraftableTemplates() {
+        const result = [];
+        if (currentTimeContext !== "slow") return result;
+        const counts = getInventoryTemplateCounts();
+        for (const templateId in ITEM_TEMPLATES) {
+            if (!Object.prototype.hasOwnProperty.call(ITEM_TEMPLATES, templateId)) continue;
+            const tpl = ITEM_TEMPLATES[templateId];
+            if (!tpl.canCraft) continue;
+            if (isRecipeCraftable(tpl.canCraft, counts)) {
+                result.push({ templateId, template: tpl, recipe: tpl.canCraft });
+            }
+        }
+        return result;
+    }
+
+    function refreshCraftingUI() {
+        if (!craftListEl || !craftInfoEl) return;
+
+        craftListEl.innerHTML = "";
+
+        if (currentTimeContext !== "slow") {
+            craftInfoEl.textContent =
+                "Tu ne peux fabriquer qu'en contexte de temps long (hors action immédiate).";
+            return;
+        }
+
+        craftInfoEl.textContent =
+            "Si tu as les bons matériaux sur toi, tu peux fabriquer :";
+
+        const craftable = computeCraftableTemplates();
+        if (!craftable.length) {
+            const empty = document.createElement("div");
+            empty.classList.add("craft-empty");
+            empty.textContent = "Rien à fabriquer pour l'instant.";
+            craftListEl.appendChild(empty);
+            return;
+        }
+
+        craftable.forEach(entry => {
+            const row = document.createElement("div");
+            row.classList.add("craft-row");
+
+            const label = document.createElement("span");
+            label.textContent = entry.template.name;
+
+            const btn = document.createElement("button");
+            btn.classList.add("small-btn");
+            btn.textContent = "Fabriquer";
+            btn.addEventListener("click", () => {
+                performCraft(entry.templateId, entry.recipe);
+            });
+
+            row.appendChild(label);
+            row.appendChild(btn);
+            craftListEl.appendChild(row);
+        });
+    }
+
+    function performCraft(outputTemplateId, recipe) {
+        if (currentTimeContext !== "slow") {
+            logMessage(
+                "Tu n'as pas le temps de fabriquer quoi que ce soit en pleine action rapide."
+            );
+            return;
+        }
+
+        const counts = getInventoryTemplateCounts();
+        if (!isRecipeCraftable(recipe, counts)) {
+            logMessage("Tu n'as plus les ressources nécessaires pour fabriquer ça.");
+            refreshCraftingUI();
+            return;
+        }
+
+        const consumeList =
+                  recipe && Array.isArray(recipe.consume) && recipe.consume.length
+                      ? recipe.consume
+                      : (recipe && recipe.ingredients) || [];
+
+        const consumedCounts = {};
+        consumeList.forEach(id => {
+            consumedCounts[id] = (consumedCounts[id] || 0) + 1;
+        });
+
+        if (inventoryEl) {
+            for (const tplId in consumedCounts) {
+                if (!Object.prototype.hasOwnProperty.call(consumedCounts, tplId)) continue;
+                let toRemove = consumedCounts[tplId];
+                const itemEls = Array.from(
+                    inventoryEl.querySelectorAll(`.item[data-template-id="${tplId}"]`)
+                );
+                for (const el of itemEls) {
+                    if (toRemove <= 0) break;
+                    el.remove();
+                    toRemove -= 1;
+                }
+            }
+        }
+
+        addItemToInventory(outputTemplateId);
+        updateCapacityUI();
+
+        const outTpl = ITEM_TEMPLATES[outputTemplateId];
+        const craftedName = outTpl ? outTpl.name : outputTemplateId;
+        logMessage(`Tu fabriques ${craftedName}.`);
     }
 
     /* --- Drag & drop --- */
@@ -952,9 +581,7 @@
         const itemId = event.dataTransfer.getData("text/plain");
         if (!itemId) return;
 
-        const itemEl = document.querySelector(
-            `.item[data-item-id="${itemId}"]`
-        );
+        const itemEl = document.querySelector(`.item[data-item-id="${itemId}"]`);
         if (!(itemEl instanceof HTMLElement)) return;
 
         const originZone = itemEl.parentElement;
@@ -964,70 +591,53 @@
         if (!zoneType) return;
 
         if (zoneType === "inventory") {
-            moveItemToInventory(itemEl);
+            const value = parseInt(itemEl.dataset.value || "0", 10) || 0;
+            const currentTotal = calculateInventoryLoad();
+            const originIsInventory =
+                      originZone && originZone.dataset.zone === "inventory";
+            const newTotal = originIsInventory
+                ? currentTotal
+                : currentTotal + value;
+
+            const maxCap = getCurrentMaxCapacity();
+            if (newTotal > maxCap) {
+                logMessage(
+                    `Inventaire plein : tu atteindrais ${newTotal} / ${maxCap}.`
+                );
+                if (capacityEl) {
+                    capacityEl.classList.add("over-limit");
+                    setTimeout(() => {
+                        capacityEl.classList.remove("over-limit");
+                    }, 400);
+                }
+                return;
+            }
+            zone.appendChild(itemEl);
         } else if (zoneType === "loot") {
             zone.appendChild(itemEl);
         } else if (zoneType === "discard") {
-            moveItemToDiscard(itemEl);
+            if (
+                itemEl.classList.contains("equipped-weapon") &&
+                equippedWeaponTemplateId &&
+                itemEl.dataset.templateId === equippedWeaponTemplateId
+            ) {
+                equippedWeaponTemplateId = null;
+                itemEl.classList.remove("equipped-weapon");
+                updateEquippedWeaponUI();
+            }
+            if (
+                itemEl.classList.contains("equipped-bag") &&
+                equippedBagTemplateId &&
+                itemEl.dataset.templateId === equippedBagTemplateId
+            ) {
+                equippedBagTemplateId = null;
+                itemEl.classList.remove("equipped-bag");
+                updateCapacityUI();
+            }
+            zone.appendChild(itemEl);
         }
 
         updateCapacityUI();
-    }
-
-    function moveItemToInventory(itemEl) {
-        if (!inventoryEl) return;
-        const parentZone = itemEl.parentElement;
-        if (parentZone && parentZone.dataset.zone === "inventory") return;
-
-        const value = parseInt(itemEl.dataset.value || "0", 10) || 0;
-        const currentTotal = calculateInventoryLoad();
-        const maxCap = getCurrentMaxCapacity();
-        const newTotal = currentTotal + value;
-
-        if (newTotal > maxCap) {
-            logMessage(
-                `Inventaire plein : tu atteindrais ${newTotal} / ${maxCap}.`
-            );
-            if (capacityEl) {
-                capacityEl.classList.add("over-limit");
-                setTimeout(() => {
-                    capacityEl.classList.remove("over-limit");
-                }, 400);
-            }
-            return;
-        }
-
-        inventoryEl.appendChild(itemEl);
-    }
-
-    function moveItemToDiscard(itemEl) {
-        if (!discardEl) return;
-        const parentZone = itemEl.parentElement;
-        if (parentZone && parentZone.dataset.zone === "discard") return;
-
-        const templateId = itemEl.dataset.templateId;
-
-        if (
-            itemEl.classList.contains("equipped-weapon") &&
-            equippedWeaponTemplateId &&
-            templateId === equippedWeaponTemplateId
-        ) {
-            equippedWeaponTemplateId = null;
-            itemEl.classList.remove("equipped-weapon");
-            updateEquippedWeaponUI();
-        }
-
-        if (
-            itemEl.classList.contains("equipped-bag") &&
-            equippedBagTemplateId &&
-            templateId === equippedBagTemplateId
-        ) {
-            equippedBagTemplateId = null;
-            itemEl.classList.remove("equipped-bag");
-            updateCapacityUI();
-        }
-
-        discardEl.appendChild(itemEl);
     }
 
     /* --- Panneau d'actions sur l'objet --- */
@@ -1037,39 +647,51 @@
             return;
         }
         const name = itemEl.dataset.name || "Objet";
-        const type = itemEl.dataset.type || "divers";
+        const category = itemEl.dataset.category || "divers";
         const heal = parseInt(itemEl.dataset.heal || "0", 10) || 0;
         const baseDamage = parseFloat(itemEl.dataset.baseDamage || "0") || 0;
-        const hungerRestore = parseInt(itemEl.dataset.hungerRestore || "0", 10) || 0;
-        const thirstRestore = parseInt(itemEl.dataset.thirstRestore || "0", 10) || 0;
-        const capacity = parseInt(itemEl.dataset.capacity || "0", 10) || 0;
+        const hungerRestore =
+                  parseInt(itemEl.dataset.hungerRestore || "0", 10) || 0;
+        const thirstRestore =
+                  parseInt(itemEl.dataset.thirstRestore || "0", 10) || 0;
+        const capacity =
+                  parseInt(itemEl.dataset.capacity || "0", 10) || 0;
         const weight = itemEl.dataset.value || "?";
-        const isWeapon = itemEl.dataset.isWeapon === "true";
-        const isBag = itemEl.dataset.isBag === "true";
+        const hasWeapon = itemEl.dataset.hasWeapon === "true";
+        const hasBag = itemEl.dataset.hasBag === "true";
+
+        const originZone = itemEl.parentElement;
+        const originZoneType =
+                  originZone && originZone.dataset ? originZone.dataset.zone : "";
 
         selectedItemNameEl.textContent = name;
 
-        let infoText = `Type : ${type} • Charge : ${weight}. `;
-        if (isWeapon) {
+        let infoText = `Type : ${category}. Charge : ${weight}. `;
+        if (hasWeapon) {
             const fMult = parseFloat(itemEl.dataset.forceMult || "0");
             const fiMult = parseFloat(itemEl.dataset.finesseMult || "0");
-            infoText += `Peut servir d'arme (dégâts de base ${baseDamage}, Force x${fMult}, Finesse x${fiMult}). `;
+            infoText += `Peut servir d'arme : dégâts de base ${baseDamage}, profite de Force x${fMult} et Finesse x${fiMult}. `;
         }
-        if (isBag) {
-            infoText += `Peut servir de sac (capacité max ${capacity}). `;
+        if (hasBag) {
+            infoText += `Peut servir de sac : capacité maximale ${capacity} si équipé. `;
         }
         if (heal > 0 || hungerRestore > 0 || thirstRestore > 0) {
             const parts = [];
             if (heal > 0) parts.push(`+${heal} PV`);
             if (hungerRestore > 0) parts.push(`faim -${hungerRestore}`);
             if (thirstRestore > 0) parts.push(`soif -${thirstRestore}`);
-            infoText += `Effets : ${parts.join(", ")}.`;
+            infoText += `Consommable : ${parts.join(", ")}.`;
         }
-        selectedItemInfoEl.textContent = infoText;
+
+        selectedItemInfoEl.textContent = infoText.trim();
 
         selectedItemButtonsEl.innerHTML = "";
 
-        if (isWeapon) {
+        const inInventory = originZoneType === "inventory";
+        const onGround = originZoneType === "loot" || originZoneType === "discard";
+
+        // Équipement : seulement si dans l'inventaire
+        if (inInventory && hasWeapon) {
             const equipBtn = document.createElement("button");
             equipBtn.classList.add("small-btn");
             equipBtn.textContent = "Équiper comme arme";
@@ -1079,7 +701,7 @@
             selectedItemButtonsEl.appendChild(equipBtn);
         }
 
-        if (isBag) {
+        if (inInventory && hasBag) {
             const bagBtn = document.createElement("button");
             bagBtn.classList.add("small-btn");
             bagBtn.textContent = "Équiper comme sac";
@@ -1089,10 +711,8 @@
             selectedItemButtonsEl.appendChild(bagBtn);
         }
 
-        const healVal = heal;
         const isFoodOrDrink = hungerRestore > 0 || thirstRestore > 0;
-
-        if (healVal > 0 || isFoodOrDrink) {
+        if (heal > 0 || isFoodOrDrink) {
             const useBtn = document.createElement("button");
             useBtn.classList.add("small-btn");
             useBtn.textContent = "Utiliser";
@@ -1102,26 +722,22 @@
             selectedItemButtonsEl.appendChild(useBtn);
         }
 
-        // Jeter / Prendre
-        const parentZone = itemEl.parentElement;
-        const zoneType = parentZone && parentZone.dataset ? parentZone.dataset.zone : null;
-
-        if (zoneType === "inventory") {
+        if (inInventory) {
             const dropBtn = document.createElement("button");
             dropBtn.classList.add("small-btn");
             dropBtn.textContent = "Jeter (poser au sol)";
             dropBtn.addEventListener("click", () => {
-                moveItemToDiscard(itemEl);
-                updateCapacityUI();
+                dropItemToDiscard(itemEl);
             });
             selectedItemButtonsEl.appendChild(dropBtn);
-        } else if (zoneType === "loot" || zoneType === "discard") {
+        }
+
+        if (onGround) {
             const takeBtn = document.createElement("button");
             takeBtn.classList.add("small-btn");
             takeBtn.textContent = "Prendre";
             takeBtn.addEventListener("click", () => {
-                moveItemToInventory(itemEl);
-                updateCapacityUI();
+                takeItemToInventory(itemEl);
             });
             selectedItemButtonsEl.appendChild(takeBtn);
         }
@@ -1134,9 +750,68 @@
         }
     }
 
+    function dropItemToDiscard(itemEl) {
+        if (!discardEl) return;
+        const originZone = itemEl.parentElement;
+        if (!originZone || originZone.dataset.zone !== "inventory") return;
+
+        if (
+            itemEl.classList.contains("equipped-weapon") &&
+            equippedWeaponTemplateId &&
+            itemEl.dataset.templateId === equippedWeaponTemplateId
+        ) {
+            equippedWeaponTemplateId = null;
+            itemEl.classList.remove("equipped-weapon");
+            updateEquippedWeaponUI();
+        }
+        if (
+            itemEl.classList.contains("equipped-bag") &&
+            equippedBagTemplateId &&
+            itemEl.dataset.templateId === equippedBagTemplateId
+        ) {
+            equippedBagTemplateId = null;
+            itemEl.classList.remove("equipped-bag");
+            updateCapacityUI();
+        }
+
+        discardEl.appendChild(itemEl);
+        updateCapacityUI();
+        logMessage(`Tu jettes ${itemEl.dataset.name} au sol.`);
+    }
+
+    function takeItemToInventory(itemEl) {
+        if (!inventoryEl) return;
+        const originZone = itemEl.parentElement;
+        if (!originZone || !originZone.dataset) return;
+        const zoneType = originZone.dataset.zone;
+        if (zoneType !== "loot" && zoneType !== "discard") return;
+
+        const value = parseInt(itemEl.dataset.value || "0", 10) || 0;
+        const currentTotal = calculateInventoryLoad();
+        const newTotal = currentTotal + value;
+        const maxCap = getCurrentMaxCapacity();
+
+        if (newTotal > maxCap) {
+            logMessage(
+                `Tu n'as plus de place pour ${itemEl.dataset.name}. (${newTotal} / ${maxCap})`
+            );
+            if (capacityEl) {
+                capacityEl.classList.add("over-limit");
+                setTimeout(() => {
+                    capacityEl.classList.remove("over-limit");
+                }, 400);
+            }
+            return;
+        }
+
+        inventoryEl.appendChild(itemEl);
+        updateCapacityUI();
+        logMessage(`Tu prends ${itemEl.dataset.name} avec toi.`);
+    }
+
     function equipWeaponFromElement(itemEl) {
-        const isWeapon = itemEl.dataset.isWeapon === "true";
-        if (!isWeapon) return;
+        const hasWeapon = itemEl.dataset.hasWeapon === "true";
+        if (!hasWeapon) return;
         const templateId = itemEl.dataset.templateId;
         if (!templateId) return;
 
@@ -1152,8 +827,8 @@
     }
 
     function equipBagFromElement(itemEl) {
-        const isBag = itemEl.dataset.isBag === "true";
-        if (!isBag) return;
+        const hasBag = itemEl.dataset.hasBag === "true";
+        if (!hasBag) return;
         const templateId = itemEl.dataset.templateId;
         if (!templateId) return;
 
@@ -1170,8 +845,10 @@
 
     function useConsumableItem(itemEl, opts) {
         const heal = parseInt(itemEl.dataset.heal || "0", 10) || 0;
-        const hungerRestore = parseInt(itemEl.dataset.hungerRestore || "0", 10) || 0;
-        const thirstRestore = parseInt(itemEl.dataset.thirstRestore || "0", 10) || 0;
+        const hungerRestore =
+                  parseInt(itemEl.dataset.hungerRestore || "0", 10) || 0;
+        const thirstRestore =
+                  parseInt(itemEl.dataset.thirstRestore || "0", 10) || 0;
         const isFoodOrDrink = opts && opts.isFoodOrDrink;
         const name = itemEl.dataset.name || "objet";
 
@@ -1179,7 +856,9 @@
         const context = (scene && scene.timeContext) || currentTimeContext;
 
         if (isFoodOrDrink && context === "fast") {
-            logMessage("En pleine action rapide, tu n'as pas le temps de manger ou boire.");
+            logMessage(
+                "En pleine action rapide, tu n'as pas le temps de manger ou boire."
+            );
             return;
         }
 
@@ -1229,28 +908,31 @@
 
     /* --- Combat --- */
 
-    function getEquippedWeaponDefinition() {
+    function getEquippedWeaponTemplate() {
         if (!equippedWeaponTemplateId) return null;
-        const def = itemDefs[equippedWeaponTemplateId];
-        if (!def || !def.weaponStats) return null;
-        return def;
+        const tpl = ITEM_TEMPLATES[equippedWeaponTemplateId];
+        if (!tpl || !tpl.weaponStats) return null;
+        return tpl;
     }
 
     function computeBaseAttackPower() {
-        const def = getEquippedWeaponDefinition();
-        if (!def) {
+        const tpl = getEquippedWeaponTemplate();
+        if (!tpl || !tpl.weaponStats) {
             const base = 1;
             const value =
                       base +
                       Math.round(hero.force * 0.6 + hero.finesse * 0.4);
             return value;
         }
-        const ws = def.weaponStats;
-        const base = typeof ws.baseDamage === "number" ? ws.baseDamage : 1;
+        const base = tpl.weaponStats.baseDamage || 1;
         const fMult =
-                  typeof ws.forceMultiplier === "number" ? ws.forceMultiplier : 0.7;
+                  typeof tpl.weaponStats.forceMultiplier === "number"
+                      ? tpl.weaponStats.forceMultiplier
+                      : 0.7;
         const fiMult =
-                  typeof ws.finesseMultiplier === "number" ? ws.finesseMultiplier : 0.3;
+                  typeof tpl.weaponStats.finesseMultiplier === "number"
+                      ? tpl.weaponStats.finesseMultiplier
+                      : 0.3;
 
         const value =
                   base +
@@ -1260,9 +942,9 @@
 
     function updateEquippedWeaponUI() {
         if (!equippedWeaponNameEl || !attackPreviewEl) return;
-        const def = getEquippedWeaponDefinition();
-        if (def) {
-            equippedWeaponNameEl.textContent = def.name;
+        const tpl = getEquippedWeaponTemplate();
+        if (tpl && tpl.weaponStats) {
+            equippedWeaponNameEl.textContent = tpl.name;
         } else {
             equippedWeaponNameEl.textContent = "Aucune (poings seulement)";
         }
@@ -1297,97 +979,43 @@
         return { rolls, sum };
     }
 
-    /* --- États de lieux (loot + objets au sol) --- */
+    /* --- Gestion des lieux & scènes --- */
 
     function saveLocationState(locationId) {
-        if (!locationId || !lootEl || !discardEl) return;
-
-        const lootItems = [];
-        lootEl.querySelectorAll(".item").forEach(el => {
-            const templateId = el.dataset.templateId;
-            const instanceId = el.dataset.itemId;
-            if (templateId && instanceId) {
-                lootItems.push({ templateId, instanceId });
-            }
-        });
-
-        const floorItems = [];
-        discardEl.querySelectorAll(".item").forEach(el => {
-            const templateId = el.dataset.templateId;
-            const instanceId = el.dataset.itemId;
-            if (templateId && instanceId) {
-                floorItems.push({ templateId, instanceId });
-            }
-        });
-
-        locationStates[locationId] = {
-            lootItems,
-            floorItems
-        };
-    }
-
-    function loadLocationState(locationId, scene) {
+        if (!locationId || locationId === "none") return;
         if (!lootEl || !discardEl) return;
 
-        let state = locationStates[locationId];
-
-        lootEl.innerHTML = "";
-        discardEl.innerHTML = "Glisse ici ce que tu abandonnes.";
-
+        let state = locationsState[locationId];
         if (!state) {
-            state = { lootItems: [], floorItems: [] };
-
-            if (scene.lootOnEnter) {
-                scene.lootOnEnter.forEach(templateId => {
-                    const item = createItemFromTemplate(templateId);
-                    if (!item) return;
-                    state.lootItems.push({
-                        templateId: item.templateId,
-                        instanceId: item.instanceId
-                    });
-                    const el = createItemElement(item);
-                    lootEl.appendChild(el);
-                });
-            }
-
-            if (scene.randomLootPool && scene.randomLootCount) {
-                const pool = scene.randomLootPool.slice();
-                const count = Math.min(scene.randomLootCount, pool.length);
-                for (let i = 0; i < count; i += 1) {
-                    const index = Math.floor(Math.random() * pool.length);
-                    const templateId = pool.splice(index, 1)[0];
-                    const item = createItemFromTemplate(templateId);
-                    if (!item) continue;
-                    state.lootItems.push({
-                        templateId: item.templateId,
-                        instanceId: item.instanceId
-                    });
-                    const el = createItemElement(item);
-                    lootEl.appendChild(el);
-                }
-            }
-
-            locationStates[locationId] = state;
-        } else {
-            state.lootItems.forEach(data => {
-                const item = createItemFromTemplate(data.templateId, data.instanceId);
-                if (!item) return;
-                const el = createItemElement(item);
-                lootEl.appendChild(el);
-            });
-
-            state.floorItems.forEach(data => {
-                const item = createItemFromTemplate(data.templateId, data.instanceId);
-                if (!item) return;
-                const el = createItemElement(item);
-                discardEl.appendChild(el);
-            });
+            state = { lootNodes: [], discardNodes: [], lootGenerated: true };
+            locationsState[locationId] = state;
         }
 
-        updateCapacityUI();
-    }
+        state.lootNodes = [];
+        state.discardNodes = [];
 
-    /* --- Navigation dans les scènes --- */
+        while (lootEl.firstChild) {
+            const node = lootEl.firstChild;
+            lootEl.removeChild(node);
+            if (
+                node instanceof HTMLElement &&
+                node.classList.contains("item")
+            ) {
+                state.lootNodes.push(node);
+            }
+        }
+
+        while (discardEl.firstChild) {
+            const node = discardEl.firstChild;
+            discardEl.removeChild(node);
+            if (
+                node instanceof HTMLElement &&
+                node.classList.contains("item")
+            ) {
+                state.discardNodes.push(node);
+            }
+        }
+    }
 
     function renderScene(sceneId) {
         const scene = scenes[sceneId];
@@ -1396,9 +1024,9 @@
             return;
         }
 
-        const previousLocation = currentLocationId;
-        if (previousLocation) {
-            saveLocationState(previousLocation);
+        const oldLocation = currentLocationId;
+        if (oldLocation && oldLocation !== "none") {
+            saveLocationState(oldLocation);
         }
 
         currentSceneId = sceneId;
@@ -1418,8 +1046,6 @@
             }
         }
 
-        loadLocationState(currentLocationId, scene);
-
         if (choicesEl) {
             choicesEl.innerHTML = "";
             scene.options.forEach(option => {
@@ -1430,6 +1056,37 @@
                 choicesEl.appendChild(btn);
             });
         }
+
+        if (!lootEl || !discardEl) return;
+
+        let state = locationsState[currentLocationId];
+        if (!state) {
+            state = {
+                lootNodes: [],
+                discardNodes: [],
+                lootGenerated: false
+            };
+            locationsState[currentLocationId] = state;
+        }
+
+        lootEl.innerHTML = "";
+        discardEl.innerHTML = "";
+
+        if (!state.lootGenerated) {
+            spawnLootForScene(scene);
+            state.lootGenerated = true;
+        } else {
+            state.lootNodes.forEach(node => lootEl.appendChild(node));
+            if (state.discardNodes.length > 0) {
+                state.discardNodes.forEach(node =>
+                    discardEl.appendChild(node)
+                );
+            } else {
+                discardEl.textContent = "Glisse ici ce que tu abandonnes.";
+            }
+        }
+
+        updateCapacityUI();
     }
 
     function handleOption(option) {
@@ -1447,14 +1104,16 @@
         }
 
         const scene = scenes[currentSceneId];
-        if (scene && scene.timeContext === "slow") {
-            const cost = typeof option.timeCost === "number" ? option.timeCost : 1;
-            if (cost > 0) {
-                applyTimeCost(cost);
-                if (hero.hp <= 0) {
-                    renderScene("gameOver");
-                    return;
-                }
+        if (
+            scene &&
+            scene.timeContext === "slow" &&
+            typeof option.timeCost === "number" &&
+            option.timeCost > 0
+        ) {
+            applyTimeCost(option.timeCost);
+            if (hero.hp <= 0) {
+                renderScene("gameOver");
+                return;
             }
         }
 
@@ -1510,10 +1169,52 @@
         }
 
         const nextSceneId = success
-            ? option.successScene || d.successScene
-            : option.failScene || d.failScene;
+            ? option.successScene || (d && d.successScene)
+            : option.failScene || (d && d.failScene);
+
         if (nextSceneId) {
             renderScene(nextSceneId);
+        }
+    }
+
+    function spawnLootForScene(scene) {
+        if (!lootEl || !discardEl) return;
+
+        lootEl.innerHTML = "";
+        discardEl.textContent = "Glisse ici ce que tu abandonnes.";
+
+        const minLoot = scene.minLoot || [];
+        const randomLoot = scene.randomLoot || [];
+
+        minLoot.forEach(templateId => {
+            const item = createItemFromTemplate(templateId);
+            if (!item) return;
+            const el = createItemElement(item);
+            lootEl.appendChild(el);
+        });
+
+        randomLoot.forEach(entry => {
+            let templateId = entry;
+            let chance = 0.5;
+            if (typeof entry === "object" && entry !== null) {
+                templateId = entry.id;
+                chance =
+                    typeof entry.chance === "number" ? entry.chance : 0.5;
+            }
+            if (!templateId) return;
+            if (Math.random() < chance) {
+                const item = createItemFromTemplate(templateId);
+                if (!item) return;
+                const el = createItemElement(item);
+                lootEl.appendChild(el);
+            }
+        });
+
+        updateCapacityUI();
+        if (minLoot.length > 0 || randomLoot.length > 0) {
+            logMessage(
+                "Tu trouves quelques objets dans ce lieu. À toi de décider quoi garder."
+            );
         }
     }
 })();

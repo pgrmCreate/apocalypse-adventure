@@ -280,7 +280,7 @@ header h1 {
     cursor: grabbing;
 }
 
-/* Panneau objet sélectionné (inline dans l'inventaire) */
+/* Panneau objet sélectionné (inline) */
 
 .item-actions-panel.inline {
     margin-bottom: 8px;
@@ -330,6 +330,49 @@ header h1 {
 .hint {
     margin-top: 8px;
     font-size: 0.75rem;
+    color: var(--muted);
+}
+
+/* Crafting */
+
+.craft-panel {
+    margin-top: 8px;
+    background: #101320;
+    border-radius: 8px;
+    padding: 8px;
+    border: 1px solid var(--border);
+    font-size: 0.8rem;
+}
+
+.craft-panel h3 {
+    margin: 0 0 4px;
+    font-size: 0.9rem;
+}
+
+.craft-info {
+    margin-bottom: 4px;
+    color: var(--muted);
+}
+
+.craft-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.craft-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.craft-row span {
+    font-size: 0.8rem;
+}
+
+.craft-empty {
+    font-size: 0.8rem;
     color: var(--muted);
 }
 

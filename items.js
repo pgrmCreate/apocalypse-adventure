@@ -1,11 +1,14 @@
-// Définition des objets du jeu.
+// Définition des objets du jeu
 // Chaque objet a :
-// - type : "outil", "consommable", "médical", "sac", etc.
-// - value : charge (poids + encombrement)
-// - weaponStats si l'objet peut servir d'arme
-// - bagStats si l'objet peut servir de sac
-// - heal / hungerRestore / thirstRestore pour les consommables
-const ITEM_DEFINITIONS = {
+// - name : nom affiché
+// - value : poids/volume abstrait (impacte la charge)
+// - type : "outil", "consommable", "sac", etc. (catégorie affichée)
+// - weaponStats : si l'objet peut être utilisé comme arme
+// - bagStats    : si l'objet peut être équipé comme sac
+// - heal / hungerRestore / thirstRestore : effets si consommable
+// - canCraft : recette pour fabriquer CET objet (sortie)
+
+window.ITEM_TEMPLATES = {
     knife: {
         name: "Couteau de cuisine",
         value: 4,
@@ -17,36 +20,36 @@ const ITEM_DEFINITIONS = {
         }
     },
 
-    plank: {
-        name: "Planche de bois",
-        value: 6,
-        type: "outil",
-        weaponStats: {
-            baseDamage: 2,
-            forceMultiplier: 1.0,
-            finesseMultiplier: 0.3
-        }
-    },
-
     bat: {
         name: "Batte de base-ball",
         value: 8,
-        type: "arme improvisée",
+        type: "arme",
         weaponStats: {
             baseDamage: 3,
             forceMultiplier: 1.0,
-            finesseMultiplier: 0.4
+            finesseMultiplier: 0.5
         }
     },
 
     anvil: {
         name: "Enclume",
         value: 50,
-        type: "outil lourd",
+        type: "outil",
         weaponStats: {
             baseDamage: 4,
             forceMultiplier: 1.4,
-            finesseMultiplier: 0.1
+            finesseMultiplier: 0.2
+        }
+    },
+
+    plank: {
+        name: "Planche de bois",
+        value: 6,
+        type: "outil",
+        weaponStats: {
+            baseDamage: 2,
+            forceMultiplier: 0.8,
+            finesseMultiplier: 0.3
         }
     },
 
@@ -59,22 +62,15 @@ const ITEM_DEFINITIONS = {
     bandage: {
         name: "Bandage",
         value: 2,
-        type: "médical",
+        type: "consommable",
         heal: 3
-    },
-
-    medkit: {
-        name: "Trousse de soins",
-        value: 6,
-        type: "médical",
-        heal: 6
     },
 
     cannedFood: {
         name: "Conserve de haricots",
-        value: 3,
+        value: 4,
         type: "consommable",
-        heal: 1,
+        heal: 2,
         hungerRestore: 3
     },
 
@@ -83,7 +79,14 @@ const ITEM_DEFINITIONS = {
         value: 3,
         type: "consommable",
         heal: 1,
-        thirstRestore: 4
+        thirstRestore: 3
+    },
+
+    medkit: {
+        name: "Trousse de soins",
+        value: 6,
+        type: "consommable",
+        heal: 5
     },
 
     smallBag: {
@@ -101,6 +104,25 @@ const ITEM_DEFINITIONS = {
         type: "sac",
         bagStats: {
             capacity: 50
+        }
+    },
+
+    // Exemple de craft : planche + couteau -> lance artisanale
+    spear: {
+        name: "Lance artisanale",
+        value: 7,
+        type: "arme",
+        weaponStats: {
+            baseDamage: 3,
+            forceMultiplier: 0.9,
+            finesseMultiplier: 0.8
+        },
+        // Recette de craft pour fabriquer une lance
+        // - ingredients : les modèles nécessaires
+        // - consume : ceux qui disparaissent (les autres restent dans l'inventaire)
+        canCraft: {
+            ingredients: ["plank", "knife"],
+            consume: ["plank"] // le couteau reste, la planche est consommée
         }
     }
 };
