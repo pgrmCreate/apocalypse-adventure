@@ -47,7 +47,7 @@ window.ITEM_TEMPLATES = {
 
     plank: {
         name: "Planche de bois",
-        value: 6,
+        value: 8,
         type: "outil",
         rarity: 1,
         weaponStats: {
@@ -76,7 +76,7 @@ window.ITEM_TEMPLATES = {
         name: "Conserve de haricots",
         value: 4,
         type: "consommable",
-        rarity: 1,
+        rarity: 2,
         heal: 2,
         hungerRestore: 3
     },
@@ -85,7 +85,7 @@ window.ITEM_TEMPLATES = {
         name: "Bouteille d'eau",
         value: 3,
         type: "consommable",
-        rarity: 1,
+        rarity: 2,
         heal: 1,
         thirstRestore: 3
     },
@@ -102,7 +102,7 @@ window.ITEM_TEMPLATES = {
         name: "Cartable",
         value: 5,
         type: "sac",
-        rarity: 2,
+        rarity: 1,
         bagStats: {
             capacity: 30
         }
