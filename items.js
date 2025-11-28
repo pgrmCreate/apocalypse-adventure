@@ -64,12 +64,34 @@ window.ITEM_TEMPLATES = {
         rarity: 1
     },
 
+    cloth: {
+        name: "Torchon",
+        value: 1,
+        type: "divers",
+        rarity: 1
+    },
+
+    towel: {
+        name: "Serviette",
+        value: 2,
+        type: "divers",
+        rarity: 1
+    },
+
+    toothbrush: {
+        name: "Brosse à dents",
+        value: 1,
+        type: "divers",
+        rarity: 1
+    },
+
     bandage: {
         name: "Bandage",
         value: 2,
         type: "consommable",
         rarity: 1,
-        heal: 3
+        heal: 0,
+        bandageQuality: 1
     },
 
     cannedFood: {
@@ -77,7 +99,6 @@ window.ITEM_TEMPLATES = {
         value: 4,
         type: "consommable",
         rarity: 2,
-        heal: 2,
         hungerRestore: 3
     },
 
@@ -86,7 +107,6 @@ window.ITEM_TEMPLATES = {
         value: 3,
         type: "consommable",
         rarity: 2,
-        heal: 1,
         thirstRestore: 3
     },
 
@@ -144,6 +164,35 @@ window.ITEM_TEMPLATES = {
         canCraft: {
             ingredients: ["plank", "knife"],
             consume: ["plank"] // le couteau reste, la planche est consommée
+        }
+    },
+
+    torch: {
+        name: "Torche improvisée",
+        value: 6,
+        type: "arme",
+        rarity: 1,
+        weaponStats: {
+            baseDamage: 2,
+            forceMultiplier: 0.7,
+            finesseMultiplier: 0.5
+        },
+        canCraft: {
+            ingredients: ["plank", "cloth", "matches"],
+            consume: ["plank", "cloth", "matches"]
+        }
+    },
+
+    cleanBandage: {
+        name: "Bandage stérilisé",
+        value: 3,
+        type: "consommable",
+        rarity: 2,
+        heal: 0,
+        bandageQuality: 2,
+        canCraft: {
+            ingredients: ["bandage", "towel"],
+            consume: ["bandage", "towel"]
         }
     }
 };

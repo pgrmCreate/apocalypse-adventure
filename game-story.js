@@ -39,8 +39,8 @@ window.GAME_STORY = {
                 "Tu retournes chaque pile de vêtements, chaque tiroir. Tu avais caché quelques bricoles utiles pour le jour où tu devrais sortir.",
             locationId: "apt_main",
             timeContext: "slow",
-            minLoot: ["bandage", "satchel"],
-            randomLoot: ["cannedFood", "waterBottle"],
+            minLoot: ["bandage", "satchel", "toothbrush"],
+            randomLoot: ["cannedFood", "waterBottle", "cloth"],
             randomLootRarity: { 1: 0.8, 2: 0.2},
             options: [
                 {
@@ -63,8 +63,8 @@ window.GAME_STORY = {
                 "L'odeur de nourriture avariée flotte encore. Quelques conserves ont survécu aux premiers jours de panique.",
             locationId: "apt_kitchen",
             timeContext: "slow",
-            minLoot: ["cannedFood"],
-            randomLoot: ["waterBottle", "knife"],
+            minLoot: ["cannedFood", "towel"],
+            randomLoot: ["waterBottle", "knife", "cloth", "matches"],
             randomLootRarity: { 1: 0.85, 2: 0.15 },
             options: [
                 {
@@ -88,7 +88,7 @@ window.GAME_STORY = {
             locationId: "apt_hallway",
             timeContext: "slow",
             minLoot: [],
-            randomLoot: ["plank"],
+            randomLoot: ["plank", "cloth"],
             randomLootRarity: { 1: 0.9, 2: 0.09, 3: 0.01 },
             options: [
                 {
@@ -140,7 +140,7 @@ window.GAME_STORY = {
             locationId: "apt_neighbor3",
             timeContext: "slow",
             minLoot: ["cannedFood"],
-            randomLoot: ["waterBottle", "bandage"],
+            randomLoot: ["waterBottle", "bandage", "towel"],
             randomLootRarity: { 1: 0.78, 2: 0.18, 3: 0.04 },
             options: [
                 {
@@ -209,7 +209,7 @@ window.GAME_STORY = {
             locationId: "stairs3",
             timeContext: "slow",
             minLoot: [],
-            randomLoot: ["bandage"],
+            randomLoot: ["bandage", "cloth"],
             randomLootRarity: { 1: 0.8, 2: 0.17, 3: 0.03 },
             options: [
                 {
@@ -258,7 +258,7 @@ window.GAME_STORY = {
             locationId: "landing2",
             timeContext: "slow",
             minLoot: [],
-            randomLoot: ["bandage"],
+            randomLoot: ["bandage", "toothbrush"],
             randomLootRarity: { 1: 0.82, 2: 0.15, 3: 0.03 },
             options: [
                 {
@@ -286,8 +286,8 @@ window.GAME_STORY = {
                 "Une odeur de moisissure et de produits ménagers mélangés. Des cartons éventrés, une armoire renversée… mais aussi quelques choses utiles.",
             locationId: "apt2",
             timeContext: "slow",
-            minLoot: ["bandage"],
-            randomLoot: ["bigBag", "plank"],
+            minLoot: ["bandage", "towel"],
+            randomLoot: ["bigBag", "plank", "cloth"],
             randomLootRarity: { 1: 0.65, 2: 0.25, 3: 0.1 },
             options: [
                 {
@@ -308,7 +308,7 @@ window.GAME_STORY = {
             locationId: "landing1",
             timeContext: "slow",
             minLoot: [],
-            randomLoot: ["cannedFood"],
+            randomLoot: ["cannedFood", "cloth"],
             randomLootRarity: { 1: 0.85, 2: 0.12, 3: 0.03 },
             options: [
                 {
@@ -336,8 +336,8 @@ window.GAME_STORY = {
                 "Le salon est en désordre, mais relativement épargné. Une table renversée, des verres brisés, une cuisine encore pleine de traces de vie normale.",
             locationId: "apt1",
             timeContext: "slow",
-            minLoot: ["waterBottle"],
-            randomLoot: ["medkit"],
+            minLoot: ["waterBottle", "towel"],
+            randomLoot: ["medkit", "toothbrush"],
             randomLootRarity: { 1: 0.7, 2: 0.2, 3: 0.1 },
             options: [
                 {
@@ -409,8 +409,8 @@ window.GAME_STORY = {
                 "Une rampe descend vers le sous-sol. Des voitures abandonnées, des flaques d’huile, des silhouettes immobiles entre les colonnes de béton.",
             locationId: "garage",
             timeContext: "slow",
-            minLoot: ["plank"],
-            randomLoot: ["cannedFood", "waterBottle", "anvil"],
+            minLoot: ["plank", "cloth"],
+            randomLoot: ["cannedFood", "waterBottle", "anvil", "matches"],
             randomLootRarity: { 1: 0.6, 2: 0.25, 3: 0.15 },
             options: [
                 {
@@ -485,6 +485,11 @@ window.GAME_STORY = {
             randomLoot: [],
             options: [
                 {
+                    text: "Suivre la ruelle vers la grande avenue",
+                    nextScene: "streetIntro",
+                    timeCost: 1
+                },
+                {
                     text: "Fin de ce chapitre — recommencer",
                     restart: true
                 }
@@ -502,8 +507,168 @@ window.GAME_STORY = {
             randomLoot: [],
             options: [
                 {
+                    text: "Te traîner jusqu'à la ruelle",
+                    nextScene: "streetIntro",
+                    timeCost: 2
+                },
+                {
                     text: "Fin de ce chapitre — recommencer",
                     restart: true
+                }
+            ]
+        },
+
+        streetIntro: {
+            id: "streetIntro",
+            title: "Ruelle déserte",
+            text:
+                "Derrière l'immeuble, la ruelle est jonchée de sacs-poubelle et de journaux détrempés. Au bout, une avenue silencieuse et une pharmacie barricadée.",
+            locationId: "street_alley",
+            timeContext: "slow",
+            minLoot: ["cloth"],
+            randomLoot: ["toothbrush", "towel", "matches"],
+            randomLootQuantity: 1,
+            options: [
+                {
+                    text: "Approcher de la pharmacie",
+                    nextScene: "pharmacyFront",
+                    timeCost: 1
+                },
+                {
+                    text: "Couper par le square voisin",
+                    nextScene: "parkSquare",
+                    timeCost: 1
+                },
+                {
+                    text: "Retourner vers le garage (improbable)",
+                    nextScene: "garageExit",
+                    timeCost: 1
+                }
+            ]
+        },
+
+        pharmacyFront: {
+            id: "pharmacyFront",
+            title: "Devanture de la pharmacie",
+            text:
+                "Les vitres sont brisées mais des étagères renversées bloquent l'entrée. Des grognements proviennent de l'intérieur.",
+            locationId: "pharmacy_front",
+            timeContext: "fast",
+            minLoot: [],
+            randomLoot: [],
+            options: [
+                {
+                    text: "Forcer un passage discret",
+                    diceTest: {
+                        type: "skill",
+                        diceCount: 2,
+                        diceSides: 6,
+                        stat: "finesse",
+                        difficulty: 9,
+                        description:
+                            "Tu soulèves une étagère en espérant ne réveiller personne."
+                    },
+                    successScene: "pharmacyInside",
+                    failScene: "pharmacyInside",
+                    successEffect: { audaceChange: 1 },
+                    failEffect: { hpChange: -3 }
+                },
+                {
+                    text: "Rebrousser chemin vers la ruelle",
+                    nextScene: "streetIntro"
+                }
+            ]
+        },
+
+        pharmacyInside: {
+            id: "pharmacyInside",
+            title: "Pharmacie pillée",
+            text:
+                "Les rayons sont sens dessus dessous, mais quelques boîtes sont intactes. L'arrière-boutique sent encore l'alcool médical.",
+            locationId: "pharmacy_inside",
+            timeContext: "slow",
+            minLoot: ["bandage", "cleanBandage"],
+            randomLoot: ["medkit", "waterBottle", "towel"],
+            randomLootRarity: { 1: 0.7, 2: 0.2, 3: 0.1 },
+            options: [
+                {
+                    text: "Retourner dehors",
+                    nextScene: "streetIntro",
+                    timeCost: 1
+                }
+            ]
+        },
+
+        parkSquare: {
+            id: "parkSquare",
+            title: "Square silencieux",
+            text:
+                "Un petit parc envahi par les feuilles mortes. Des bancs renversés, une aire de jeux abandonnée, et des sacs à dos oubliés.",
+            locationId: "park",
+            timeContext: "slow",
+            minLoot: ["towel"],
+            randomLoot: ["plank", "toothbrush", "bandage", "cloth"],
+            randomLootQuantity: 1.3,
+            options: [
+                {
+                    text: "Récupérer tout ce qui traîne (temps)",
+                    nextScene: "parkSquare",
+                    timeCost: 2
+                },
+                {
+                    text: "Repérer un campement de fortune",
+                    nextScene: "survivorCamp",
+                    timeCost: 1
+                },
+                {
+                    text: "Revenir vers la ruelle",
+                    nextScene: "streetIntro",
+                    timeCost: 1
+                }
+            ]
+        },
+
+        survivorCamp: {
+            id: "survivorCamp",
+            title: "Campement de fortune",
+            text:
+                "Une tente écrasée, un feu éteint. Tu entends un murmure: un survivant blessé qui te regarde avec méfiance.",
+            locationId: "camp",
+            timeContext: "fast",
+            minLoot: [],
+            randomLoot: ["cannedFood"],
+            options: [
+                {
+                    text: "Lui tendre un peu d'eau et gagner sa confiance",
+                    diceTest: {
+                        type: "skill",
+                        diceCount: 2,
+                        diceSides: 6,
+                        stat: "audace",
+                        difficulty: 8,
+                        description:
+                            "Tu approches les mains ouvertes en promettant d'aider."
+                    },
+                    successScene: "parkSquare",
+                    failScene: "parkSquare",
+                    successEffect: { hpChange: 2, finesseChange: 1 },
+                    failEffect: { hpChange: -2 }
+                },
+                {
+                    text: "Fouiller discrètement le camp",
+                    diceTest: {
+                        type: "skill",
+                        diceCount: 2,
+                        diceSides: 6,
+                        stat: "finesse",
+                        difficulty: 10,
+                        description:
+                            "Tu cherches des vivres sans attirer l'attention du survivant."
+                    },
+                    successScene: "parkSquare",
+                    failScene: "parkSquare",
+                    successEffect: {},
+                    failEffect: { hpChange: -1 }
                 }
             ]
         },
@@ -530,64 +695,64 @@ window.GAME_STORY = {
 
     locations: {
         apt_main: {
-            minLoot: ["bandage", "satchel"],
+            minLoot: ["bandage", "satchel", "toothbrush"],
             randomLoot: {},
             randomLootRarity: { 1: 0.8, 2: 0.2 },
             randomLootQuantity: 0.5
         },
 
         apt_kitchen: {
-            minLoot: ["cannedFood"],
-            randomLoot: ["waterBottle", "knife"],
+            minLoot: ["cannedFood", "towel"],
+            randomLoot: ["waterBottle", "knife", "cloth", "matches"],
             randomLootRarity: { 1: 0.85, 2: 0.15 },
             randomLootQuantity: 1
         },
 
         apt_hallway: {
             minLoot: [],
-            randomLoot: ["plank"],
+            randomLoot: ["plank", "cloth"],
             randomLootRarity: { 1: 0.9, 2: 0.09, 3: 0.01 },
             randomLootQuantity: 0.5
         },
 
         apt_neighbor3: {
             minLoot: ["cannedFood"],
-            randomLoot: ["waterBottle", "bandage"],
+            randomLoot: ["waterBottle", "bandage", "towel"],
             randomLootRarity: { 1: 0.78, 2: 0.18, 3: 0.04 },
             randomLootQuantity: 1
         },
 
         stairs3: {
             minLoot: [],
-            randomLoot: ["bandage"],
+            randomLoot: ["bandage", "cloth"],
             randomLootRarity: { 1: 0.8, 2: 0.17, 3: 0.03 },
             randomLootQuantity: 0.8
         },
 
         landing2: {
             minLoot: [],
-            randomLoot: ["bandage"],
+            randomLoot: ["bandage", "toothbrush"],
             randomLootRarity: { 1: 0.82, 2: 0.15, 3: 0.03 },
             randomLootQuantity: 0.8
         },
 
         apt2: {
-            minLoot: ["bandage"],
-            randomLoot: ["bigBag", "plank"],
+            minLoot: ["bandage", "towel"],
+            randomLoot: ["bigBag", "plank", "cloth"],
             randomLootRarity: { 1: 0.65, 2: 0.25, 3: 0.1 },
             randomLootQuantity: 1
         },
 
         landing1: {
             minLoot: [],
-            randomLoot: ["cannedFood"],
+            randomLoot: ["cannedFood", "cloth"],
             randomLootRarity: { 1: 0.85, 2: 0.12, 3: 0.03 },
             randomLootQuantity: 0.8
         },
 
         apt1: {
-            minLoot: ["waterBottle"],
-            randomLoot: ["medkit"],
+            minLoot: ["waterBottle", "towel"],
+            randomLoot: ["medkit", "toothbrush"],
             randomLootRarity: { 1: 0.7, 2: 0.2, 3: 0.1 },
             randomLootQuantity: 1
         },
@@ -600,10 +765,45 @@ window.GAME_STORY = {
         },
 
         garage: {
-            minLoot: ["plank"],
-            randomLoot: ["cannedFood", "waterBottle", "anvil"],
+            minLoot: ["plank", "cloth"],
+            randomLoot: ["cannedFood", "waterBottle", "anvil", "matches"],
             randomLootRarity: { 1: 0.6, 2: 0.25, 3: 0.15 },
             randomLootQuantity: 1.2
+        },
+
+        street_alley: {
+            minLoot: ["cloth"],
+            randomLoot: ["toothbrush", "towel", "matches"],
+            randomLootRarity: { 1: 0.85, 2: 0.13, 3: 0.02 },
+            randomLootQuantity: 1
+        },
+
+        pharmacy_front: {
+            minLoot: [],
+            randomLoot: [],
+            randomLootRarity: {},
+            randomLootQuantity: 0
+        },
+
+        pharmacy_inside: {
+            minLoot: ["bandage", "cleanBandage"],
+            randomLoot: ["medkit", "waterBottle", "towel"],
+            randomLootRarity: { 1: 0.7, 2: 0.2, 3: 0.1 },
+            randomLootQuantity: 1.2
+        },
+
+        park: {
+            minLoot: ["towel"],
+            randomLoot: ["plank", "toothbrush", "bandage", "cloth"],
+            randomLootRarity: { 1: 0.88, 2: 0.1, 3: 0.02 },
+            randomLootQuantity: 1.3
+        },
+
+        camp: {
+            minLoot: [],
+            randomLoot: ["cannedFood", "waterBottle"],
+            randomLootRarity: { 1: 0.7, 2: 0.25, 3: 0.05 },
+            randomLootQuantity: 0.6
         },
 
         outside: {

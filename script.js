@@ -4,6 +4,8 @@
     const BASE_CAPACITY = 15;
     const MAX_HUNGER = 50;
     const MAX_THIRST = 50;
+    const BODY_PARTS = ["bras", "jambe", "torse", "tête", "main"];
+    const WOUND_TYPES = ["morsure", "entaille", "griffure", "impact", "perforation"];
 
     const ITEM_TEMPLATES = window.ITEM_TEMPLATES || {};
     const GAME_STORY = window.GAME_STORY || { scenes: {} };
@@ -32,6 +34,7 @@
     const heroDefaults = {
         name: "Alex",
         hp: 10,
+        maxHp: 10,
         force: 2,
         finesse: 2,
         audace: 2,
@@ -42,6 +45,7 @@
     const hero = {
         name: heroDefaults.name,
         hp: heroDefaults.hp,
+        maxHp: heroDefaults.maxHp,
         force: heroDefaults.force,
         finesse: heroDefaults.finesse,
         audace: heroDefaults.audace,
@@ -77,12 +81,15 @@
     let currentTimeContext = "fast";
     let equippedWeaponTemplateId = null;
     let equippedBagTemplateId = null;
+    let wounds = [];
 
     // DOM
     let storyTitleEl;
     let storyTextEl;
     let choicesEl;
     let logEl;
+    let woundsEl;
+    let woundHeaderEl;
     let timeContextEl;
 
     let hpEl;
@@ -115,6 +122,8 @@
         storyTextEl = document.getElementById("story-text");
         choicesEl = document.getElementById("choices");
         logEl = document.getElementById("log");
+        woundsEl = document.getElementById("wounds");
+        woundHeaderEl = document.getElementById("wound-header");
         timeContextEl = document.getElementById("time-context");
 
         hpEl = document.getElementById("stat-hp");
@@ -154,6 +163,7 @@
             zone.addEventListener("drop", handleDrop);
         });
 
+        chooseHeroName();
         initHero();
         setupInitialInventory();
         updateCapacityUI();
@@ -164,14 +174,26 @@
 
     /* --- Héros & stats --- */
 
+    function chooseHeroName() {
+        const proposed = prompt(
+            "Choisis le nom de ton survivant avant de commencer :",
+            heroDefaults.name
+        );
+        if (typeof proposed === "string" && proposed.trim()) {
+            heroDefaults.name = proposed.trim();
+        }
+    }
+
     function initHero() {
         hero.name = heroDefaults.name;
         hero.hp = heroDefaults.hp;
+        hero.maxHp = heroDefaults.maxHp;
         hero.force = heroDefaults.force;
         hero.finesse = heroDefaults.finesse;
         hero.audace = heroDefaults.audace;
         hero.hunger = heroDefaults.hunger;
         hero.thirst = heroDefaults.thirst;
+        wounds = [];
 
         if (heroNameEl) {
             heroNameEl.textContent = hero.name;
@@ -179,6 +201,7 @@
         equippedWeaponTemplateId = null;
         equippedBagTemplateId = null;
         updateStatsUI();
+        renderWounds();
     }
 
     function restartGame() {
@@ -210,7 +233,7 @@
     }
 
     function updateStatsUI() {
-        if (hpEl) hpEl.textContent = String(hero.hp);
+        if (hpEl) hpEl.textContent = `${hero.hp} / ${hero.maxHp}`;
         if (forceEl) forceEl.textContent = String(hero.force);
         if (finesseEl) finesseEl.textContent = String(hero.finesse);
         if (audaceEl) audaceEl.textContent = String(hero.audace);
@@ -224,12 +247,42 @@
         if (thirstEl) thirstEl.textContent = `${hero.thirst} / ${MAX_THIRST}`;
     }
 
+    function renderWounds() {
+        if (!woundsEl || !woundHeaderEl) return;
+        woundHeaderEl.textContent = wounds.length
+            ? `Blessures (${wounds.length})`
+            : "Blessures";
+        woundsEl.innerHTML = "";
+        if (!wounds.length) {
+            const ok = document.createElement("div");
+            ok.classList.add("wound-ok");
+            ok.textContent = "Aucune blessure en cours. Tes PV remonteront à fond.";
+            woundsEl.appendChild(ok);
+            return;
+        }
+
+        wounds.forEach(w => {
+            const row = document.createElement("div");
+            row.classList.add("wound-row");
+            const statusParts = [];
+            if (w.bleeding && !w.bandaged) statusParts.push("saigne");
+            if (w.bandaged) statusParts.push("bandée");
+            const turnsLeft = Math.max(1, Math.ceil(w.remainingTime));
+            statusParts.push(`guérison estimée : ${turnsLeft} unité(s) de temps`);
+            row.textContent = `${w.type} au ${w.part} (${statusParts.join(", ")})`;
+            woundsEl.appendChild(row);
+        });
+    }
+
     function applyEffect(effect) {
         if (!effect) return;
         if (typeof effect.hpChange === "number") {
             hero.hp += effect.hpChange;
+            if (effect.hpChange < 0) {
+                registerWound(Math.abs(effect.hpChange));
+            }
             if (hero.hp < 0) hero.hp = 0;
-            if (hero.hp > heroDefaults.hp) hero.hp = heroDefaults.hp;
+            if (hero.hp > hero.maxHp) hero.hp = hero.maxHp;
         }
         if (typeof effect.forceChange === "number") {
             hero.force = Math.max(0, hero.force + effect.forceChange);
@@ -241,6 +294,93 @@
             hero.audace = Math.max(0, hero.audace + effect.audaceChange);
         }
         updateStatsUI();
+    }
+
+    /* --- Blessures et soins --- */
+
+    function registerWound(damage) {
+        if (!Number.isFinite(damage) || damage <= 0) return;
+        const part =
+            BODY_PARTS[Math.floor(Math.random() * BODY_PARTS.length)] || "corps";
+        const type =
+            WOUND_TYPES[Math.floor(Math.random() * WOUND_TYPES.length)] || "blessure";
+        const severity = Math.max(1, Math.ceil(damage));
+        const baseHeal = Math.max(3, severity * 3);
+        const bleedRate = Math.max(1, Math.ceil(severity / 2));
+        const wound = {
+            id: `wound-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+            part,
+            type,
+            bandaged: false,
+            bandageQuality: 0,
+            bleeding: true,
+            remainingTime: baseHeal,
+            baseHealTime: baseHeal,
+            bleedRate
+        };
+        wounds.push(wound);
+        logMessage(
+            `Tu subis une ${type} au ${part}. La plaie saigne, un bandage aiderait à la stabiliser.`
+        );
+        renderWounds();
+    }
+
+    function applyBandage(quality) {
+        if (!wounds.length) {
+            logMessage("Aucune blessure à bander pour l'instant.");
+            return false;
+        }
+        const target =
+            wounds.find(w => !w.bandaged || w.bleeding) || wounds[0];
+        target.bandaged = true;
+        target.bleeding = false;
+        target.bandageQuality = Math.max(0, quality || 0);
+        const bonusReduction = 1 + target.bandageQuality;
+        target.remainingTime = Math.max(1, target.remainingTime - bonusReduction);
+        renderWounds();
+        logMessage(
+            `Tu poses un bandage sur ta ${target.type} au ${target.part}. La plaie est stabilisée.`
+        );
+        return true;
+    }
+
+    function processWoundsOverTime(timeUnits) {
+        if (!timeUnits || timeUnits <= 0 || !wounds.length) return;
+
+        let bleedDamage = 0;
+        wounds.forEach(wound => {
+            if (!wound.bandaged && wound.bleeding) {
+                bleedDamage += wound.bleedRate * timeUnits;
+                wound.remainingTime += timeUnits * 0.5;
+            } else {
+                const healRate =
+                    1 + (wound.bandageQuality ? wound.bandageQuality * 0.6 : 0.4);
+                wound.remainingTime -= timeUnits * healRate;
+                const regain = Math.max(0, Math.round(timeUnits * healRate * 0.3));
+                if (regain > 0) {
+                    hero.hp = Math.min(hero.maxHp, hero.hp + regain);
+                }
+            }
+        });
+
+        if (bleedDamage > 0) {
+            hero.hp = Math.max(0, hero.hp - bleedDamage);
+            logMessage(
+                `Une plaie saigne encore et te coûte ${bleedDamage} PV pendant le temps qui passe.`
+            );
+        }
+
+        const beforeCount = wounds.length;
+        wounds = wounds.filter(w => w.remainingTime > 0 && hero.hp > 0);
+        if (beforeCount !== wounds.length) {
+            logMessage("Certaines blessures se referment enfin.");
+        }
+        if (wounds.length === 0 && hero.hp > 0) {
+            hero.hp = hero.maxHp;
+            logMessage("Tu n'as plus de plaies ouvertes : tes forces reviennent au maximum.");
+        }
+
+        renderWounds();
     }
 
     /* --- Temps / faim / soif --- */
@@ -268,6 +408,8 @@
             if (hero.hp < 0) hero.hp = 0;
             logMessage(`La faim et la soif t'épuisent : tu perds ${damage} PV.`);
         }
+
+        processWoundsOverTime(timeUnits);
 
         updateStatsUI();
         logMessage(`Le temps passe : faim +${timeUnits}, soif +${timeUnits}.`);
@@ -309,6 +451,7 @@
             weaponStats: tpl.weaponStats || null,
             bagStats: tpl.bagStats || null,
             heal: tpl.heal || 0,
+            bandageQuality: tpl.bandageQuality || 0,
             hungerRestore: tpl.hungerRestore || 0,
             thirstRestore: tpl.thirstRestore || 0
         };
@@ -329,6 +472,9 @@
         }
         if (item.bagStats) {
             return `sac, cap. ${item.bagStats.capacity}`;
+        }
+        if (item.bandageQuality > 0) {
+            return `bandage (qual. ${item.bandageQuality})`;
         }
         if (item.heal > 0 && (item.hungerRestore > 0 || item.thirstRestore > 0)) {
             return `soin & ration`;
@@ -378,6 +524,7 @@
         }
 
         div.dataset.heal = String(item.heal || 0);
+        div.dataset.bandageQuality = String(item.bandageQuality || 0);
         div.dataset.hungerRestore = String(item.hungerRestore || 0);
         div.dataset.thirstRestore = String(item.thirstRestore || 0);
 
@@ -681,6 +828,7 @@
         }
 
         updateCapacityUI();
+        clearSelectedItem();
     }
 
     /* --- Panneau d'actions sur l'objet --- */
@@ -697,6 +845,8 @@
                   parseInt(itemEl.dataset.hungerRestore || "0", 10) || 0;
         const thirstRestore =
                   parseInt(itemEl.dataset.thirstRestore || "0", 10) || 0;
+        const bandageQuality =
+                  parseInt(itemEl.dataset.bandageQuality || "0", 10) || 0;
         const capacity =
                   parseInt(itemEl.dataset.capacity || "0", 10) || 0;
         const weight = itemEl.dataset.value || "?";
@@ -719,6 +869,9 @@
         }
         if (hasBag) {
             infoText += `Peut servir de sac : capacité maximale ${capacity} si équipé. `;
+        }
+        if (bandageQuality > 0) {
+            infoText += `Soin : bandage (qualité ${bandageQuality}) pour stabiliser une plaie. `;
         }
         if (heal > 0 || hungerRestore > 0 || thirstRestore > 0) {
             const parts = [];
@@ -757,7 +910,7 @@
         }
 
         const isFoodOrDrink = hungerRestore > 0 || thirstRestore > 0;
-        if (heal > 0 || isFoodOrDrink) {
+        if (heal > 0 || isFoodOrDrink || bandageQuality > 0) {
             const useBtn = document.createElement("button");
             useBtn.classList.add("small-btn");
             useBtn.textContent = "Utiliser";
@@ -795,6 +948,12 @@
         }
     }
 
+    function clearSelectedItem() {
+        if (selectedItemNameEl) selectedItemNameEl.textContent = "Aucun";
+        if (selectedItemInfoEl) selectedItemInfoEl.textContent = "";
+        if (selectedItemButtonsEl) selectedItemButtonsEl.innerHTML = "";
+    }
+
     function dropItemToDiscard(itemEl) {
         if (!discardEl) return;
         const originZone = itemEl.parentElement;
@@ -822,6 +981,7 @@
         discardEl.appendChild(itemEl);
         updateCapacityUI();
         logMessage(`Tu jettes ${itemEl.dataset.name} au sol.`);
+        clearSelectedItem();
     }
 
     function takeItemToInventory(itemEl) {
@@ -852,6 +1012,7 @@
         inventoryEl.appendChild(itemEl);
         updateCapacityUI();
         logMessage(`Tu prends ${itemEl.dataset.name} avec toi.`);
+        clearSelectedItem();
     }
 
     function equipWeaponFromElement(itemEl) {
@@ -894,7 +1055,10 @@
                   parseInt(itemEl.dataset.hungerRestore || "0", 10) || 0;
         const thirstRestore =
                   parseInt(itemEl.dataset.thirstRestore || "0", 10) || 0;
+        const bandageQuality =
+                  parseInt(itemEl.dataset.bandageQuality || "0", 10) || 0;
         const isFoodOrDrink = opts && opts.isFoodOrDrink;
+        const isBandage = bandageQuality > 0;
         const name = itemEl.dataset.name || "objet";
 
         const scene = scenes[currentSceneId];
@@ -907,10 +1071,12 @@
             return;
         }
 
-        if (heal > 0) {
+        if (isBandage) {
+            const applied = applyBandage(bandageQuality);
+            if (!applied) return;
+        } else if (heal > 0 && !isFoodOrDrink) {
             const before = hero.hp;
-            hero.hp += heal;
-            if (hero.hp > heroDefaults.hp) hero.hp = heroDefaults.hp;
+            hero.hp = Math.min(hero.maxHp, hero.hp + heal);
             const gained = hero.hp - before;
             if (gained > 0) {
                 logMessage(`Tu utilises ${name} et regagnes ${gained} PV.`);
@@ -938,17 +1104,7 @@
         itemEl.remove();
         updateStatsUI();
         updateCapacityUI();
-
-        if (
-            selectedItemNameEl &&
-            selectedItemNameEl.textContent === name &&
-            selectedItemButtonsEl &&
-            selectedItemInfoEl
-        ) {
-            selectedItemNameEl.textContent = "Aucun";
-            selectedItemInfoEl.textContent = "";
-            selectedItemButtonsEl.innerHTML = "";
-        }
+        clearSelectedItem();
     }
 
     /* --- Combat --- */
