@@ -1,9 +1,9 @@
 (() => {
     "use strict";
 
-    const BASE_CAPACITY = 20;
-    const MAX_HUNGER = 10;
-    const MAX_THIRST = 10;
+    const BASE_CAPACITY = 15;
+    const MAX_HUNGER = 50;
+    const MAX_THIRST = 50;
 
     const ITEM_TEMPLATES = window.ITEM_TEMPLATES || {};
     const GAME_STORY = window.GAME_STORY || { scenes: {} };

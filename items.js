@@ -98,6 +98,15 @@ window.ITEM_TEMPLATES = {
         heal: 5
     },
 
+    satchel: {
+        name: "Cartable",
+        value: 5,
+        type: "sac",
+        rarity: "uncommon",
+        bagStats: {
+            capacity: 30
+        }
+    },
     smallBag: {
         name: "Petit sac à dos",
         value: 5,
