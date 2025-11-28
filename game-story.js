@@ -79,7 +79,7 @@ window.GAME_STORY = {
                 "L'odeur de nourriture avariée flotte encore. Quelques conserves ont survécu aux premiers jours de panique et un petit briquet traîne près du four éteint.",
             locationId: "apt_kitchen",
             timeContext: "slow",
-            minLoot: ["cannedFood", "towel"],
+            minLoot: ["cannedFood", "towel", "knife"],
             randomLoot: ["waterBottle", "knife", "cloth", "matches", "lighter"],
             randomLootRarity: { 1: 0.85, 2: 0.15 },
             options: [

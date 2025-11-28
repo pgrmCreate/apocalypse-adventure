@@ -1211,6 +1211,7 @@
         inventoryEl.appendChild(itemEl);
         updateCapacityUI();
         logMessage(`Tu prends ${itemEl.dataset.name} avec toi.`);
+        showToast(`Tu ramasses ${itemEl.dataset.name}.`, "success");
         clearSelectedItem();
     }
 
@@ -1229,6 +1230,7 @@
 
         updateEquippedWeaponUI();
         logMessage(`Tu équipes : ${itemEl.dataset.name} comme arme.`);
+        showToast(`${itemEl.dataset.name} équipé(e) comme arme.`, "info");
     }
 
     function equipBagFromElement(itemEl) {
@@ -1246,6 +1248,7 @@
 
         updateCapacityUI();
         logMessage(`Tu équipes : ${itemEl.dataset.name} comme sac.`);
+        showToast(`${itemEl.dataset.name} équipé(e) comme sac.`, "info");
     }
 
     function useConsumableItem(itemEl, opts) {
