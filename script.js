@@ -8,6 +8,7 @@
     const ITEM_TEMPLATES = window.ITEM_TEMPLATES || {};
     const GAME_STORY = window.GAME_STORY || { scenes: {} };
     const scenes = GAME_STORY.scenes || {};
+    const locations = GAME_STORY.locations || {};
 
     const DEFAULT_RARITY_CHANCES = {
         1: 0.75,
@@ -1221,22 +1222,90 @@
         }
     }
 
-    function getSceneRarityChances(scene) {
+    function getSceneRarityChances(scene, location) {
         const custom = scene.randomLootRarity || {};
+        const locationCustom = location.randomLootRarity || {};
         return {
             1:
                 typeof custom[1] === "number"
                     ? custom[1]
+                    : typeof locationCustom[1] === "number"
+                    ? locationCustom[1]
                     : DEFAULT_RARITY_CHANCES[1],
             2:
                 typeof custom[2] === "number"
                     ? custom[2]
+                    : typeof locationCustom[2] === "number"
+                    ? locationCustom[2]
                     : DEFAULT_RARITY_CHANCES[2],
             3:
                 typeof custom[3] === "number"
                     ? custom[3]
+                    : typeof locationCustom[3] === "number"
+                    ? locationCustom[3]
                     : DEFAULT_RARITY_CHANCES[3]
         };
+    }
+
+    function pickRarityFromChances(chances) {
+        const entries = Object.entries(chances).filter(([, value]) =>
+            typeof value === "number" && value > 0
+        );
+        if (entries.length === 0) return 1;
+
+        const total = entries.reduce((sum, [, value]) => sum + value, 0);
+        let roll = Math.random() * total;
+
+        for (const [rarity, value] of entries) {
+            roll -= value;
+            if (roll <= 0) return Number(rarity);
+        }
+
+        return Number(entries[entries.length - 1][0]);
+    }
+
+    function resolveRandomLootPool(randomLootValue) {
+        if (
+            randomLootValue &&
+            typeof randomLootValue === "object" &&
+            !Array.isArray(randomLootValue)
+        ) {
+            if (Object.keys(randomLootValue).length === 0) {
+                return Object.keys(ITEM_TEMPLATES);
+            }
+        }
+
+        if (!Array.isArray(randomLootValue)) return [];
+
+        const pool = [];
+        randomLootValue.forEach(entry => {
+            if (typeof entry === "string") {
+                if (ITEM_TEMPLATES[entry]) pool.push(entry);
+                return;
+            }
+            if (entry && typeof entry === "object" && typeof entry.id === "string") {
+                if (ITEM_TEMPLATES[entry.id]) pool.push(entry.id);
+            }
+        });
+
+        return pool;
+    }
+
+    function computeRandomLootCount(quantity) {
+        if (typeof quantity !== "number" || !Number.isFinite(quantity)) return 0;
+
+        const safeQuantity = Math.max(0, quantity);
+        const baseCount = Math.floor(safeQuantity);
+        const fractional = safeQuantity - baseCount;
+        return baseCount + (Math.random() < fractional ? 1 : 0);
+    }
+
+    function pickRandomTemplateByRarity(pool, rarity) {
+        if (!Array.isArray(pool) || pool.length === 0) return null;
+        const matching = pool.filter(templateId => getTemplateRarity(templateId) === rarity);
+        const chosenPool = matching.length > 0 ? matching : pool;
+        const index = Math.floor(Math.random() * chosenPool.length);
+        return chosenPool[index];
     }
 
     function spawnLootForScene(scene) {
@@ -1245,40 +1314,60 @@
         lootEl.innerHTML = "";
         discardEl.textContent = "Glisse ici ce que tu abandonnes.";
 
-        const minLoot = scene.minLoot || [];
-        const randomLoot = scene.randomLoot || [];
-        const rarityChances = getSceneRarityChances(scene);
+        const location = locations[scene.locationId || scene.id] || {};
+
+        const minLoot = [];
+        const minSeen = new Set();
+        [location.minLoot, scene.minLoot].forEach(list => {
+            if (!Array.isArray(list)) return;
+            list.forEach(templateId => {
+                if (typeof templateId !== "string") return;
+                if (minSeen.has(templateId)) return;
+                minSeen.add(templateId);
+                minLoot.push(templateId);
+            });
+        });
+
+        const sceneLootPool = resolveRandomLootPool(scene.randomLoot || []);
+        const randomLootPool =
+            sceneLootPool.length > 0
+                ? sceneLootPool
+                : resolveRandomLootPool(location.randomLoot || []);
+        const rarityChances = getSceneRarityChances(scene, location);
+        const randomLootQuantity =
+            typeof scene.randomLootQuantity === "number"
+                ? scene.randomLootQuantity
+                : typeof location.randomLootQuantity === "number"
+                ? location.randomLootQuantity
+                : randomLootPool.length > 0
+                ? 1
+                : 0;
+        const randomLootCount = computeRandomLootCount(randomLootQuantity);
+
+        let generatedLootCount = 0;
 
         minLoot.forEach(templateId => {
             const item = createItemFromTemplate(templateId);
             if (!item) return;
             const el = createItemElement(item);
             lootEl.appendChild(el);
+            generatedLootCount += 1;
         });
 
-        randomLoot.forEach(entry => {
-            let templateId = entry;
-            let chance = 0.5;
-            if (typeof entry === "object" && entry !== null) {
-                templateId = entry.id;
-                chance =
-                    typeof entry.chance === "number" ? entry.chance : null;
-            }
-            if (!templateId) return;
-            if (chance === null) {
-                const rarity = getTemplateRarity(templateId);
-                chance = rarityChances[rarity] || DEFAULT_RARITY_CHANCES[1];
-            }
-            if (Math.random() < chance) {
-                const item = createItemFromTemplate(templateId);
-                if (!item) return;
-                const el = createItemElement(item);
-                lootEl.appendChild(el);
-            }
-        });
+        for (let i = 0; i < randomLootCount; i += 1) {
+            const rarity = pickRarityFromChances(rarityChances);
+            const templateId = pickRandomTemplateByRarity(randomLootPool, rarity);
+            if (!templateId) continue;
+
+            const item = createItemFromTemplate(templateId);
+            if (!item) continue;
+            const el = createItemElement(item);
+            lootEl.appendChild(el);
+            generatedLootCount += 1;
+        }
 
         updateCapacityUI();
-        if (minLoot.length > 0 || randomLoot.length > 0) {
+        if (generatedLootCount > 0) {
             logMessage(
                 "Tu trouves quelques objets dans ce lieu. À toi de décider quoi garder."
             );

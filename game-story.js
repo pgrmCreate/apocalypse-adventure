@@ -526,5 +526,98 @@ window.GAME_STORY = {
                 }
             ]
         }
+    },
+
+    locations: {
+        apt_main: {
+            minLoot: ["bandage", "satchel"],
+            randomLoot: {},
+            randomLootRarity: { 1: 0.8, 2: 0.2 },
+            randomLootQuantity: 0.5
+        },
+
+        apt_kitchen: {
+            minLoot: ["cannedFood"],
+            randomLoot: ["waterBottle", "knife"],
+            randomLootRarity: { 1: 0.85, 2: 0.15 },
+            randomLootQuantity: 1
+        },
+
+        apt_hallway: {
+            minLoot: [],
+            randomLoot: ["plank"],
+            randomLootRarity: { 1: 0.9, 2: 0.09, 3: 0.01 },
+            randomLootQuantity: 0.5
+        },
+
+        apt_neighbor3: {
+            minLoot: ["cannedFood"],
+            randomLoot: ["waterBottle", "bandage"],
+            randomLootRarity: { 1: 0.78, 2: 0.18, 3: 0.04 },
+            randomLootQuantity: 1
+        },
+
+        stairs3: {
+            minLoot: [],
+            randomLoot: ["bandage"],
+            randomLootRarity: { 1: 0.8, 2: 0.17, 3: 0.03 },
+            randomLootQuantity: 0.8
+        },
+
+        landing2: {
+            minLoot: [],
+            randomLoot: ["bandage"],
+            randomLootRarity: { 1: 0.82, 2: 0.15, 3: 0.03 },
+            randomLootQuantity: 0.8
+        },
+
+        apt2: {
+            minLoot: ["bandage"],
+            randomLoot: ["bigBag", "plank"],
+            randomLootRarity: { 1: 0.65, 2: 0.25, 3: 0.1 },
+            randomLootQuantity: 1
+        },
+
+        landing1: {
+            minLoot: [],
+            randomLoot: ["cannedFood"],
+            randomLootRarity: { 1: 0.85, 2: 0.12, 3: 0.03 },
+            randomLootQuantity: 0.8
+        },
+
+        apt1: {
+            minLoot: ["waterBottle"],
+            randomLoot: ["medkit"],
+            randomLootRarity: { 1: 0.7, 2: 0.2, 3: 0.1 },
+            randomLootQuantity: 1
+        },
+
+        groundHall: {
+            minLoot: [],
+            randomLoot: [],
+            randomLootRarity: {},
+            randomLootQuantity: 0
+        },
+
+        garage: {
+            minLoot: ["plank"],
+            randomLoot: ["cannedFood", "waterBottle", "anvil"],
+            randomLootRarity: { 1: 0.6, 2: 0.25, 3: 0.15 },
+            randomLootQuantity: 1.2
+        },
+
+        outside: {
+            minLoot: [],
+            randomLoot: [],
+            randomLootRarity: {},
+            randomLootQuantity: 0
+        },
+
+        none: {
+            minLoot: [],
+            randomLoot: [],
+            randomLootRarity: {},
+            randomLootQuantity: 0
+        }
     }
 };
