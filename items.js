@@ -13,7 +13,7 @@ window.ITEM_TEMPLATES = {
         name: "Couteau de cuisine",
         value: 4,
         type: "outil",
-        rarity: "uncommon",
+        rarity: 2,
         weaponStats: {
             baseDamage: 2,
             forceMultiplier: 0.5,
@@ -25,7 +25,7 @@ window.ITEM_TEMPLATES = {
         name: "Batte de base-ball",
         value: 8,
         type: "arme",
-        rarity: "uncommon",
+        rarity: 2,
         weaponStats: {
             baseDamage: 3,
             forceMultiplier: 1.0,
@@ -37,7 +37,7 @@ window.ITEM_TEMPLATES = {
         name: "Enclume",
         value: 50,
         type: "outil",
-        rarity: "rare",
+        rarity: 3,
         weaponStats: {
             baseDamage: 4,
             forceMultiplier: 1.4,
@@ -49,7 +49,7 @@ window.ITEM_TEMPLATES = {
         name: "Planche de bois",
         value: 6,
         type: "outil",
-        rarity: "common",
+        rarity: 1,
         weaponStats: {
             baseDamage: 2,
             forceMultiplier: 0.8,
@@ -61,14 +61,14 @@ window.ITEM_TEMPLATES = {
         name: "Boîte d'allumettes",
         value: 1,
         type: "outil",
-        rarity: "common"
+        rarity: 1
     },
 
     bandage: {
         name: "Bandage",
         value: 2,
         type: "consommable",
-        rarity: "common",
+        rarity: 1,
         heal: 3
     },
 
@@ -76,7 +76,7 @@ window.ITEM_TEMPLATES = {
         name: "Conserve de haricots",
         value: 4,
         type: "consommable",
-        rarity: "common",
+        rarity: 1,
         heal: 2,
         hungerRestore: 3
     },
@@ -85,7 +85,7 @@ window.ITEM_TEMPLATES = {
         name: "Bouteille d'eau",
         value: 3,
         type: "consommable",
-        rarity: "common",
+        rarity: 1,
         heal: 1,
         thirstRestore: 3
     },
@@ -94,7 +94,7 @@ window.ITEM_TEMPLATES = {
         name: "Trousse de soins",
         value: 6,
         type: "consommable",
-        rarity: "rare",
+        rarity: 3,
         heal: 5
     },
 
@@ -102,7 +102,7 @@ window.ITEM_TEMPLATES = {
         name: "Cartable",
         value: 5,
         type: "sac",
-        rarity: "uncommon",
+        rarity: 2,
         bagStats: {
             capacity: 30
         }
@@ -111,7 +111,7 @@ window.ITEM_TEMPLATES = {
         name: "Petit sac à dos",
         value: 5,
         type: "sac",
-        rarity: "uncommon",
+        rarity: 2,
         bagStats: {
             capacity: 35
         }
@@ -121,7 +121,7 @@ window.ITEM_TEMPLATES = {
         name: "Gros sac de rando",
         value: 8,
         type: "sac",
-        rarity: "rare",
+        rarity: 3,
         bagStats: {
             capacity: 50
         }
@@ -132,7 +132,7 @@ window.ITEM_TEMPLATES = {
         name: "Lance artisanale",
         value: 7,
         type: "arme",
-        rarity: "uncommon",
+        rarity: 2,
         weaponStats: {
             baseDamage: 3,
             forceMultiplier: 0.9,
