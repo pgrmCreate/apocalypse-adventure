@@ -8,6 +8,7 @@
     const ITEM_TEMPLATES = window.ITEM_TEMPLATES || {};
     const GAME_STORY = window.GAME_STORY || { scenes: {} };
     const scenes = GAME_STORY.scenes || {};
+    const locations = GAME_STORY.locations || {};
 
     const DEFAULT_RARITY_CHANCES = {
         1: 0.75,
@@ -1221,20 +1222,27 @@
         }
     }
 
-    function getSceneRarityChances(scene) {
+    function getSceneRarityChances(scene, location) {
         const custom = scene.randomLootRarity || {};
+        const locationCustom = location.randomLootRarity || {};
         return {
             1:
                 typeof custom[1] === "number"
                     ? custom[1]
+                    : typeof locationCustom[1] === "number"
+                    ? locationCustom[1]
                     : DEFAULT_RARITY_CHANCES[1],
             2:
                 typeof custom[2] === "number"
                     ? custom[2]
+                    : typeof locationCustom[2] === "number"
+                    ? locationCustom[2]
                     : DEFAULT_RARITY_CHANCES[2],
             3:
                 typeof custom[3] === "number"
                     ? custom[3]
+                    : typeof locationCustom[3] === "number"
+                    ? locationCustom[3]
                     : DEFAULT_RARITY_CHANCES[3]
         };
     }
@@ -1306,12 +1314,31 @@
         lootEl.innerHTML = "";
         discardEl.textContent = "Glisse ici ce que tu abandonnes.";
 
-        const minLoot = scene.minLoot || [];
-        const randomLootPool = resolveRandomLootPool(scene.randomLoot || []);
-        const rarityChances = getSceneRarityChances(scene);
+        const location = locations[scene.locationId || scene.id] || {};
+
+        const minLoot = [];
+        const minSeen = new Set();
+        [location.minLoot, scene.minLoot].forEach(list => {
+            if (!Array.isArray(list)) return;
+            list.forEach(templateId => {
+                if (typeof templateId !== "string") return;
+                if (minSeen.has(templateId)) return;
+                minSeen.add(templateId);
+                minLoot.push(templateId);
+            });
+        });
+
+        const sceneLootPool = resolveRandomLootPool(scene.randomLoot || []);
+        const randomLootPool =
+            sceneLootPool.length > 0
+                ? sceneLootPool
+                : resolveRandomLootPool(location.randomLoot || []);
+        const rarityChances = getSceneRarityChances(scene, location);
         const randomLootQuantity =
             typeof scene.randomLootQuantity === "number"
                 ? scene.randomLootQuantity
+                : typeof location.randomLootQuantity === "number"
+                ? location.randomLootQuantity
                 : randomLootPool.length > 0
                 ? 1
                 : 0;
