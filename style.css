@@ -324,30 +324,17 @@ header h1 {
 }
 
 .ground-row .inventory-column,
-.ground-row .discard-wrapper,
 .personal-row .inventory-column {
     flex: 1 0 260px;
 }
 
 .drop-zone {
-    border: 1px dashed var(--border);
+    border: 1px solid var(--border);
     border-radius: 8px;
     padding: 6px;
     min-height: 80px;
     font-size: 0.85rem;
     background: rgba(255, 255, 255, 0.03);
-}
-
-.drop-zone.over {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 1px rgba(76, 175, 80, 0.45);
-}
-
-.drop-zone.discard {
-    border-color: var(--danger);
-    color: var(--muted);
-    font-size: 0.8rem;
-    margin-top: 4px;
 }
 
 .item {
@@ -356,7 +343,7 @@ header h1 {
     padding: 4px 6px;
     margin: 4px 0;
     border: 1px solid rgba(255, 255, 255, 0.06);
-    cursor: grab;
+    cursor: pointer;
     user-select: none;
     font-size: 0.85rem;
     display: flex;
