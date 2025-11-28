@@ -9,6 +9,18 @@
     const GAME_STORY = window.GAME_STORY || { scenes: {} };
     const scenes = GAME_STORY.scenes || {};
 
+    const DEFAULT_RARITY_CHANCES = {
+        common: 0.75,
+        uncommon: 0.2,
+        rare: 0.05
+    };
+
+    const RARITY_LABELS = {
+        common: "Commun",
+        uncommon: "Peu courant",
+        rare: "Rare"
+    };
+
     const heroDefaults = {
         name: "Alex",
         hp: 10,
@@ -270,12 +282,19 @@
             name: tpl.name,
             value: tpl.value,
             category: tpl.type || "divers",
+            rarity: tpl.rarity || "common",
             weaponStats: tpl.weaponStats || null,
             bagStats: tpl.bagStats || null,
             heal: tpl.heal || 0,
             hungerRestore: tpl.hungerRestore || 0,
             thirstRestore: tpl.thirstRestore || 0
         };
+    }
+
+    function getTemplateRarity(templateId) {
+        const tpl = ITEM_TEMPLATES[templateId];
+        if (!tpl) return "common";
+        return tpl.rarity || "common";
     }
 
     function getItemShortTypeLabel(item) {
@@ -312,6 +331,7 @@
         div.dataset.name = item.name;
         div.dataset.templateId = item.templateId;
         div.dataset.category = item.category;
+        div.dataset.rarity = item.rarity;
 
         const hasWeapon = !!item.weaponStats;
         const hasBag = !!item.bagStats;
@@ -659,6 +679,7 @@
         const weight = itemEl.dataset.value || "?";
         const hasWeapon = itemEl.dataset.hasWeapon === "true";
         const hasBag = itemEl.dataset.hasBag === "true";
+        const rarity = itemEl.dataset.rarity || "common";
 
         const originZone = itemEl.parentElement;
         const originZoneType =
@@ -666,7 +687,8 @@
 
         selectedItemNameEl.textContent = name;
 
-        let infoText = `Type : ${category}. Charge : ${weight}. `;
+        const rarityLabel = RARITY_LABELS[rarity] || rarity;
+        let infoText = `Rareté : ${rarityLabel}. Type : ${category}. Charge : ${weight}. `;
         if (hasWeapon) {
             const fMult = parseFloat(itemEl.dataset.forceMult || "0");
             const fiMult = parseFloat(itemEl.dataset.finesseMult || "0");
@@ -1177,6 +1199,24 @@
         }
     }
 
+    function getSceneRarityChances(scene) {
+        const custom = scene.randomLootRarity || {};
+        return {
+            common:
+                typeof custom.common === "number"
+                    ? custom.common
+                    : DEFAULT_RARITY_CHANCES.common,
+            uncommon:
+                typeof custom.uncommon === "number"
+                    ? custom.uncommon
+                    : DEFAULT_RARITY_CHANCES.uncommon,
+            rare:
+                typeof custom.rare === "number"
+                    ? custom.rare
+                    : DEFAULT_RARITY_CHANCES.rare
+        };
+    }
+
     function spawnLootForScene(scene) {
         if (!lootEl || !discardEl) return;
 
@@ -1185,6 +1225,7 @@
 
         const minLoot = scene.minLoot || [];
         const randomLoot = scene.randomLoot || [];
+        const rarityChances = getSceneRarityChances(scene);
 
         minLoot.forEach(templateId => {
             const item = createItemFromTemplate(templateId);
@@ -1199,9 +1240,13 @@
             if (typeof entry === "object" && entry !== null) {
                 templateId = entry.id;
                 chance =
-                    typeof entry.chance === "number" ? entry.chance : 0.5;
+                    typeof entry.chance === "number" ? entry.chance : null;
             }
             if (!templateId) return;
+            if (chance === null) {
+                const rarity = getTemplateRarity(templateId);
+                chance = rarityChances[rarity] || DEFAULT_RARITY_CHANCES.common;
+            }
             if (Math.random() < chance) {
                 const item = createItemFromTemplate(templateId);
                 if (!item) return;
