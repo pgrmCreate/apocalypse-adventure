@@ -251,10 +251,6 @@
     function setupInitialInventory() {
         if (!inventoryEl) return;
         inventoryEl.innerHTML = "";
-        addItemToInventory("knife");
-        addItemToInventory("matches");
-        addItemToInventory("waterBottle");
-        addItemToInventory("smallBag");
 
         const firstBagEl = inventoryEl.querySelector('.item[data-has-bag="true"]');
         if (firstBagEl instanceof HTMLElement) {
