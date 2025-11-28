@@ -95,6 +95,7 @@
     let timeContextEl;
     let choiceTitleEl;
     let groundPanelEl;
+    let takeAllBtn;
 
     let hpEl;
     let forceEl;
@@ -157,12 +158,17 @@
         craftInfoEl = document.getElementById("craft-info");
         craftListEl = document.getElementById("craft-list");
         groundPanelEl = document.getElementById("ground-panel");
+        takeAllBtn = document.getElementById("take-all-btn");
 
         toastContainerEl = document.getElementById("toast-container");
 
         restartBtn = document.getElementById("restart-btn");
         if (restartBtn) {
             restartBtn.addEventListener("click", restartGame);
+        }
+
+        if (takeAllBtn) {
+            takeAllBtn.addEventListener("click", takeAllLoot);
         }
 
         [inventoryEl, lootEl, discardEl].forEach(zone => {
@@ -1139,6 +1145,44 @@
         clearSelectedItem();
     }
 
+    function takeAllLoot() {
+        if (!lootEl || !inventoryEl) return;
+        const groundItems = Array.from(lootEl.querySelectorAll(".item"));
+        if (!groundItems.length) {
+            logMessage("Il n'y a rien à ramasser ici.");
+            return;
+        }
+
+        let takenCount = 0;
+        const skipped = [];
+        let runningLoad = calculateInventoryLoad();
+        const maxCap = getCurrentMaxCapacity();
+
+        groundItems.forEach(itemEl => {
+            const value = parseInt(itemEl.dataset.value || "0", 10) || 0;
+            if (runningLoad + value <= maxCap) {
+                inventoryEl.appendChild(itemEl);
+                runningLoad += value;
+                takenCount += 1;
+            } else {
+                skipped.push(itemEl.dataset.name || "objet");
+            }
+        });
+
+        updateCapacityUI();
+        clearSelectedItem();
+
+        if (takenCount > 0) {
+            logMessage(`Tu ramasses ${takenCount} objet(s) au sol.`);
+            showToast("Ramassage effectué", "success");
+        }
+        if (skipped.length) {
+            logMessage(
+                `Charge limite atteinte, tu laisses : ${skipped.join(", ")}.`
+            );
+        }
+    }
+
     function takeItemToInventory(itemEl) {
         if (!inventoryEl) return;
         const originZone = itemEl.parentElement;
@@ -1332,6 +1376,14 @@
         return "loin";
     }
 
+    function canUseMelee() {
+        return combatState.distance <= 1;
+    }
+
+    function canUseRanged() {
+        return combatState.distance <= 2;
+    }
+
     function computeStartDistance(option) {
         const location = locations[currentLocationId] || {};
         if (typeof option.startDistance === "number") {
@@ -1397,10 +1449,18 @@
         distanceInfo.textContent = `Distance : ${describeDistance(combatState.distance)}`;
         choicesEl.appendChild(distanceInfo);
 
+        if (combatState.distance > 0) {
+            const approachBtn = document.createElement("button");
+            approachBtn.classList.add("choice-btn");
+            approachBtn.textContent = "Se rapprocher";
+            approachBtn.addEventListener("click", approachEnemy);
+            choicesEl.appendChild(approachBtn);
+        }
+
         const attackBtn = document.createElement("button");
         attackBtn.classList.add("choice-btn");
         attackBtn.textContent = "Attaque au corps à corps";
-        attackBtn.disabled = !combatState.enemies.length;
+        attackBtn.disabled = !combatState.enemies.length || !canUseMelee();
         attackBtn.addEventListener("click", performMeleeAttack);
         choicesEl.appendChild(attackBtn);
 
@@ -1418,6 +1478,7 @@
                 btn.classList.add("choice-btn");
                 const itemName = el.dataset.name || "objet";
                 btn.textContent = `Lancer ${itemName}`;
+                btn.disabled = !canUseRanged();
                 btn.addEventListener("click", () => performRangedAttack(el));
                 throwContainer.appendChild(btn);
             });
@@ -1431,6 +1492,27 @@
         choicesEl.appendChild(fleeBtn);
     }
 
+    function approachEnemy() {
+        if (!combatState.active) return;
+        const enemy = combatState.enemies[0];
+        if (!enemy) {
+            endCombat(true);
+            return;
+        }
+
+        if (combatState.distance <= 0) {
+            logMessage("Tu es déjà au contact de l'ennemi.");
+            return;
+        }
+
+        combatState.distance = Math.max(0, combatState.distance - 1);
+        logMessage(
+            `Tu te rapproches de ${enemy.name} (${describeDistance(combatState.distance)}).`
+        );
+        enemyTurn();
+        if (combatState.active) renderCombatUI();
+    }
+
     function performMeleeAttack() {
         if (!combatState.active) return;
         const enemy = combatState.enemies[0];
@@ -1439,13 +1521,8 @@
             return;
         }
 
-        if (combatState.distance > 1) {
-            combatState.distance = Math.max(0, combatState.distance - 1);
-            logMessage(
-                `Tu te rapproches de ${enemy.name} (${describeDistance(combatState.distance)}).`
-            );
-            enemyTurn();
-            if (combatState.active) renderCombatUI();
+        if (!canUseMelee()) {
+            logMessage("Tu es trop loin pour frapper, rapproche-toi d'abord.");
             return;
         }
 
@@ -1482,6 +1559,11 @@
         const chosenThrowable = throwable || (weaponEl && weaponEl.dataset.throwable === "true"
             ? weaponEl
             : getThrowableWeaponElements()[0]);
+
+        if (!canUseRanged()) {
+            logMessage("La cible est trop loin pour une attaque à distance efficace.");
+            return;
+        }
 
         if (!chosenThrowable) {
             logMessage("Aucune arme de jet disponible.");
