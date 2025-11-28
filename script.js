@@ -10,15 +10,22 @@
     const scenes = GAME_STORY.scenes || {};
 
     const DEFAULT_RARITY_CHANCES = {
-        common: 0.75,
-        uncommon: 0.2,
-        rare: 0.05
+        1: 0.75,
+        2: 0.2,
+        3: 0.05
     };
 
     const RARITY_LABELS = {
-        common: "Commun",
-        uncommon: "Peu courant",
-        rare: "Rare"
+        1: "Très peu rare",
+        2: "Peu rare",
+        3: "Rare"
+    };
+
+    const RARITY_NAMES_TO_LEVEL = {
+        common: 1,
+        "peu courant": 2,
+        uncommon: 2,
+        rare: 3
     };
 
     const heroDefaults = {
@@ -40,6 +47,25 @@
         hunger: heroDefaults.hunger,
         thirst: heroDefaults.thirst
     };
+
+    function normalizeRarity(rawRarity) {
+        if (typeof rawRarity === "number" && Number.isFinite(rawRarity)) {
+            return Math.max(1, Math.round(rawRarity));
+        }
+
+        if (typeof rawRarity === "string") {
+            const lowered = rawRarity.trim().toLowerCase();
+            const namedValue = RARITY_NAMES_TO_LEVEL[lowered];
+            if (namedValue) return namedValue;
+
+            const parsed = parseInt(lowered, 10);
+            if (!Number.isNaN(parsed)) {
+                return Math.max(1, Math.round(parsed));
+            }
+        }
+
+        return 1;
+    }
 
     // État des lieux (pour conserver loot + objets posés)
     const locationsState = {}; // { [locationId]: { lootNodes: HTMLElement[], discardNodes: HTMLElement[], lootGenerated: boolean } }
@@ -278,7 +304,7 @@
             name: tpl.name,
             value: tpl.value,
             category: tpl.type || "divers",
-            rarity: tpl.rarity || "common",
+            rarity: normalizeRarity(tpl.rarity),
             weaponStats: tpl.weaponStats || null,
             bagStats: tpl.bagStats || null,
             heal: tpl.heal || 0,
@@ -289,8 +315,8 @@
 
     function getTemplateRarity(templateId) {
         const tpl = ITEM_TEMPLATES[templateId];
-        if (!tpl) return "common";
-        return tpl.rarity || "common";
+        if (!tpl) return 1;
+        return normalizeRarity(tpl.rarity);
     }
 
     function getItemShortTypeLabel(item) {
@@ -675,7 +701,7 @@
         const weight = itemEl.dataset.value || "?";
         const hasWeapon = itemEl.dataset.hasWeapon === "true";
         const hasBag = itemEl.dataset.hasBag === "true";
-        const rarity = itemEl.dataset.rarity || "common";
+        const rarity = parseInt(itemEl.dataset.rarity || "1", 10) || 1;
 
         const originZone = itemEl.parentElement;
         const originZoneType =
@@ -1198,18 +1224,18 @@
     function getSceneRarityChances(scene) {
         const custom = scene.randomLootRarity || {};
         return {
-            common:
-                typeof custom.common === "number"
-                    ? custom.common
-                    : DEFAULT_RARITY_CHANCES.common,
-            uncommon:
-                typeof custom.uncommon === "number"
-                    ? custom.uncommon
-                    : DEFAULT_RARITY_CHANCES.uncommon,
-            rare:
-                typeof custom.rare === "number"
-                    ? custom.rare
-                    : DEFAULT_RARITY_CHANCES.rare
+            1:
+                typeof custom[1] === "number"
+                    ? custom[1]
+                    : DEFAULT_RARITY_CHANCES[1],
+            2:
+                typeof custom[2] === "number"
+                    ? custom[2]
+                    : DEFAULT_RARITY_CHANCES[2],
+            3:
+                typeof custom[3] === "number"
+                    ? custom[3]
+                    : DEFAULT_RARITY_CHANCES[3]
         };
     }
 
@@ -1241,7 +1267,7 @@
             if (!templateId) return;
             if (chance === null) {
                 const rarity = getTemplateRarity(templateId);
-                chance = rarityChances[rarity] || DEFAULT_RARITY_CHANCES.common;
+                chance = rarityChances[rarity] || DEFAULT_RARITY_CHANCES[1];
             }
             if (Math.random() < chance) {
                 const item = createItemFromTemplate(templateId);

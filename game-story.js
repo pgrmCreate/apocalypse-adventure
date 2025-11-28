@@ -41,7 +41,7 @@ window.GAME_STORY = {
             timeContext: "slow",
             minLoot: ["matches", "bandage"],
             randomLoot: ["cannedFood", "waterBottle"],
-            randomLootRarity: { common: 0.85, uncommon: 0.13, rare: 0.02 },
+            randomLootRarity: { 1: 0.85, 2: 0.13, 3: 0.02 },
             options: [
                 {
                     text: "Revenir t'asseoir un instant",
@@ -65,7 +65,7 @@ window.GAME_STORY = {
             timeContext: "slow",
             minLoot: ["cannedFood"],
             randomLoot: ["waterBottle", "knife"],
-            randomLootRarity: { common: 0.82, uncommon: 0.15, rare: 0.03 },
+            randomLootRarity: { 1: 0.82, 2: 0.15, 3: 0.03 },
             options: [
                 {
                     text: "Retourner dans ta chambre",
@@ -89,7 +89,7 @@ window.GAME_STORY = {
             timeContext: "slow",
             minLoot: [],
             randomLoot: ["plank"],
-            randomLootRarity: { common: 0.9, uncommon: 0.09, rare: 0.01 },
+            randomLootRarity: { 1: 0.9, 2: 0.09, 3: 0.01 },
             options: [
                 {
                     text: "Aller voir l'appartement d'en face (3B)",
@@ -141,7 +141,7 @@ window.GAME_STORY = {
             timeContext: "slow",
             minLoot: ["cannedFood"],
             randomLoot: ["waterBottle", "bandage"],
-            randomLootRarity: { common: 0.78, uncommon: 0.18, rare: 0.04 },
+            randomLootRarity: { 1: 0.78, 2: 0.18, 3: 0.04 },
             options: [
                 {
                     text: "Revenir dans le couloir",
@@ -210,7 +210,7 @@ window.GAME_STORY = {
             timeContext: "slow",
             minLoot: [],
             randomLoot: ["bandage"],
-            randomLootRarity: { common: 0.8, uncommon: 0.17, rare: 0.03 },
+            randomLootRarity: { 1: 0.8, 2: 0.17, 3: 0.03 },
             options: [
                 {
                     text: "Descendre au 2e étage",
@@ -259,7 +259,7 @@ window.GAME_STORY = {
             timeContext: "slow",
             minLoot: [],
             randomLoot: ["bandage"],
-            randomLootRarity: { common: 0.82, uncommon: 0.15, rare: 0.03 },
+            randomLootRarity: { 1: 0.82, 2: 0.15, 3: 0.03 },
             options: [
                 {
                     text: "Entrer dans l'appartement 2A",
@@ -288,7 +288,7 @@ window.GAME_STORY = {
             timeContext: "slow",
             minLoot: ["bandage"],
             randomLoot: ["bigBag", "plank"],
-            randomLootRarity: { common: 0.65, uncommon: 0.25, rare: 0.1 },
+            randomLootRarity: { 1: 0.65, 2: 0.25, 3: 0.1 },
             options: [
                 {
                     text: "Revenir sur le palier",
@@ -309,7 +309,7 @@ window.GAME_STORY = {
             timeContext: "slow",
             minLoot: [],
             randomLoot: ["cannedFood"],
-            randomLootRarity: { common: 0.85, uncommon: 0.12, rare: 0.03 },
+            randomLootRarity: { 1: 0.85, 2: 0.12, 3: 0.03 },
             options: [
                 {
                     text: "Entrer dans l'appartement 1A",
@@ -338,7 +338,7 @@ window.GAME_STORY = {
             timeContext: "slow",
             minLoot: ["waterBottle"],
             randomLoot: ["medkit"],
-            randomLootRarity: { common: 0.7, uncommon: 0.2, rare: 0.1 },
+            randomLootRarity: { 1: 0.7, 2: 0.2, 3: 0.1 },
             options: [
                 {
                     text: "Revenir sur le palier",
@@ -411,7 +411,7 @@ window.GAME_STORY = {
             timeContext: "slow",
             minLoot: ["plank"],
             randomLoot: ["cannedFood", "waterBottle", "anvil"],
-            randomLootRarity: { common: 0.6, uncommon: 0.25, rare: 0.15 },
+            randomLootRarity: { 1: 0.6, 2: 0.25, 3: 0.15 },
             options: [
                 {
                     text: "Prendre un peu de temps pour te poser et fouiller (temps long)",
