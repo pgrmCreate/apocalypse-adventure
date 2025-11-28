@@ -1815,6 +1815,9 @@
             }
         }
 
+        const state = getLocationState(currentLocationId);
+        if (!state) return;
+
         if (choicesEl) {
             choicesEl.innerHTML = "";
             scene.options.forEach((option, index) => {
@@ -1840,9 +1843,6 @@
         }
 
         if (!lootEl || !discardEl) return;
-
-        const state = getLocationState(currentLocationId);
-        if (!state) return;
 
         lootEl.innerHTML = "";
         discardEl.innerHTML = "";
