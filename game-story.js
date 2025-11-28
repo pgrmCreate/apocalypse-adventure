@@ -39,8 +39,8 @@ window.GAME_STORY = {
                 "Tu retournes chaque pile de vêtements, chaque tiroir. Tu avais caché quelques bricoles utiles pour le jour où tu devrais sortir.",
             locationId: "apt_main",
             timeContext: "slow",
-            minLoot: ["bandage", "satchel", "toothbrush"],
-            randomLoot: ["cannedFood", "waterBottle", "cloth"],
+            minLoot: ["satchel", "toothbrush"],
+            randomLoot: ["cannedFood", "waterBottle", "cloth", "bandage"],
             randomLootRarity: { 1: 0.8, 2: 0.2},
             options: [
                 {
@@ -695,8 +695,8 @@ window.GAME_STORY = {
 
     locations: {
         apt_main: {
-            minLoot: ["bandage", "satchel", "toothbrush"],
-            randomLoot: {},
+            minLoot: ["satchel", "toothbrush"],
+            randomLoot: ["bandage"],
             randomLootRarity: { 1: 0.8, 2: 0.2 },
             randomLootQuantity: 0.5
         },
@@ -737,8 +737,8 @@ window.GAME_STORY = {
         },
 
         apt2: {
-            minLoot: ["bandage", "towel"],
-            randomLoot: ["bigBag", "plank", "cloth"],
+            minLoot: ["towel"],
+            randomLoot: ["bandage", "bigBag", "plank", "cloth"],
             randomLootRarity: { 1: 0.65, 2: 0.25, 3: 0.1 },
             randomLootQuantity: 1
         },

@@ -89,9 +89,22 @@ window.ITEM_TEMPLATES = {
         name: "Bandage",
         value: 2,
         type: "consommable",
-        rarity: 1,
+        rarity: 2,
         heal: 0,
         bandageQuality: 1
+    },
+
+    improvisedBandage: {
+        name: "Bandage de fortune",
+        value: 2,
+        type: "consommable",
+        rarity: 1,
+        heal: 0,
+        bandageQuality: 1,
+        canCraft: {
+            ingredients: ["tornCloth"],
+            consume: ["tornCloth"]
+        }
     },
 
     cannedFood: {
@@ -180,6 +193,17 @@ window.ITEM_TEMPLATES = {
         canCraft: {
             ingredients: ["plank", "cloth", "matches"],
             consume: ["plank", "cloth", "matches"]
+        }
+    },
+
+    tornCloth: {
+        name: "Tissu déchiré",
+        value: 1,
+        type: "divers",
+        rarity: 1,
+        canCraft: {
+            ingredients: [["towel", "cloth"]],
+            consume: [["towel", "cloth"]]
         }
     },
 
