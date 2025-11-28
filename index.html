@@ -24,6 +24,66 @@
                 </section>
 
                 <aside id="sidebar">
+                    <section class="inventory-panel ground-panel">
+                        <h2>Au sol & défausse</h2>
+                        <div class="ground-row">
+                            <div class="inventory-column">
+                                <h3>Objets trouvés / au sol</h3>
+                                <div id="loot-zone" class="drop-zone" data-zone="loot">
+                                    <!-- loot du lieu -->
+                                </div>
+                            </div>
+
+                            <div class="discard-wrapper">
+                                <h3>Défausser (pose au sol dans ce lieu)</h3>
+                                <div id="discard-zone" class="drop-zone discard" data-zone="discard">
+                                    Glisse ici ce que tu abandonnes.
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="inventory-panel personal-panel">
+                        <h2>Inventaire du héros</h2>
+                        <div class="capacity">
+                            Charge : <span id="capacity-value"></span>
+                            <div class="bag-info">Sac actuel : <span id="bag-name"></span></div>
+                        </div>
+
+                        <section class="item-actions-panel inline">
+                            <h3>Objet sélectionné</h3>
+                            <div id="selected-item-name" class="selected-name">Aucun</div>
+                            <div id="selected-item-info" class="selected-info"></div>
+                            <div id="selected-item-buttons" class="selected-buttons"></div>
+                        </section>
+
+                        <div class="personal-row">
+                            <div class="inventory-column">
+                                <h3>Sur toi</h3>
+                                <div id="inventory-zone" class="drop-zone" data-zone="inventory">
+                                    <!-- objets dans l'inventaire -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <p class="hint">
+                            Astuce : clique sur un objet pour voir ses stats, l'équiper, le consommer,
+                            le <strong>jeter</strong> ou le <strong>prendre</strong>.<br>
+                            Certains objets peuvent aussi être <strong>craftés</strong> à partir d'autres
+                            (par exemple : <em>planche + couteau → lance</em>).
+                        </p>
+                    </section>
+
+                    <section class="weapon-panel">
+                        <h2>Combat</h2>
+                        <div class="equipped-name">
+                            Arme équipée : <span id="equipped-weapon-name">Aucune (poings seulement)</span>
+                        </div>
+                        <div class="attack-summary">
+                            Dégâts min. estimés (avant dés) : <span id="attack-preview"></span>
+                        </div>
+                    </section>
+
                     <section class="hero-panel">
                         <h2>Héros</h2>
                         <div class="hero-name">Nom : <span id="hero-name"></span></div>
@@ -37,69 +97,12 @@
                         </ul>
                     </section>
 
-                    <section class="weapon-panel">
-                        <h2>Combat</h2>
-                        <div class="equipped-name">
-                            Arme équipée : <span id="equipped-weapon-name">Aucune (poings seulement)</span>
+                    <section class="craft-panel">
+                        <h3>Crafting</h3>
+                        <div id="craft-info" class="craft-info">
+                            Disponible uniquement en temps long (hors action urgente).
                         </div>
-                        <div class="attack-summary">
-                            Dégâts min. estimés (avant dés) : <span id="attack-preview"></span>
-                        </div>
-                    </section>
-
-                    <section class="inventory-panel">
-                        <h2>Inventaire</h2>
-                        <div class="capacity">
-                            Charge : <span id="capacity-value"></span>
-                            <div class="bag-info">Sac actuel : <span id="bag-name"></span></div>
-                        </div>
-
-                        <!-- Objet sélectionné -->
-                        <section class="item-actions-panel inline">
-                            <h3>Objet sélectionné</h3>
-                            <div id="selected-item-name" class="selected-name">Aucun</div>
-                            <div id="selected-item-info" class="selected-info"></div>
-                            <div id="selected-item-buttons" class="selected-buttons"></div>
-                        </section>
-
-                        <div class="inventory-columns">
-                            <div class="inventory-column">
-                                <h3>Sur toi</h3>
-                                <div id="inventory-zone" class="drop-zone" data-zone="inventory">
-                                    <!-- objets dans l'inventaire -->
-                                </div>
-                            </div>
-
-                            <div class="inventory-column">
-                                <h3>Objets trouvés / au sol</h3>
-                                <div id="loot-zone" class="drop-zone" data-zone="loot">
-                                    <!-- loot du lieu -->
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="discard-wrapper">
-                            <h3>Défausser (pose au sol dans ce lieu)</h3>
-                            <div id="discard-zone" class="drop-zone discard" data-zone="discard">
-                                Glisse ici ce que tu abandonnes.
-                            </div>
-                        </div>
-
-                        <!-- Crafting -->
-                        <section class="craft-panel">
-                            <h3>Crafting</h3>
-                            <div id="craft-info" class="craft-info">
-                                Disponible uniquement en temps long (hors action urgente).
-                            </div>
-                            <div id="craft-list" class="craft-list"></div>
-                        </section>
-
-                        <p class="hint">
-                            Astuce : clique sur un objet pour voir ses stats, l'équiper, le consommer,
-                            le <strong>jeter</strong> ou le <strong>prendre</strong>.<br>
-                            Certains objets peuvent aussi être <strong>craftés</strong> à partir d'autres
-                            (par exemple : <em>planche + couteau → lance</em>).
-                        </p>
+                        <div id="craft-list" class="craft-list"></div>
                     </section>
                 </aside>
             </main>

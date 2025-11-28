@@ -165,10 +165,13 @@ header h1 {
     padding: 0;
     margin: 0 0 8px;
     font-size: 0.9rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 4px 10px;
 }
 
 .stats li {
-    margin-bottom: 2px;
+    margin: 0;
 }
 
 .weapon-panel {
@@ -214,19 +217,29 @@ header h1 {
     font-weight: 600;
 }
 
-.inventory-columns {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 8px;
+.inventory-column h3 {
+    margin: 0 0 4px;
+    font-size: 0.9rem;
 }
 
 .inventory-column {
     flex: 1;
 }
 
-.inventory-column h3 {
-    margin: 0 0 4px;
-    font-size: 0.9rem;
+.ground-row,
+.personal-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+}
+
+.ground-row .inventory-column,
+.ground-row .discard-wrapper,
+.personal-row .inventory-column {
+    flex: 1 0 260px;
 }
 
 .drop-zone {
