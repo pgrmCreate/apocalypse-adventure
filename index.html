@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="fr">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Apocalypse Zombie - Livre dont vous êtes le héros</title>
+        <link rel="stylesheet" href="style.css">
+    </head>
+    <body>
+        <div class="app">
+            <header>
+                <h1>TEST IA - Apocalypse</h1>
+                <p class="subtitle">Livre dont vous êtes le héros • survie & inventaire</p>
+            </header>
+
+            <main class="layout">
+                <section id="game">
+                    <h2 id="story-title"></h2>
+                    <p id="time-context" class="time-context-label"></p>
+                    <div id="story-text" class="story-text"></div>
+
+                    <div class="choice-title">Que fais-tu ?</div>
+                    <div id="choices" class="choices"></div>
+                </section>
+
+                <aside id="sidebar">
+                    <section class="hero-panel">
+                        <h2>Héros</h2>
+                        <div class="hero-name">Nom : <span id="hero-name"></span></div>
+                        <ul class="stats">
+                            <li>PV : <span id="stat-hp"></span></li>
+                            <li>Force : <span id="stat-force"></span></li>
+                            <li>Finesse : <span id="stat-finesse"></span></li>
+                            <li>Audace : <span id="stat-audace"></span></li>
+                            <li>Faim : <span id="stat-hunger"></span></li>
+                            <li>Soif : <span id="stat-thirst"></span></li>
+                        </ul>
+                    </section>
+
+                    <section class="weapon-panel">
+                        <h2>Combat</h2>
+                        <div class="equipped-name">
+                            Arme équipée : <span id="equipped-weapon-name">Aucune (poings seulement)</span>
+                        </div>
+                        <div class="attack-summary">
+                            Dégâts min. estimés (avant dés) : <span id="attack-preview"></span>
+                        </div>
+                    </section>
+
+                    <section class="inventory-panel">
+                        <h2>Inventaire</h2>
+                        <div class="capacity">
+                            Charge : <span id="capacity-value"></span>
+                            <div class="bag-info">Sac actuel : <span id="bag-name"></span></div>
+                        </div>
+
+                        <!-- Objet sélectionné entre Charge et Inventaire -->
+                        <section class="item-actions-panel inline">
+                            <h3>Objet sélectionné</h3>
+                            <div id="selected-item-name" class="selected-name">Aucun</div>
+                            <div id="selected-item-info" class="selected-info"></div>
+                            <div id="selected-item-buttons" class="selected-buttons"></div>
+                        </section>
+
+                        <div class="inventory-columns">
+                            <div class="inventory-column">
+                                <h3>Sur toi</h3>
+                                <div id="inventory-zone" class="drop-zone" data-zone="inventory">
+                                    <!-- objets dans l'inventaire -->
+                                </div>
+                            </div>
+
+                            <div class="inventory-column">
+                                <h3>Objets trouvés</h3>
+                                <div id="loot-zone" class="drop-zone" data-zone="loot">
+                                    <!-- loot courant -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="discard-wrapper">
+                            <h3>Défausser (pose au sol dans ce lieu)</h3>
+                            <div id="discard-zone" class="drop-zone discard" data-zone="discard">
+                                Glisse ici ce que tu abandonnes.
+                            </div>
+                        </div>
+
+                        <p class="hint">
+                            Astuce : clique sur un objet pour voir ses stats, l'équiper ou l'utiliser.<br>
+                            Certains objets sont des <strong>armes</strong>, d'autres de la <strong>nourriture</strong>,
+                            de l'<strong>eau</strong>, ou des <strong>sacs</strong> qui modifient ta capacité.
+                        </p>
+                    </section>
+                </aside>
+            </main>
+
+            <section class="log-section bottom-log">
+                <h3>Journal & jets de dés</h3>
+                <div id="log" class="log"></div>
+            </section>
+
+            <footer>
+                <button id="restart-btn" class="secondary-btn">Recommencer la partie</button>
+            </footer>
+        </div>
+
+        <!-- Définition des objets -->
+        <script src="items.js"></script>
+        <!-- Logique du jeu -->
+        <script src="script.js"></script>
+    </body>
+</html>
