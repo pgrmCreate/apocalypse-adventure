@@ -82,6 +82,7 @@
     let equippedWeaponTemplateId = null;
     let equippedBagTemplateId = null;
     let wounds = [];
+    let combatState = { active: false };
 
     // DOM
     let storyTitleEl;
@@ -91,6 +92,8 @@
     let woundsEl;
     let woundHeaderEl;
     let timeContextEl;
+    let choiceTitleEl;
+    let groundPanelEl;
 
     let hpEl;
     let forceEl;
@@ -125,6 +128,7 @@
         woundsEl = document.getElementById("wounds");
         woundHeaderEl = document.getElementById("wound-header");
         timeContextEl = document.getElementById("time-context");
+        choiceTitleEl = document.getElementById("choice-title");
 
         hpEl = document.getElementById("stat-hp");
         forceEl = document.getElementById("stat-force");
@@ -149,6 +153,7 @@
 
         craftInfoEl = document.getElementById("craft-info");
         craftListEl = document.getElementById("craft-list");
+        groundPanelEl = document.getElementById("ground-panel");
 
         restartBtn = document.getElementById("restart-btn");
         if (restartBtn) {
@@ -307,6 +312,17 @@
         const severity = Math.max(1, Math.ceil(damage));
         const baseHeal = Math.max(3, severity * 3);
         const bleedRate = Math.max(1, Math.ceil(severity / 2));
+
+        const existingOnPart = wounds.find(w => w.part === part && w.bandaged);
+        if (existingOnPart) {
+            existingOnPart.bandaged = false;
+            existingOnPart.bandageQuality = 0;
+            existingOnPart.bleeding = true;
+            logMessage(
+                `Le bandage sur ta blessure au ${part} se déchire sous le nouvel impact !`
+            );
+        }
+
         const wound = {
             id: `wound-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
             part,
@@ -325,13 +341,26 @@
         renderWounds();
     }
 
-    function applyBandage(quality) {
+    function applyBandage(quality, targetId) {
         if (!wounds.length) {
             logMessage("Aucune blessure à bander pour l'instant.");
             return false;
         }
-        const target =
-            wounds.find(w => !w.bandaged || w.bleeding) || wounds[0];
+
+        const target = targetId
+            ? wounds.find(w => w.id === targetId)
+            : wounds.find(w => !w.bandaged || w.bleeding) || wounds[0];
+
+        if (!target) {
+            logMessage("Tu ne trouves pas de blessure correspondante pour ce bandage.");
+            return false;
+        }
+
+        if (target.bandaged && !target.bleeding) {
+            logMessage("Cette blessure est déjà bandée correctement.");
+            return false;
+        }
+
         target.bandaged = true;
         target.bleeding = false;
         target.bandageQuality = Math.max(0, quality || 0);
@@ -596,6 +625,11 @@
         refreshCraftingUI();
     }
 
+    function updateGroundPanelVisibility() {
+        if (!groundPanelEl) return;
+        groundPanelEl.style.display = combatState.active ? "none" : "";
+    }
+
     /* --- Crafting --- */
 
     function getInventoryTemplateCounts() {
@@ -609,21 +643,49 @@
         return counts;
     }
 
-    function isRecipeCraftable(recipe, counts) {
+    function resolveRecipeConsumption(recipe, counts) {
         if (!recipe || !Array.isArray(recipe.ingredients) || !recipe.ingredients.length) {
-            return false;
+            return null;
         }
-        const needed = {};
-        recipe.ingredients.forEach(id => {
-            needed[id] = (needed[id] || 0) + 1;
-        });
-        for (const id in needed) {
-            if (!Object.prototype.hasOwnProperty.call(needed, id)) continue;
-            if (!counts[id] || counts[id] < needed[id]) {
-                return false;
+
+        const available = { ...counts };
+        const chosenIngredients = [];
+
+        for (const ing of recipe.ingredients) {
+            if (Array.isArray(ing)) {
+                const pick = ing.find(id => available[id] > 0);
+                if (!pick) return null;
+                chosenIngredients.push(pick);
+                available[pick] -= 1;
+            } else {
+                if (!available[ing]) return null;
+                chosenIngredients.push(ing);
+                available[ing] -= 1;
             }
         }
-        return true;
+
+        const consumeSource =
+            Array.isArray(recipe.consume) && recipe.consume.length
+                ? recipe.consume
+                : chosenIngredients;
+        const consumeCounts = {};
+
+        consumeSource.forEach(entry => {
+            if (Array.isArray(entry)) {
+                const pick = entry.find(id => chosenIngredients.includes(id))
+                    || entry.find(id => counts[id] > 0);
+                if (!pick) return;
+                consumeCounts[pick] = (consumeCounts[pick] || 0) + 1;
+            } else {
+                consumeCounts[entry] = (consumeCounts[entry] || 0) + 1;
+            }
+        });
+
+        return { consumeCounts, chosenIngredients };
+    }
+
+    function isRecipeCraftable(recipe, counts) {
+        return !!resolveRecipeConsumption(recipe, counts);
     }
 
     function computeCraftableTemplates() {
@@ -693,21 +755,14 @@
         }
 
         const counts = getInventoryTemplateCounts();
-        if (!isRecipeCraftable(recipe, counts)) {
+        const resolved = resolveRecipeConsumption(recipe, counts);
+        if (!resolved) {
             logMessage("Tu n'as plus les ressources nécessaires pour fabriquer ça.");
             refreshCraftingUI();
             return;
         }
 
-        const consumeList =
-                  recipe && Array.isArray(recipe.consume) && recipe.consume.length
-                      ? recipe.consume
-                      : (recipe && recipe.ingredients) || [];
-
-        const consumedCounts = {};
-        consumeList.forEach(id => {
-            consumedCounts[id] = (consumedCounts[id] || 0) + 1;
-        });
+        const consumedCounts = resolved.consumeCounts;
 
         if (inventoryEl) {
             for (const tplId in consumedCounts) {
@@ -910,7 +965,27 @@
         }
 
         const isFoodOrDrink = hungerRestore > 0 || thirstRestore > 0;
-        if (heal > 0 || isFoodOrDrink || bandageQuality > 0) {
+        const isBandage = bandageQuality > 0;
+        if (isBandage) {
+            if (!wounds.length) {
+                const info = document.createElement("div");
+                info.textContent = "Tu dois être blessé pour poser un bandage.";
+                info.classList.add("selected-info");
+                selectedItemButtonsEl.appendChild(info);
+            } else {
+                wounds.forEach(w => {
+                    const useBtn = document.createElement("button");
+                    useBtn.classList.add("small-btn");
+                    useBtn.textContent = `Utiliser sur ${w.part}`;
+                    useBtn.addEventListener("click", () => {
+                        useConsumableItem(itemEl, { targetWoundId: w.id });
+                    });
+                    selectedItemButtonsEl.appendChild(useBtn);
+                });
+            }
+        }
+
+        if (heal > 0 || isFoodOrDrink) {
             const useBtn = document.createElement("button");
             useBtn.classList.add("small-btn");
             useBtn.textContent = "Utiliser";
@@ -1058,6 +1133,7 @@
         const bandageQuality =
                   parseInt(itemEl.dataset.bandageQuality || "0", 10) || 0;
         const isFoodOrDrink = opts && opts.isFoodOrDrink;
+        const targetWoundId = opts && opts.targetWoundId;
         const isBandage = bandageQuality > 0;
         const name = itemEl.dataset.name || "objet";
 
@@ -1072,7 +1148,7 @@
         }
 
         if (isBandage) {
-            const applied = applyBandage(bandageQuality);
+            const applied = applyBandage(bandageQuality, targetWoundId);
             if (!applied) return;
         } else if (heal > 0 && !isFoodOrDrink) {
             const before = hero.hp;
@@ -1153,6 +1229,209 @@
         attackPreviewEl.textContent = String(power);
     }
 
+    function getEquippedWeaponElement() {
+        if (!inventoryEl) return null;
+        return inventoryEl.querySelector(".item.equipped-weapon");
+    }
+
+    function startCombat(option) {
+        const d = option.diceTest || {};
+        const enemyName =
+            option.enemyName || d.description || option.text || "adversaire";
+        const difficulty = Math.max(6, d.difficulty || 10);
+        const enemy = {
+            id: `enemy-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+            name: enemyName,
+            hp: difficulty,
+            maxHp: difficulty,
+            baseDamage: Math.max(2, Math.round(difficulty / 4)),
+            fleeDifficulty: Math.max(8, difficulty)
+        };
+
+        combatState = {
+            active: true,
+            enemies: [enemy],
+            victoryScene: option.successScene || (d && d.successScene),
+            defeatScene: option.failScene || (d && d.failScene),
+            victoryEffect: option.successEffect,
+            defeatEffect: option.failEffect,
+            previousTimeContext: currentTimeContext
+        };
+        currentTimeContext = "fast";
+        updateGroundPanelVisibility();
+        renderCombatUI();
+        logMessage(`Un combat s'engage contre ${enemy.name}.`);
+    }
+
+    function renderCombatUI() {
+        if (!choicesEl || !combatState.active) return;
+        if (choiceTitleEl) choiceTitleEl.textContent = "Actions de combat";
+        choicesEl.innerHTML = "";
+
+        const status = document.createElement("div");
+        status.classList.add("combat-status");
+        status.textContent = combatState.enemies
+            .map(e => `${e.name} (${e.hp}/${e.maxHp} PV)`).join(" • ");
+        choicesEl.appendChild(status);
+
+        const attackBtn = document.createElement("button");
+        attackBtn.classList.add("choice-btn");
+        attackBtn.textContent = "Attaquer";
+        attackBtn.addEventListener("click", performPlayerAttack);
+        choicesEl.appendChild(attackBtn);
+
+        const throwWeaponBtn = document.createElement("button");
+        throwWeaponBtn.classList.add("choice-btn");
+        const equippedWeaponEl = getEquippedWeaponElement();
+        throwWeaponBtn.textContent = equippedWeaponEl
+            ? `Lancer ${equippedWeaponEl.dataset.name}`
+            : "Lancer une arme (aucune équipée)";
+        throwWeaponBtn.disabled = !equippedWeaponEl;
+        throwWeaponBtn.addEventListener("click", () => throwEquippedWeapon());
+        choicesEl.appendChild(throwWeaponBtn);
+
+        const fleeBtn = document.createElement("button");
+        fleeBtn.classList.add("choice-btn");
+        fleeBtn.textContent = "Fuir";
+        fleeBtn.addEventListener("click", attemptFlee);
+        choicesEl.appendChild(fleeBtn);
+    }
+
+    function performPlayerAttack() {
+        if (!combatState.active) return;
+        const enemy = combatState.enemies[0];
+        if (!enemy) {
+            endCombat(true);
+            return;
+        }
+
+        const roll = rollDice(6, 1);
+        const damage = computeBaseAttackPower() + roll.sum;
+        enemy.hp = Math.max(0, enemy.hp - damage);
+        logMessage(
+            `Tu attaques ${enemy.name} et infliges ${damage} dégâts (jet ${roll.rolls.join(", ")}).`
+        );
+
+        if (enemy.hp <= 0) {
+            logMessage(`${enemy.name} s'effondre.`);
+            combatState.enemies.shift();
+            if (!combatState.enemies.length) {
+                endCombat(true);
+                return;
+            }
+        }
+
+        enemyTurn();
+        if (combatState.active) renderCombatUI();
+    }
+
+    function throwEquippedWeapon() {
+        if (!combatState.active) return;
+        const enemy = combatState.enemies[0];
+        if (!enemy) {
+            endCombat(true);
+            return;
+        }
+
+        const weaponEl = getEquippedWeaponElement();
+        if (!weaponEl) {
+            logMessage("Aucune arme équipée à lancer.");
+            return;
+        }
+
+        const base = parseFloat(weaponEl.dataset.baseDamage || "0") || 0;
+        const damage = Math.max(1, Math.round(base + hero.force));
+        enemy.hp = Math.max(0, enemy.hp - damage);
+
+        logMessage(
+            `Tu lances ${weaponEl.dataset.name} sur ${enemy.name}, infligeant ${damage} dégâts.`
+        );
+
+        weaponEl.remove();
+        if (equippedWeaponTemplateId === weaponEl.dataset.templateId) {
+            equippedWeaponTemplateId = null;
+        }
+        updateEquippedWeaponUI();
+        updateCapacityUI();
+
+        if (enemy.hp <= 0) {
+            logMessage(`${enemy.name} est neutralisé par ton lancer.`);
+            combatState.enemies.shift();
+            if (!combatState.enemies.length) {
+                endCombat(true);
+                return;
+            }
+        }
+
+        enemyTurn();
+        if (combatState.active) renderCombatUI();
+    }
+
+    function attemptFlee() {
+        if (!combatState.active) return;
+        const roll = rollDice(6, 2);
+        const difficulty = combatState.enemies[0]
+            ? combatState.enemies[0].fleeDifficulty
+            : 10;
+        const total = roll.sum + hero.audace;
+        logMessage(
+            `Fuite : jet ${roll.rolls.join(" + ")} + audace (${hero.audace}) = ${total} (difficulté ${difficulty}).`
+        );
+
+        if (total >= difficulty) {
+            logMessage("Tu parviens à te dégager du combat !");
+            endCombat(false);
+        } else {
+            logMessage("Tu n'arrives pas à fuir, l'ennemi en profite !");
+            enemyTurn();
+            if (combatState.active) renderCombatUI();
+        }
+    }
+
+    function enemyTurn() {
+        if (!combatState.active) return;
+        const enemy = combatState.enemies[0];
+        if (!enemy) return;
+        const roll = rollDice(6, 1);
+        const damage = enemy.baseDamage + roll.sum;
+        hero.hp = Math.max(0, hero.hp - damage);
+        registerWound(Math.ceil(damage / 3));
+        logMessage(`${enemy.name} riposte et inflige ${damage} dégâts.`);
+        updateStatsUI();
+        if (hero.hp <= 0) {
+            endCombat(false);
+        }
+    }
+
+    function endCombat(victory) {
+        const nextSceneId = victory
+            ? combatState.victoryScene
+            : combatState.defeatScene;
+        const effectToApply = victory
+            ? combatState.victoryEffect
+            : combatState.defeatEffect;
+        currentTimeContext = combatState.previousTimeContext || currentTimeContext;
+        combatState = { active: false };
+        updateGroundPanelVisibility();
+        if (choiceTitleEl) choiceTitleEl.textContent = "Que fais-tu ?";
+        refreshCraftingUI();
+
+        if (effectToApply) {
+            applyEffect(effectToApply);
+        }
+
+        if (hero.hp <= 0) {
+            renderScene("gameOver");
+            return;
+        }
+
+        if (nextSceneId) {
+            renderScene(nextSceneId);
+        } else {
+            renderScene(currentSceneId);
+        }
+    }
+
     /* --- Journal & dés --- */
 
     function logMessage(text) {
@@ -1225,6 +1504,12 @@
             return;
         }
 
+        combatState = { active: false };
+        updateGroundPanelVisibility();
+        if (choiceTitleEl) {
+            choiceTitleEl.textContent = "Que fais-tu ?";
+        }
+
         const oldLocation = currentLocationId;
         if (oldLocation && oldLocation !== "none") {
             saveLocationState(oldLocation);
@@ -1291,6 +1576,10 @@
     }
 
     function handleOption(option) {
+        if (combatState.active) {
+            logMessage("Tu es déjà en plein combat, concentre-toi !");
+            return;
+        }
         if (option.restart) {
             restartGame();
             return;
@@ -1319,6 +1608,10 @@
         }
 
         if (option.diceTest) {
+            if (option.diceTest.type === "combat") {
+                startCombat(option);
+                return;
+            }
             resolveDiceOption(option);
             return;
         }
