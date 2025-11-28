@@ -493,6 +493,10 @@ footer {
     transition: background 0.15s ease, color 0.15s ease;
 }
 
+.inline-btn {
+    margin-bottom: 8px;
+}
+
 .secondary-btn:hover {
     background: #252c3f;
     color: var(--text);
