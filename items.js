@@ -17,7 +17,8 @@ window.ITEM_TEMPLATES = {
         weaponStats: {
             baseDamage: 2,
             forceMultiplier: 0.5,
-            finesseMultiplier: 1.0
+            finesseMultiplier: 1.0,
+            throwable: true
         }
     },
 
@@ -30,6 +31,18 @@ window.ITEM_TEMPLATES = {
             baseDamage: 3,
             forceMultiplier: 1.0,
             finesseMultiplier: 0.5
+        }
+    },
+
+    crowbar: {
+        name: "Pied-de-biche",
+        value: 9,
+        type: "arme",
+        rarity: 2,
+        weaponStats: {
+            baseDamage: 4,
+            forceMultiplier: 1.1,
+            finesseMultiplier: 0.4
         }
     },
 
@@ -53,7 +66,8 @@ window.ITEM_TEMPLATES = {
         weaponStats: {
             baseDamage: 2,
             forceMultiplier: 0.8,
-            finesseMultiplier: 0.3
+            finesseMultiplier: 0.3,
+            throwable: true
         }
     },
 
@@ -62,6 +76,53 @@ window.ITEM_TEMPLATES = {
         value: 1,
         type: "outil",
         rarity: 1
+    },
+
+    lighter: {
+        name: "Briquet",
+        value: 1,
+        type: "outil",
+        rarity: 1
+    },
+
+    cigarette: {
+        name: "Cigarettes",
+        value: 1,
+        type: "consommable",
+        rarity: 2
+    },
+
+    paper: {
+        name: "Feuilles de papier",
+        value: 1,
+        type: "divers",
+        rarity: 1
+    },
+
+    pen: {
+        name: "Stylo",
+        value: 1,
+        type: "divers",
+        rarity: 1
+    },
+
+    nail: {
+        name: "Sachet de clous",
+        value: 2,
+        type: "divers",
+        rarity: 1
+    },
+
+    hammer: {
+        name: "Marteau",
+        value: 6,
+        type: "outil",
+        rarity: 1,
+        weaponStats: {
+            baseDamage: 2,
+            forceMultiplier: 0.9,
+            finesseMultiplier: 0.4
+        }
     },
 
     cloth: {
@@ -169,7 +230,8 @@ window.ITEM_TEMPLATES = {
         weaponStats: {
             baseDamage: 3,
             forceMultiplier: 0.9,
-            finesseMultiplier: 0.8
+            finesseMultiplier: 0.8,
+            throwable: true
         },
         // Recette de craft pour fabriquer une lance
         // - ingredients : les modèles nécessaires

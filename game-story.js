@@ -49,6 +49,22 @@ window.GAME_STORY = {
                     timeCost: 0
                 },
                 {
+                    text: "Ouvrir l'armoire qui cogne au fond",
+                    diceTest: {
+                        type: "combat",
+                        diceCount: 1,
+                        diceSides: 6,
+                        difficulty: 8,
+                        description:
+                            "Un rôdeur enfermé tente de sortir de la penderie."
+                    },
+                    successScene: "aptMainSearch",
+                    failScene: "aptMainSearch",
+                    successEffect: { audaceChange: 1 },
+                    failEffect: { hpChange: -3 },
+                    startDistanceRange: { min: 0, max: 1 }
+                },
+                {
                     text: "Sortir dans le couloir",
                     nextScene: "aptHallway",
                     timeCost: 1
@@ -60,17 +76,33 @@ window.GAME_STORY = {
             id: "aptKitchen",
             title: "Cuisine dévastée",
             text:
-                "L'odeur de nourriture avariée flotte encore. Quelques conserves ont survécu aux premiers jours de panique.",
+                "L'odeur de nourriture avariée flotte encore. Quelques conserves ont survécu aux premiers jours de panique et un petit briquet traîne près du four éteint.",
             locationId: "apt_kitchen",
             timeContext: "slow",
             minLoot: ["cannedFood", "towel"],
-            randomLoot: ["waterBottle", "knife", "cloth", "matches"],
+            randomLoot: ["waterBottle", "knife", "cloth", "matches", "lighter"],
             randomLootRarity: { 1: 0.85, 2: 0.15 },
             options: [
                 {
                     text: "Retourner dans ta chambre",
                     nextScene: "intro",
                     timeCost: 1
+                },
+                {
+                    text: "Inspecter le placard qui s'ouvre tout seul",
+                    diceTest: {
+                        type: "combat",
+                        diceCount: 2,
+                        diceSides: 6,
+                        difficulty: 10,
+                        description:
+                            "Une silhouette décharnée jaillit avec un couteau rouillé."
+                    },
+                    successScene: "aptKitchen",
+                    failScene: "aptKitchen",
+                    successEffect: { audaceChange: 1 },
+                    failEffect: { hpChange: -4 },
+                    startDistanceRange: { min: 0, max: 1 }
                 },
                 {
                     text: "Passer par la porte qui donne sur le couloir",
@@ -84,11 +116,11 @@ window.GAME_STORY = {
             id: "aptHallway",
             title: "Couloir du 3e étage",
             text:
-                "La moquette est maculée de traces de pas sèches. La porte de ton voisin en face est entrebâillée. La cage d’escalier est au bout du couloir.",
+                "La moquette est maculée de traces de pas sèches. Des feuilles volantes annotées traînent au sol et la porte de ton voisin en face est entrebâillée. La cage d’escalier est au bout du couloir.",
             locationId: "apt_hallway",
             timeContext: "slow",
             minLoot: [],
-            randomLoot: ["plank", "cloth"],
+            randomLoot: ["plank", "cloth", "pen", "paper"],
             randomLootRarity: { 1: 0.9, 2: 0.09, 3: 0.01 },
             options: [
                 {
@@ -136,7 +168,7 @@ window.GAME_STORY = {
             id: "neighbor3Inside",
             title: "Appartement 3B",
             text:
-                "L’appartement est renversé, mais personne ne semble là. Sur la table, quelques provisions oubliées.",
+                "L’appartement est renversé, mais personne ne semble là. Sur la table, quelques provisions oubliées et un paquet de cigarettes écrasé.",
             locationId: "apt_neighbor3",
             timeContext: "slow",
             minLoot: ["cannedFood"],
@@ -283,17 +315,33 @@ window.GAME_STORY = {
             id: "apt2",
             title: "Appartement 2A",
             text:
-                "Une odeur de moisissure et de produits ménagers mélangés. Des cartons éventrés, une armoire renversée… mais aussi quelques choses utiles.",
+                "Une odeur de moisissure et de produits ménagers mélangés. Des cartons éventrés, une armoire renversée… et des outils de bricolage abandonnés dans l'entrée.",
             locationId: "apt2",
             timeContext: "slow",
             minLoot: ["bandage", "towel"],
-            randomLoot: ["bigBag", "plank", "cloth"],
+            randomLoot: ["bigBag", "plank", "cloth", "nail"],
             randomLootRarity: { 1: 0.65, 2: 0.25, 3: 0.1 },
             options: [
                 {
                     text: "Revenir sur le palier",
                     nextScene: "landing2",
                     timeCost: 1
+                },
+                {
+                    text: "Forcer la chambre barricadée",
+                    diceTest: {
+                        type: "combat",
+                        diceCount: 2,
+                        diceSides: 6,
+                        difficulty: 11,
+                        description:
+                            "Un voisin transformé se jette sur toi dès que la porte cède."
+                    },
+                    successScene: "apt2",
+                    failScene: "apt2",
+                    successEffect: { audaceChange: 1 },
+                    failEffect: { hpChange: -4 },
+                    startDistanceRange: { min: 1, max: 2 }
                 }
             ]
         },
@@ -333,17 +381,33 @@ window.GAME_STORY = {
             id: "apt1",
             title: "Appartement 1A",
             text:
-                "Le salon est en désordre, mais relativement épargné. Une table renversée, des verres brisés, une cuisine encore pleine de traces de vie normale.",
+                "Le salon est en désordre, mais relativement épargné. Une table renversée, des verres brisés, des papiers griffonnés éparpillés et une cuisine encore pleine de traces de vie normale.",
             locationId: "apt1",
             timeContext: "slow",
             minLoot: ["waterBottle", "towel"],
-            randomLoot: ["medkit", "toothbrush"],
+            randomLoot: ["medkit", "toothbrush", "pen", "paper"],
             randomLootRarity: { 1: 0.7, 2: 0.2, 3: 0.1 },
             options: [
                 {
                     text: "Revenir sur le palier",
                     nextScene: "landing1",
                     timeCost: 1
+                },
+                {
+                    text: "Explorer la chambre plongée dans le noir",
+                    diceTest: {
+                        type: "combat",
+                        diceCount: 2,
+                        diceSides: 6,
+                        difficulty: 10,
+                        description:
+                            "Un occupant malade rampe hors du lit dès que tu avances."
+                    },
+                    successScene: "apt1",
+                    failScene: "apt1",
+                    successEffect: { audaceChange: 1 },
+                    failEffect: { hpChange: -3 },
+                    startDistanceRange: { min: 0, max: 1 }
                 }
             ]
         },
@@ -522,11 +586,11 @@ window.GAME_STORY = {
             id: "streetIntro",
             title: "Ruelle déserte",
             text:
-                "Derrière l'immeuble, la ruelle est jonchée de sacs-poubelle et de journaux détrempés. Au bout, une avenue silencieuse et une pharmacie barricadée.",
+                "Derrière l'immeuble, la ruelle est jonchée de sacs-poubelle et de journaux détrempés. Quelques silhouettes errent au loin, attirées par rien. Au bout, une avenue silencieuse et une pharmacie barricadée.",
             locationId: "street_alley",
             timeContext: "slow",
             minLoot: ["cloth"],
-            randomLoot: ["toothbrush", "towel", "matches"],
+            randomLoot: ["toothbrush", "towel", "matches", "lighter"],
             randomLootQuantity: 1,
             options: [
                 {
@@ -698,84 +762,96 @@ window.GAME_STORY = {
             minLoot: ["satchel", "toothbrush"],
             randomLoot: ["bandage"],
             randomLootRarity: { 1: 0.8, 2: 0.2 },
-            randomLootQuantity: 0.5
+            randomLootQuantity: 0.5,
+            enemyDistanceRange: { min: 0, max: 1 }
         },
 
         apt_kitchen: {
             minLoot: ["cannedFood", "towel"],
-            randomLoot: ["waterBottle", "knife", "cloth", "matches"],
+            randomLoot: ["waterBottle", "knife", "cloth", "matches", "lighter"],
             randomLootRarity: { 1: 0.85, 2: 0.15 },
-            randomLootQuantity: 1
+            randomLootQuantity: 1,
+            enemyDistanceRange: { min: 0, max: 1 }
         },
 
         apt_hallway: {
             minLoot: [],
-            randomLoot: ["plank", "cloth"],
+            randomLoot: ["plank", "cloth", "pen", "paper"],
             randomLootRarity: { 1: 0.9, 2: 0.09, 3: 0.01 },
-            randomLootQuantity: 0.5
+            randomLootQuantity: 0.5,
+            enemyDistanceRange: { min: 1, max: 2 }
         },
 
         apt_neighbor3: {
             minLoot: ["cannedFood"],
-            randomLoot: ["waterBottle", "bandage", "towel"],
+            randomLoot: ["waterBottle", "bandage", "towel", "cigarette"],
             randomLootRarity: { 1: 0.78, 2: 0.18, 3: 0.04 },
-            randomLootQuantity: 1
+            randomLootQuantity: 1,
+            enemyDistanceRange: { min: 1, max: 2 }
         },
 
         stairs3: {
             minLoot: [],
             randomLoot: ["bandage", "cloth"],
             randomLootRarity: { 1: 0.8, 2: 0.17, 3: 0.03 },
-            randomLootQuantity: 0.8
+            randomLootQuantity: 0.8,
+            enemyDistanceRange: { min: 1, max: 2 }
         },
 
         landing2: {
             minLoot: [],
             randomLoot: ["bandage", "toothbrush"],
             randomLootRarity: { 1: 0.82, 2: 0.15, 3: 0.03 },
-            randomLootQuantity: 0.8
+            randomLootQuantity: 0.8,
+            enemyDistanceRange: { min: 1, max: 2 }
         },
 
         apt2: {
-            minLoot: ["towel"],
-            randomLoot: ["bandage", "bigBag", "plank", "cloth"],
+            minLoot: ["towel", "hammer"],
+            randomLoot: ["bandage", "bigBag", "plank", "cloth", "nail"],
             randomLootRarity: { 1: 0.65, 2: 0.25, 3: 0.1 },
-            randomLootQuantity: 1
+            randomLootQuantity: 1,
+            enemyDistanceRange: { min: 1, max: 2 }
         },
 
         landing1: {
             minLoot: [],
             randomLoot: ["cannedFood", "cloth"],
             randomLootRarity: { 1: 0.85, 2: 0.12, 3: 0.03 },
-            randomLootQuantity: 0.8
+            randomLootQuantity: 0.8,
+            enemyDistanceRange: { min: 1, max: 2 }
         },
 
         apt1: {
             minLoot: ["waterBottle", "towel"],
-            randomLoot: ["medkit", "toothbrush"],
+            randomLoot: ["medkit", "toothbrush", "pen", "paper"],
             randomLootRarity: { 1: 0.7, 2: 0.2, 3: 0.1 },
-            randomLootQuantity: 1
+            randomLootQuantity: 1,
+            enemyDistanceRange: { min: 0, max: 1 }
         },
 
         groundHall: {
             minLoot: [],
             randomLoot: [],
             randomLootRarity: {},
-            randomLootQuantity: 0
+            randomLootQuantity: 0,
+            enemyDistanceRange: { min: 1, max: 2 }
         },
 
         garage: {
             minLoot: ["plank", "cloth"],
-            randomLoot: ["cannedFood", "waterBottle", "anvil", "matches"],
+            randomLoot: ["cannedFood", "waterBottle", "anvil", "matches", "crowbar", "nail"],
             randomLootRarity: { 1: 0.6, 2: 0.25, 3: 0.15 },
-            randomLootQuantity: 1.2
+            randomLootQuantity: 1.2,
+            enemyDistanceRange: { min: 1, max: 2 }
         },
 
         street_alley: {
             minLoot: ["cloth"],
-            randomLoot: ["toothbrush", "towel", "matches"],
+            randomLoot: ["toothbrush", "towel", "matches", "lighter"],
             randomLootRarity: { 1: 0.85, 2: 0.13, 3: 0.02 },
-            randomLootQuantity: 1
+            randomLootQuantity: 1,
+            enemyDistanceRange: { min: 2, max: 4 }
         },
 
         pharmacy_front: {
