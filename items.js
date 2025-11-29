@@ -121,7 +121,8 @@ window.ITEM_TEMPLATES = {
         weaponStats: {
             baseDamage: 2,
             forceMultiplier: 0.9,
-            finesseMultiplier: 0.4
+            finesseMultiplier: 0.4,
+            throwable: true
         }
     },
 
