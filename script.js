@@ -533,7 +533,7 @@
         const item = createItemFromTemplate(templateId);
         if (!item || !inventoryEl) return;
         const el = createItemElement(item);
-        inventoryEl.appendChild(el);
+        appendItemToZone(el, inventoryEl);
     }
 
     function createItemFromTemplate(templateId) {
@@ -634,19 +634,53 @@
         div.addEventListener("click", () => handleItemClick(div));
 
         const labelSpan = document.createElement("span");
+        labelSpan.classList.add("item-label");
         const typeLabel = getItemShortTypeLabel(item);
         labelSpan.textContent = typeLabel
             ? `${item.name} (${typeLabel})`
             : item.name;
 
+        const metaContainer = document.createElement("div");
+        metaContainer.classList.add("item-meta");
+
         const valueSpan = document.createElement("span");
         valueSpan.classList.add("value");
         valueSpan.textContent = item.value;
 
+        metaContainer.appendChild(valueSpan);
+
         div.appendChild(labelSpan);
-        div.appendChild(valueSpan);
+        div.appendChild(metaContainer);
 
         return div;
+    }
+
+    function refreshItemInlineActions(itemEl) {
+        if (!itemEl) return;
+        const metaContainer =
+            itemEl.querySelector(".item-meta") || itemEl;
+        metaContainer.querySelectorAll(".inline-action").forEach(btn => btn.remove());
+
+        const originZone = itemEl.parentElement;
+        const zoneType =
+            originZone && originZone.dataset ? originZone.dataset.zone : "";
+
+        if (zoneType !== "loot") return;
+
+        const takeBtn = document.createElement("button");
+        takeBtn.classList.add("small-btn", "inline-action");
+        takeBtn.textContent = "Prendre";
+        takeBtn.addEventListener("click", evt => {
+            evt.stopPropagation();
+            takeItemToInventory(itemEl);
+        });
+        metaContainer.appendChild(takeBtn);
+    }
+
+    function appendItemToZone(itemEl, zoneEl) {
+        if (!itemEl || !zoneEl) return;
+        zoneEl.appendChild(itemEl);
+        refreshItemInlineActions(itemEl);
     }
 
     function calculateInventoryLoad() {
@@ -938,6 +972,25 @@
             selectedItemButtonsEl.appendChild(bagBtn);
         }
 
+        if (inInventory) {
+            const dropBtn = document.createElement("button");
+            dropBtn.classList.add("small-btn");
+            dropBtn.textContent = "Jeter au sol";
+            dropBtn.disabled = !canDropItems();
+            dropBtn.addEventListener("click", () => {
+                dropItemToGround(itemEl);
+            });
+            selectedItemButtonsEl.appendChild(dropBtn);
+
+            if (!canDropItems()) {
+                const info = document.createElement("div");
+                info.textContent =
+                    "Impossible de déposer un objet pendant une action rapide ou en combat.";
+                info.classList.add("selected-info");
+                selectedItemButtonsEl.appendChild(info);
+            }
+        }
+
         const isFoodOrDrink = hungerRestore > 0 || thirstRestore > 0;
         const isBandage = bandageQuality > 0;
         if (isBandage) {
@@ -1009,7 +1062,7 @@
         groundItems.forEach(itemEl => {
             const value = parseInt(itemEl.dataset.value || "0", 10) || 0;
             if (runningLoad + value <= maxCap) {
-                inventoryEl.appendChild(itemEl);
+                appendItemToZone(itemEl, inventoryEl);
                 runningLoad += value;
                 takenCount += 1;
             } else {
@@ -1056,11 +1109,47 @@
             return;
         }
 
-        inventoryEl.appendChild(itemEl);
+        appendItemToZone(itemEl, inventoryEl);
         updateCapacityUI();
         logMessage(`Tu prends ${itemEl.dataset.name} avec toi.`);
         showToast(`Tu ramasses ${itemEl.dataset.name}.`, "success");
         clearSelectedItem();
+    }
+
+    function canDropItems() {
+        return !combatState.active && currentTimeContext !== "fast";
+    }
+
+    function dropItemToGround(itemEl, opts = {}) {
+        if (!lootEl || !itemEl) return false;
+        const { forced = false, silent = false } = opts;
+
+        if (!forced && !canDropItems()) {
+            logMessage("Tu n'as pas le temps de déposer quelque chose au sol.");
+            return false;
+        }
+
+        if (itemEl.classList.contains("equipped-weapon")) {
+            equippedWeaponTemplateId = null;
+            itemEl.classList.remove("equipped-weapon");
+            updateEquippedWeaponUI();
+        }
+        if (itemEl.classList.contains("equipped-bag")) {
+            equippedBagTemplateId = null;
+            itemEl.classList.remove("equipped-bag");
+        }
+
+        appendItemToZone(itemEl, lootEl);
+        updateCapacityUI();
+        clearSelectedItem();
+
+        if (!silent) {
+            const name = itemEl.dataset.name || "objet";
+            logMessage(`Tu poses ${name} au sol.`);
+            showToast(`${name} est laissé au sol.`, "info");
+        }
+
+        return true;
     }
 
     function equipWeaponFromElement(itemEl) {
@@ -1431,7 +1520,7 @@
         );
         showToast(`Lancer réussi : ${damage} dégâts`, "success");
 
-        chosenThrowable.remove();
+        dropItemToGround(chosenThrowable, { forced: true, silent: true });
         if (equippedWeaponTemplateId === chosenThrowable.dataset.templateId) {
             equippedWeaponTemplateId = null;
         }
@@ -1686,7 +1775,7 @@
             spawnLootForScene(scene);
             state.lootGenerated = true;
         } else {
-            state.lootNodes.forEach(node => lootEl.appendChild(node));
+            state.lootNodes.forEach(node => appendItemToZone(node, lootEl));
         }
 
         updateCapacityUI();
@@ -1934,7 +2023,7 @@
             const item = createItemFromTemplate(templateId);
             if (!item) return;
             const el = createItemElement(item);
-            lootEl.appendChild(el);
+            appendItemToZone(el, lootEl);
             generatedLootCount += 1;
         });
 
@@ -1946,7 +2035,7 @@
             const item = createItemFromTemplate(templateId);
             if (!item) continue;
             const el = createItemElement(item);
-            lootEl.appendChild(el);
+            appendItemToZone(el, lootEl);
             generatedLootCount += 1;
         }
 
