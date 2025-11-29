@@ -363,10 +363,6 @@ header h1 {
     box-shadow: 0 0 4px rgba(76, 175, 80, 0.6);
 }
 
-.item:active {
-    cursor: grabbing;
-}
-
 /* Panneau objet sélectionné (inline) */
 
 .item-actions-panel.inline {

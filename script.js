@@ -72,7 +72,7 @@
         return 1;
     }
 
-    // État des lieux (pour conserver loot généré)
+    // État des lieux (pour conserver le loot)
     const locationsState = {}; // { [locationId]: { lootNodes: HTMLElement[], lootGenerated: boolean, defeatedCombats: Set<string> } }
 
     let itemCounter = 0;
@@ -175,7 +175,7 @@
         updateCapacityUI();
 
         renderScene("intro");
-        logMessage("Bienvenue, survivant. Clique sur un objet pour le voir, l'équiper, le consommer, le prendre ou le jeter.");
+        logMessage("Bienvenue, survivant. Clique sur un objet pour le voir, l'équiper, le consommer ou le prendre.");
     });
 
     /* --- Héros & stats --- */
@@ -1602,6 +1602,7 @@
         state.lootGenerated = true;
 
         state.lootNodes = [];
+
         while (lootEl.firstChild) {
             const node = lootEl.firstChild;
             lootEl.removeChild(node);
@@ -1612,6 +1613,7 @@
                 state.lootNodes.push(node);
             }
         }
+
     }
 
     function renderScene(sceneId) {
