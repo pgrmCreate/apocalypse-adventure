@@ -72,8 +72,8 @@
         return 1;
     }
 
-    // État des lieux (pour conserver loot + objets posés)
-    const locationsState = {}; // { [locationId]: { lootNodes: HTMLElement[], discardNodes: HTMLElement[], lootGenerated: boolean, defeatedCombats: Set<string> } }
+    // État des lieux (pour conserver le loot)
+    const locationsState = {}; // { [locationId]: { lootNodes: HTMLElement[], lootGenerated: boolean, defeatedCombats: Set<string> } }
 
     let itemCounter = 0;
     let currentSceneId = null;
@@ -109,7 +109,6 @@
     let bagNameEl;
     let inventoryEl;
     let lootEl;
-    let discardEl;
 
     let toastContainerEl;
 
@@ -146,7 +145,6 @@
         bagNameEl = document.getElementById("bag-name");
         inventoryEl = document.getElementById("inventory-zone");
         lootEl = document.getElementById("loot-zone");
-        discardEl = document.getElementById("discard-zone");
 
         equippedWeaponNameEl = document.getElementById("equipped-weapon-name");
         attackPreviewEl = document.getElementById("attack-preview");
@@ -171,21 +169,13 @@
             takeAllBtn.addEventListener("click", takeAllLoot);
         }
 
-        [inventoryEl, lootEl, discardEl].forEach(zone => {
-            if (!zone) return;
-            zone.addEventListener("dragover", handleDragOver);
-            zone.addEventListener("dragenter", handleDragEnter);
-            zone.addEventListener("dragleave", handleDragLeave);
-            zone.addEventListener("drop", handleDrop);
-        });
-
         chooseHeroName();
         initHero();
         setupInitialInventory();
         updateCapacityUI();
 
         renderScene("intro");
-        logMessage("Bienvenue, survivant. Clique sur un objet pour le voir, l'équiper, le consommer, le prendre ou le jeter.");
+        logMessage("Bienvenue, survivant. Clique sur un objet pour le voir, l'équiper, le consommer ou le prendre.");
     });
 
     /* --- Héros & stats --- */
@@ -224,7 +214,6 @@
     function restartGame() {
         if (inventoryEl) inventoryEl.innerHTML = "";
         if (lootEl) lootEl.innerHTML = "";
-        if (discardEl) discardEl.innerHTML = "Glisse ici ce que tu abandonnes.";
 
         if (selectedItemNameEl) selectedItemNameEl.textContent = "Aucun";
         if (selectedItemInfoEl) selectedItemInfoEl.textContent = "";
@@ -607,7 +596,6 @@
     function createItemElement(item) {
         const div = document.createElement("div");
         div.classList.add("item");
-        div.setAttribute("draggable", "true");
         div.dataset.itemId = item.instanceId;
         div.dataset.value = String(item.value);
         div.dataset.name = item.name;
@@ -643,7 +631,6 @@
         div.dataset.hungerRestore = String(item.hungerRestore || 0);
         div.dataset.thirstRestore = String(item.thirstRestore || 0);
 
-        div.addEventListener("dragstart", handleDragStart);
         div.addEventListener("click", () => handleItemClick(div));
 
         const labelSpan = document.createElement("span");
@@ -873,105 +860,6 @@
         logMessage(`Tu fabriques ${craftedName}.`);
     }
 
-    /* --- Drag & drop --- */
-
-    function handleDragStart(event) {
-        const target = event.target;
-        if (!(target instanceof HTMLElement)) return;
-        const itemId = target.dataset.itemId;
-        if (!itemId || !event.dataTransfer) return;
-        event.dataTransfer.setData("text/plain", itemId);
-    }
-
-    function handleDragOver(event) {
-        event.preventDefault();
-    }
-
-    function handleDragEnter(event) {
-        event.preventDefault();
-        const zone = event.currentTarget;
-        if (zone instanceof HTMLElement) {
-            zone.classList.add("over");
-        }
-    }
-
-    function handleDragLeave(event) {
-        const zone = event.currentTarget;
-        if (zone instanceof HTMLElement) {
-            zone.classList.remove("over");
-        }
-    }
-
-    function handleDrop(event) {
-        event.preventDefault();
-        const zone = event.currentTarget;
-        if (!(zone instanceof HTMLElement)) return;
-        zone.classList.remove("over");
-
-        if (!event.dataTransfer) return;
-        const itemId = event.dataTransfer.getData("text/plain");
-        if (!itemId) return;
-
-        const itemEl = document.querySelector(`.item[data-item-id="${itemId}"]`);
-        if (!(itemEl instanceof HTMLElement)) return;
-
-        const originZone = itemEl.parentElement;
-        if (originZone === zone) return;
-
-        const zoneType = zone.dataset.zone;
-        if (!zoneType) return;
-
-        if (zoneType === "inventory") {
-            const value = parseInt(itemEl.dataset.value || "0", 10) || 0;
-            const currentTotal = calculateInventoryLoad();
-            const originIsInventory =
-                      originZone && originZone.dataset.zone === "inventory";
-            const newTotal = originIsInventory
-                ? currentTotal
-                : currentTotal + value;
-
-            const maxCap = getCurrentMaxCapacity();
-            if (newTotal > maxCap) {
-                logMessage(
-                    `Inventaire plein : tu atteindrais ${newTotal} / ${maxCap}.`
-                );
-                if (capacityEl) {
-                    capacityEl.classList.add("over-limit");
-                    setTimeout(() => {
-                        capacityEl.classList.remove("over-limit");
-                    }, 400);
-                }
-                return;
-            }
-            zone.appendChild(itemEl);
-        } else if (zoneType === "loot") {
-            zone.appendChild(itemEl);
-        } else if (zoneType === "discard") {
-            if (
-                itemEl.classList.contains("equipped-weapon") &&
-                equippedWeaponTemplateId &&
-                itemEl.dataset.templateId === equippedWeaponTemplateId
-            ) {
-                equippedWeaponTemplateId = null;
-                itemEl.classList.remove("equipped-weapon");
-                updateEquippedWeaponUI();
-            }
-            if (
-                itemEl.classList.contains("equipped-bag") &&
-                equippedBagTemplateId &&
-                itemEl.dataset.templateId === equippedBagTemplateId
-            ) {
-                equippedBagTemplateId = null;
-                itemEl.classList.remove("equipped-bag");
-                updateCapacityUI();
-            }
-            zone.appendChild(itemEl);
-        }
-
-        updateCapacityUI();
-        clearSelectedItem();
-    }
-
     /* --- Panneau d'actions sur l'objet --- */
 
     function handleItemClick(itemEl) {
@@ -1027,7 +915,7 @@
         selectedItemButtonsEl.innerHTML = "";
 
         const inInventory = originZoneType === "inventory";
-        const onGround = originZoneType === "loot" || originZoneType === "discard";
+        const onGround = originZoneType === "loot";
 
         // Équipement : seulement si dans l'inventaire
         if (inInventory && hasWeapon) {
@@ -1081,16 +969,6 @@
             selectedItemButtonsEl.appendChild(useBtn);
         }
 
-        if (inInventory) {
-            const dropBtn = document.createElement("button");
-            dropBtn.classList.add("small-btn");
-            dropBtn.textContent = "Jeter (poser au sol)";
-            dropBtn.addEventListener("click", () => {
-                dropItemToDiscard(itemEl);
-            });
-            selectedItemButtonsEl.appendChild(dropBtn);
-        }
-
         if (onGround) {
             const takeBtn = document.createElement("button");
             takeBtn.classList.add("small-btn");
@@ -1113,36 +991,6 @@
         if (selectedItemNameEl) selectedItemNameEl.textContent = "Aucun";
         if (selectedItemInfoEl) selectedItemInfoEl.textContent = "";
         if (selectedItemButtonsEl) selectedItemButtonsEl.innerHTML = "";
-    }
-
-    function dropItemToDiscard(itemEl) {
-        if (!discardEl) return;
-        const originZone = itemEl.parentElement;
-        if (!originZone || originZone.dataset.zone !== "inventory") return;
-
-        if (
-            itemEl.classList.contains("equipped-weapon") &&
-            equippedWeaponTemplateId &&
-            itemEl.dataset.templateId === equippedWeaponTemplateId
-        ) {
-            equippedWeaponTemplateId = null;
-            itemEl.classList.remove("equipped-weapon");
-            updateEquippedWeaponUI();
-        }
-        if (
-            itemEl.classList.contains("equipped-bag") &&
-            equippedBagTemplateId &&
-            itemEl.dataset.templateId === equippedBagTemplateId
-        ) {
-            equippedBagTemplateId = null;
-            itemEl.classList.remove("equipped-bag");
-            updateCapacityUI();
-        }
-
-        discardEl.appendChild(itemEl);
-        updateCapacityUI();
-        logMessage(`Tu jettes ${itemEl.dataset.name} au sol.`);
-        clearSelectedItem();
     }
 
     function takeAllLoot() {
@@ -1188,7 +1036,7 @@
         const originZone = itemEl.parentElement;
         if (!originZone || !originZone.dataset) return;
         const zoneType = originZone.dataset.zone;
-        if (zoneType !== "loot" && zoneType !== "discard") return;
+        if (zoneType !== "loot") return;
 
         const value = parseInt(itemEl.dataset.value || "0", 10) || 0;
         const currentTotal = calculateInventoryLoad();
@@ -1734,7 +1582,6 @@
         if (!state) {
             state = {
                 lootNodes: [],
-                discardNodes: [],
                 lootGenerated: false,
                 defeatedCombats: new Set()
             };
@@ -1748,14 +1595,13 @@
 
     function saveLocationState(locationId) {
         if (!locationId || locationId === "none") return;
-        if (!lootEl || !discardEl) return;
+        if (!lootEl) return;
 
         const state = getLocationState(locationId);
         if (!state) return;
         state.lootGenerated = true;
 
         state.lootNodes = [];
-        state.discardNodes = [];
 
         while (lootEl.firstChild) {
             const node = lootEl.firstChild;
@@ -1768,16 +1614,6 @@
             }
         }
 
-        while (discardEl.firstChild) {
-            const node = discardEl.firstChild;
-            discardEl.removeChild(node);
-            if (
-                node instanceof HTMLElement &&
-                node.classList.contains("item")
-            ) {
-                state.discardNodes.push(node);
-            }
-        }
     }
 
     function renderScene(sceneId) {
@@ -1842,23 +1678,15 @@
             });
         }
 
-        if (!lootEl || !discardEl) return;
+        if (!lootEl) return;
 
         lootEl.innerHTML = "";
-        discardEl.innerHTML = "";
 
         if (!state.lootGenerated) {
             spawnLootForScene(scene);
             state.lootGenerated = true;
         } else {
             state.lootNodes.forEach(node => lootEl.appendChild(node));
-            if (state.discardNodes.length > 0) {
-                state.discardNodes.forEach(node =>
-                    discardEl.appendChild(node)
-                );
-            } else {
-                discardEl.textContent = "Glisse ici ce que tu abandonnes.";
-            }
         }
 
         updateCapacityUI();
@@ -2066,10 +1894,9 @@
     }
 
     function spawnLootForScene(scene) {
-        if (!lootEl || !discardEl) return;
+        if (!lootEl) return;
 
         lootEl.innerHTML = "";
-        discardEl.textContent = "Glisse ici ce que tu abandonnes.";
 
         const location = locations[scene.locationId || scene.id] || {};
 
