@@ -116,6 +116,10 @@
     let equippedWeaponNameEl;
     let attackPreviewEl;
 
+    let mapSectionEl;
+    let mapGridEl;
+    let mapHintEl;
+
     let selectedItemNameEl;
     let selectedItemInfoEl;
     let selectedItemButtonsEl;
@@ -152,6 +156,10 @@
         selectedItemNameEl = document.getElementById("selected-item-name");
         selectedItemInfoEl = document.getElementById("selected-item-info");
         selectedItemButtonsEl = document.getElementById("selected-item-buttons");
+
+        mapSectionEl = document.getElementById("map-section");
+        mapGridEl = document.getElementById("map-grid");
+        mapHintEl = document.getElementById("map-hint");
 
         craftInfoEl = document.getElementById("craft-info");
         craftListEl = document.getElementById("craft-list");
@@ -250,7 +258,7 @@
 
     function getNeedState() {
         const totalNeed = hero.hunger + hero.thirst;
-        if (totalNeed <= 10) {
+        if (totalNeed < 15) {
             return {
                 label: "bien nourri",
                 healModifier: 1.2,
@@ -258,7 +266,7 @@
                 damagePerUnit: 0
             };
         }
-        if (totalNeed <= 25) {
+        if (totalNeed < 25) {
             return {
                 label: "nourri",
                 healModifier: 1,
@@ -266,7 +274,7 @@
                 damagePerUnit: 0
             };
         }
-        if (totalNeed <= 40) {
+        if (totalNeed < 35) {
             return {
                 label: "faim",
                 healModifier: 0.7,
@@ -1663,6 +1671,142 @@
         return { rolls, sum };
     }
 
+    /* --- Carte --- */
+
+    function getLocationLabel(locationId) {
+        if (!locationId) return "Lieu";
+        const location = locations[locationId];
+        if (location && location.mapLabel) return location.mapLabel;
+        return locationId;
+    }
+
+    function collectNavigationOptions(scene) {
+        const map = new Map();
+        if (!scene || !Array.isArray(scene.options)) return map;
+
+        scene.options.forEach((option, index) => {
+            if (!option) return;
+            const targetSceneId =
+                option.nextScene ||
+                option.successScene ||
+                option.failScene ||
+                (option.diceTest && (option.diceTest.successScene || option.diceTest.failScene));
+            if (!targetSceneId) return;
+            const targetScene = scenes[targetSceneId];
+            if (!targetScene) return;
+            const targetLocationId = targetScene.locationId || targetScene.id;
+            if (!targetLocationId) return;
+            if (!map.has(targetLocationId)) {
+                map.set(targetLocationId, { option, index, scene: targetScene });
+            }
+        });
+
+        return map;
+    }
+
+    function renderMap(scene) {
+        if (!mapSectionEl || !mapGridEl) return;
+        const locationId = scene.locationId || scene.id;
+        const location = locations[locationId];
+        const mapPaths = location && location.mapPaths;
+        const navigationOptions = collectNavigationOptions(scene);
+
+        if (!mapPaths || Object.keys(mapPaths).length === 0 || navigationOptions.size === 0) {
+            mapSectionEl.classList.add("hidden");
+            return;
+        }
+
+        const dirOffsets = {
+            north: { dx: 0, dy: -1, label: "↑ Nord" },
+            south: { dx: 0, dy: 1, label: "↓ Sud" },
+            west: { dx: -1, dy: 0, label: "← Ouest" },
+            east: { dx: 1, dy: 0, label: "→ Est" }
+        };
+
+        const grid = Array.from({ length: 3 }, () => Array(3).fill(null));
+        grid[1][1] = {
+            label: getLocationLabel(locationId),
+            current: true
+        };
+
+        Object.entries(mapPaths).forEach(([direction, targetLocationId]) => {
+            const offset = dirOffsets[direction];
+            if (!offset) return;
+            const row = 1 + offset.dy;
+            const col = 1 + offset.dx;
+            if (row < 0 || row > 2 || col < 0 || col > 2) return;
+            const optionData = navigationOptions.get(targetLocationId);
+            if (!optionData) return; // pas de bouton inutile si l'option n'existe pas
+            grid[row][col] = {
+                label: getLocationLabel(targetLocationId),
+                directionLabel: offset.label,
+                optionData,
+                targetLocationId
+            };
+        });
+
+        const filledCells = [];
+        for (let row = 0; row < 3; row += 1) {
+            for (let col = 0; col < 3; col += 1) {
+                const cell = grid[row][col];
+                if (cell) {
+                    filledCells.push({ row, col, cell });
+                }
+            }
+        }
+
+        if (filledCells.length === 0) {
+            mapSectionEl.classList.add("hidden");
+            return;
+        }
+
+        const minRow = Math.min(...filledCells.map(entry => entry.row));
+        const maxRow = Math.max(...filledCells.map(entry => entry.row));
+        const minCol = Math.min(...filledCells.map(entry => entry.col));
+        const maxCol = Math.max(...filledCells.map(entry => entry.col));
+
+        const colCount = maxCol - minCol + 1;
+
+        mapGridEl.innerHTML = "";
+        mapGridEl.style.gridTemplateColumns = `repeat(${colCount}, minmax(0, 1fr))`;
+
+        filledCells.forEach(entry => {
+            const { row, col, cell } = entry;
+            const el = document.createElement("div");
+            el.className = "map-cell";
+            el.style.gridRowStart = row - minRow + 1;
+            el.style.gridColumnStart = col - minCol + 1;
+
+            if (cell && cell.current) {
+                el.classList.add("current");
+                el.innerHTML = `<strong>${cell.label}</strong><span class="map-direction">(ici)</span>`;
+            } else if (cell) {
+                const parts = [`<span class="map-direction">${cell.directionLabel}</span>`, `<strong>${cell.label}</strong>`];
+                const actionText = cell.optionData && cell.optionData.option && cell.optionData.option.text;
+                if (actionText) {
+                    parts.push(`<span class="map-action">${actionText}</span>`);
+                }
+                el.innerHTML = parts.join("");
+                if (cell.optionData) {
+                    el.classList.add("clickable");
+                    el.addEventListener("click", () =>
+                        handleOption(cell.optionData.option, cell.optionData.index)
+                    );
+                }
+            }
+
+            mapGridEl.appendChild(el);
+        });
+
+        mapSectionEl.classList.remove("hidden");
+        if (mapHintEl) {
+            const hasClickable = Array.from(mapGridEl.children).some(child =>
+                child.classList.contains("clickable")
+            );
+            mapHintEl.classList.toggle("hidden", !hasClickable);
+        }
+    }
+
     /* --- Gestion des lieux & scènes --- */
 
     function getLocationState(locationId) {
@@ -1739,6 +1883,8 @@
                     "Contexte : temps long (chaque choix consomme du temps, la faim et la soif augmentent).";
             }
         }
+
+        renderMap(scene);
 
         const state = getLocationState(currentLocationId);
         if (!state) return;
