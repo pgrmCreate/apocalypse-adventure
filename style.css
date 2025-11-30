@@ -22,6 +22,10 @@ body {
     overflow-x: hidden;
 }
 
+.hidden {
+    display: none !important;
+}
+
 .toast-container {
     position: fixed;
     top: 12px;
@@ -148,6 +152,79 @@ header h1 {
     flex-direction: column;
     gap: 8px;
     margin-bottom: 8px;
+}
+
+.map-section {
+    margin-top: 12px;
+    padding: 10px;
+    border-radius: 8px;
+    background: #131826;
+    border: 1px solid var(--border);
+}
+
+.map-header {
+    margin: 0 0 8px;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.map-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.map-cell {
+    min-height: 74px;
+    border-radius: 8px;
+    background: #0c101c;
+    border: 1px solid #2a3250;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 8px;
+    gap: 4px;
+    color: var(--muted);
+    text-align: center;
+}
+
+.map-cell strong {
+    color: var(--text);
+    display: block;
+}
+
+.map-cell.current {
+    border-color: var(--info);
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.25);
+    color: #dce8ff;
+}
+
+.map-cell.clickable {
+    cursor: pointer;
+    border-color: var(--accent);
+    color: #d7f5da;
+    transition: transform 0.08s ease, background 0.15s ease;
+}
+
+.map-cell.clickable:hover {
+    background: #162031;
+    transform: translateY(-1px);
+}
+
+.map-direction {
+    font-size: 0.8rem;
+    color: var(--muted);
+}
+
+.map-action {
+    font-size: 0.85rem;
+    color: var(--text);
+}
+
+.map-hint {
+    margin: 8px 0 0;
+    color: var(--muted);
+    font-size: 0.85rem;
 }
 
 .choice-btn {
