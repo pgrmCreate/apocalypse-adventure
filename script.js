@@ -84,6 +84,7 @@
     let wounds = [];
     let combatState = { active: false };
     let lastNeedStatus = null;
+    const visitedLocations = new Set();
 
     // DOM
     let storyTitleEl;
@@ -235,6 +236,8 @@
                 delete locationsState[key];
             }
         }
+
+        visitedLocations.clear();
 
         initHero();
         setupInitialInventory();
@@ -1705,34 +1708,9 @@
         return `Niveau ${floor}`;
     }
 
-    function collectNavigationOptions(scene) {
-        const map = new Map();
-        if (!scene || !Array.isArray(scene.options)) return map;
-
-        scene.options.forEach((option, index) => {
-            if (!option) return;
-            const targetSceneId =
-                option.nextScene ||
-                option.successScene ||
-                option.failScene ||
-                (option.diceTest && (option.diceTest.successScene || option.diceTest.failScene));
-            if (!targetSceneId) return;
-            const targetScene = scenes[targetSceneId];
-            if (!targetScene) return;
-            const targetLocationId = targetScene.locationId || targetScene.id;
-            if (!targetLocationId) return;
-            if (!map.has(targetLocationId)) {
-                map.set(targetLocationId, { option, index, scene: targetScene });
-            }
-        });
-
-        return map;
-    }
-
     function renderMap(scene) {
         if (!mapSectionEl || !mapGridEl) return;
         const locationId = scene.locationId || scene.id;
-        const navigationOptions = collectNavigationOptions(scene);
 
         const dirOffsets = {
             north: { dx: 0, dy: -1, label: "Nord" },
@@ -1816,27 +1794,16 @@
 
         mapGridEl.innerHTML = "";
         mapGridEl.style.gridTemplateColumns = `repeat(${colCount}, minmax(0, 1fr))`;
-        mapGridEl.style.gridAutoRows = "minmax(80px, auto)";
+        mapGridEl.style.gridAutoRows = "minmax(96px, auto)";
 
         placements.forEach((placement, id) => {
             const el = document.createElement("div");
             el.className = "map-cell";
 
-            const optionData = navigationOptions.get(id);
-            if (id === locationId) el.classList.add("current");
-            if (optionData) el.classList.add("reachable");
-
-            el.style.gridColumnStart = placement.x - minX + 1;
-            el.style.gridColumnEnd = `span ${placement.size.width}`;
-            el.style.gridRowStart = placement.y - minY + 1;
-            el.style.gridRowEnd = `span ${placement.size.height}`;
-
-            const tags = [];
-            if (optionData) {
-                tags.push('<span class="map-tag accent">Accessible via bouton</span>');
-            }
-            if (placement.size.width > 1 || placement.size.height > 1) {
-                tags.push(`<span class="map-tag">Surface ${placement.size.width}×${placement.size.height}</span>`);
+            if (id === locationId) {
+                el.classList.add("current");
+            } else if (visitedLocations.has(id)) {
+                el.classList.add("visited");
             }
             if (id === locationId) {
                 tags.push('<span class="map-tag accent">Position actuelle</span>');
@@ -1856,6 +1823,22 @@
                 ${connectors}
             `;
 
+            el.style.gridColumnStart = placement.x - minX + 1;
+            el.style.gridColumnEnd = `span ${placement.size.width}`;
+            el.style.gridRowStart = placement.y - minY + 1;
+            el.style.gridRowEnd = `span ${placement.size.height}`;
+
+            const connectors = id === locationId && interFloorConnections.length
+                ? `<div class="map-connector">Vers autres étages : ${interFloorConnections
+                    .map(conn => `${conn.direction} → ${conn.target} (${conn.floor})`)
+                    .join(" • ")}</div>`
+                : "";
+
+            el.innerHTML = `
+                <div class="map-name">${getLocationLabel(id)}</div>
+                ${connectors}
+            `;
+
             mapGridEl.appendChild(el);
         });
 
@@ -1867,8 +1850,8 @@
         if (mapHintEl) {
             const hasInterFloor = interFloorConnections.length > 0;
             mapHintEl.textContent = hasInterFloor
-                ? "Vue d'étage : utilisez les boutons pour changer de pièce ou emprunter les escaliers."
-                : "Vue d'étage : utilisez les boutons pour changer de pièce.";
+                ? "Carte inspirée de Resident Evil : vue d'étage pour se repérer, les actions se font via les boutons."
+                : "Carte inspirée de Resident Evil : vue d'étage pour se repérer (les actions se font via les boutons).";
             mapHintEl.classList.remove("hidden");
         }
     }
@@ -1936,6 +1919,7 @@
         currentSceneId = sceneId;
         currentLocationId = scene.locationId || sceneId;
         currentTimeContext = scene.timeContext || "fast";
+        visitedLocations.add(currentLocationId);
 
         if (storyTitleEl) storyTitleEl.textContent = scene.title;
         if (storyTextEl) storyTextEl.textContent = scene.text;
