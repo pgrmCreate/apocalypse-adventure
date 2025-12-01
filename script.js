@@ -84,6 +84,7 @@
     let wounds = [];
     let combatState = { active: false };
     let lastNeedStatus = null;
+    const visitedLocations = new Set();
 
     // DOM
     let storyTitleEl;
@@ -117,6 +118,7 @@
     let attackPreviewEl;
 
     let mapSectionEl;
+    let mapHeaderEl;
     let mapGridEl;
     let mapHintEl;
 
@@ -158,6 +160,7 @@
         selectedItemButtonsEl = document.getElementById("selected-item-buttons");
 
         mapSectionEl = document.getElementById("map-section");
+        mapHeaderEl = mapSectionEl && mapSectionEl.querySelector(".map-header");
         mapGridEl = document.getElementById("map-grid");
         mapHintEl = document.getElementById("map-hint");
 
@@ -233,6 +236,8 @@
                 delete locationsState[key];
             }
         }
+
+        visitedLocations.clear();
 
         initHero();
         setupInitialInventory();
@@ -1680,130 +1685,157 @@
         return locationId;
     }
 
-    function collectNavigationOptions(scene) {
-        const map = new Map();
-        if (!scene || !Array.isArray(scene.options)) return map;
+    function getLocationFloor(locationId) {
+        const location = locations[locationId];
+        const floor = location && location.mapFloor;
+        return floor === 0 || floor ? floor : "ground";
+    }
 
-        scene.options.forEach((option, index) => {
-            if (!option) return;
-            const targetSceneId =
-                option.nextScene ||
-                option.successScene ||
-                option.failScene ||
-                (option.diceTest && (option.diceTest.successScene || option.diceTest.failScene));
-            if (!targetSceneId) return;
-            const targetScene = scenes[targetSceneId];
-            if (!targetScene) return;
-            const targetLocationId = targetScene.locationId || targetScene.id;
-            if (!targetLocationId) return;
-            if (!map.has(targetLocationId)) {
-                map.set(targetLocationId, { option, index, scene: targetScene });
-            }
-        });
+    function getLocationSize(locationId) {
+        const location = locations[locationId];
+        const size = location && location.mapSize;
+        const width = size && Number.isFinite(size.width) ? Math.max(1, Math.round(size.width)) : 1;
+        const height = size && Number.isFinite(size.height) ? Math.max(1, Math.round(size.height)) : 1;
+        return { width, height };
+    }
 
-        return map;
+    function formatFloorLabel(floor) {
+        if (typeof floor === "number") {
+            if (floor === 0) return "RDC / Extérieur";
+            if (floor === 1) return "1er étage";
+            return `${floor}e étage`;
+        }
+        return `Niveau ${floor}`;
     }
 
     function renderMap(scene) {
         if (!mapSectionEl || !mapGridEl) return;
         const locationId = scene.locationId || scene.id;
-        const location = locations[locationId];
-        const mapPaths = location && location.mapPaths;
-        const navigationOptions = collectNavigationOptions(scene);
-
-        if (!mapPaths || Object.keys(mapPaths).length === 0 || navigationOptions.size === 0) {
-            mapSectionEl.classList.add("hidden");
-            return;
-        }
 
         const dirOffsets = {
-            north: { dx: 0, dy: -1, label: "↑ Nord" },
-            south: { dx: 0, dy: 1, label: "↓ Sud" },
-            west: { dx: -1, dy: 0, label: "← Ouest" },
-            east: { dx: 1, dy: 0, label: "→ Est" }
+            north: { dx: 0, dy: -1, label: "Nord" },
+            south: { dx: 0, dy: 1, label: "Sud" },
+            west: { dx: -1, dy: 0, label: "Ouest" },
+            east: { dx: 1, dy: 0, label: "Est" }
         };
 
-        const grid = Array.from({ length: 3 }, () => Array(3).fill(null));
-        grid[1][1] = {
-            label: getLocationLabel(locationId),
-            current: true
-        };
+        const floor = getLocationFloor(locationId);
+        const placements = new Map();
+        const queue = [{ id: locationId, x: 0, y: 0 }];
+        const interFloorConnections = [];
 
-        Object.entries(mapPaths).forEach(([direction, targetLocationId]) => {
-            const offset = dirOffsets[direction];
-            if (!offset) return;
-            const row = 1 + offset.dy;
-            const col = 1 + offset.dx;
-            if (row < 0 || row > 2 || col < 0 || col > 2) return;
-            const optionData = navigationOptions.get(targetLocationId);
-            if (!optionData) return; // pas de bouton inutile si l'option n'existe pas
-            grid[row][col] = {
-                label: getLocationLabel(targetLocationId),
-                directionLabel: offset.label,
-                optionData,
-                targetLocationId
-            };
-        });
+        while (queue.length > 0) {
+            const current = queue.shift();
+            if (placements.has(current.id)) continue;
 
-        const filledCells = [];
-        for (let row = 0; row < 3; row += 1) {
-            for (let col = 0; col < 3; col += 1) {
-                const cell = grid[row][col];
-                if (cell) {
-                    filledCells.push({ row, col, cell });
+            const currentLocation = locations[current.id];
+            if (!currentLocation || getLocationFloor(current.id) !== floor) continue;
+
+            const size = getLocationSize(current.id);
+            placements.set(current.id, { ...current, size });
+
+            const mapPaths = currentLocation.mapPaths || {};
+            Object.entries(mapPaths).forEach(([direction, targetLocationId]) => {
+                const offset = dirOffsets[direction];
+                if (!offset) return;
+
+                const targetFloor = getLocationFloor(targetLocationId);
+                const targetSize = getLocationSize(targetLocationId);
+
+                if (targetFloor !== floor) {
+                    if (current.id === locationId) {
+                        interFloorConnections.push({
+                            direction: offset.label,
+                            target: getLocationLabel(targetLocationId),
+                            floor: formatFloorLabel(targetFloor)
+                        });
+                    }
+                    return;
                 }
-            }
+
+                const spacing = 1;
+                let targetX = current.x;
+                let targetY = current.y;
+
+                if (direction === "east") {
+                    targetX += size.width + spacing;
+                } else if (direction === "west") {
+                    targetX -= targetSize.width + spacing;
+                } else if (direction === "south") {
+                    targetY += size.height + spacing;
+                } else if (direction === "north") {
+                    targetY -= targetSize.height + spacing;
+                }
+
+                if (!placements.has(targetLocationId) && !queue.some(entry => entry.id === targetLocationId)) {
+                    queue.push({ id: targetLocationId, x: targetX, y: targetY });
+                }
+            });
         }
 
-        if (filledCells.length === 0) {
+        if (!placements.size) {
             mapSectionEl.classList.add("hidden");
             return;
         }
 
-        const minRow = Math.min(...filledCells.map(entry => entry.row));
-        const maxRow = Math.max(...filledCells.map(entry => entry.row));
-        const minCol = Math.min(...filledCells.map(entry => entry.col));
-        const maxCol = Math.max(...filledCells.map(entry => entry.col));
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
 
-        const colCount = maxCol - minCol + 1;
+        placements.forEach(({ x, y, size }) => {
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            maxX = Math.max(maxX, x + size.width - 1);
+            maxY = Math.max(maxY, y + size.height - 1);
+        });
+
+        const colCount = maxX - minX + 1;
 
         mapGridEl.innerHTML = "";
         mapGridEl.style.gridTemplateColumns = `repeat(${colCount}, minmax(0, 1fr))`;
+        mapGridEl.style.gridAutoRows = "minmax(96px, auto)";
 
-        filledCells.forEach(entry => {
-            const { row, col, cell } = entry;
+        placements.forEach((placement, id) => {
             const el = document.createElement("div");
             el.className = "map-cell";
-            el.style.gridRowStart = row - minRow + 1;
-            el.style.gridColumnStart = col - minCol + 1;
 
-            if (cell && cell.current) {
+            if (id === locationId) {
                 el.classList.add("current");
-                el.innerHTML = `<strong>${cell.label}</strong><span class="map-direction">(ici)</span>`;
-            } else if (cell) {
-                const parts = [`<span class="map-direction">${cell.directionLabel}</span>`, `<strong>${cell.label}</strong>`];
-                const actionText = cell.optionData && cell.optionData.option && cell.optionData.option.text;
-                if (actionText) {
-                    parts.push(`<span class="map-action">${actionText}</span>`);
-                }
-                el.innerHTML = parts.join("");
-                if (cell.optionData) {
-                    el.classList.add("clickable");
-                    el.addEventListener("click", () =>
-                        handleOption(cell.optionData.option, cell.optionData.index)
-                    );
-                }
+            } else if (visitedLocations.has(id)) {
+                el.classList.add("visited");
             }
+
+            el.style.gridColumnStart = placement.x - minX + 1;
+            el.style.gridColumnEnd = `span ${placement.size.width}`;
+            el.style.gridRowStart = placement.y - minY + 1;
+            el.style.gridRowEnd = `span ${placement.size.height}`;
+
+            const connectors = id === locationId && interFloorConnections.length
+                ? `<div class="map-connector">Vers autres étages : ${interFloorConnections
+                    .map(conn => `${conn.direction} → ${conn.target} (${conn.floor})`)
+                    .join(" • ")}</div>`
+                : "";
+
+            el.innerHTML = `
+                <div class="map-name">${getLocationLabel(id)}</div>
+                ${connectors}
+            `;
 
             mapGridEl.appendChild(el);
         });
 
+        if (mapHeaderEl) {
+            mapHeaderEl.textContent = `Carte du lieu — ${formatFloorLabel(floor)}`;
+        }
+
         mapSectionEl.classList.remove("hidden");
         if (mapHintEl) {
-            const hasClickable = Array.from(mapGridEl.children).some(child =>
-                child.classList.contains("clickable")
-            );
-            mapHintEl.classList.toggle("hidden", !hasClickable);
+            const hasInterFloor = interFloorConnections.length > 0;
+            mapHintEl.textContent = hasInterFloor
+                ? "Carte inspirée de Resident Evil : vue d'étage pour se repérer, les actions se font via les boutons."
+                : "Carte inspirée de Resident Evil : vue d'étage pour se repérer (les actions se font via les boutons).";
+            mapHintEl.classList.remove("hidden");
         }
     }
 
@@ -1870,6 +1902,7 @@
         currentSceneId = sceneId;
         currentLocationId = scene.locationId || sceneId;
         currentTimeContext = scene.timeContext || "fast";
+        visitedLocations.add(currentLocationId);
 
         if (storyTitleEl) storyTitleEl.textContent = scene.title;
         if (storyTextEl) storyTextEl.textContent = scene.text;
