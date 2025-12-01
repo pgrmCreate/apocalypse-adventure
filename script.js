@@ -117,6 +117,7 @@
     let attackPreviewEl;
 
     let mapSectionEl;
+    let mapHeaderEl;
     let mapGridEl;
     let mapHintEl;
 
@@ -158,6 +159,7 @@
         selectedItemButtonsEl = document.getElementById("selected-item-buttons");
 
         mapSectionEl = document.getElementById("map-section");
+        mapHeaderEl = mapSectionEl && mapSectionEl.querySelector(".map-header");
         mapGridEl = document.getElementById("map-grid");
         mapHintEl = document.getElementById("map-hint");
 
@@ -1680,6 +1682,29 @@
         return locationId;
     }
 
+    function getLocationFloor(locationId) {
+        const location = locations[locationId];
+        const floor = location && location.mapFloor;
+        return floor === 0 || floor ? floor : "ground";
+    }
+
+    function getLocationSize(locationId) {
+        const location = locations[locationId];
+        const size = location && location.mapSize;
+        const width = size && Number.isFinite(size.width) ? Math.max(1, Math.round(size.width)) : 1;
+        const height = size && Number.isFinite(size.height) ? Math.max(1, Math.round(size.height)) : 1;
+        return { width, height };
+    }
+
+    function formatFloorLabel(floor) {
+        if (typeof floor === "number") {
+            if (floor === 0) return "RDC / Extérieur";
+            if (floor === 1) return "1er étage";
+            return `${floor}e étage`;
+        }
+        return `Niveau ${floor}`;
+    }
+
     function collectNavigationOptions(scene) {
         const map = new Map();
         if (!scene || !Array.isArray(scene.options)) return map;
@@ -1707,103 +1732,144 @@
     function renderMap(scene) {
         if (!mapSectionEl || !mapGridEl) return;
         const locationId = scene.locationId || scene.id;
-        const location = locations[locationId];
-        const mapPaths = location && location.mapPaths;
         const navigationOptions = collectNavigationOptions(scene);
 
-        if (!mapPaths || Object.keys(mapPaths).length === 0 || navigationOptions.size === 0) {
+        const dirOffsets = {
+            north: { dx: 0, dy: -1, label: "Nord" },
+            south: { dx: 0, dy: 1, label: "Sud" },
+            west: { dx: -1, dy: 0, label: "Ouest" },
+            east: { dx: 1, dy: 0, label: "Est" }
+        };
+
+        const floor = getLocationFloor(locationId);
+        const placements = new Map();
+        const queue = [{ id: locationId, x: 0, y: 0 }];
+        const interFloorConnections = [];
+
+        while (queue.length > 0) {
+            const current = queue.shift();
+            if (placements.has(current.id)) continue;
+
+            const currentLocation = locations[current.id];
+            if (!currentLocation || getLocationFloor(current.id) !== floor) continue;
+
+            const size = getLocationSize(current.id);
+            placements.set(current.id, { ...current, size });
+
+            const mapPaths = currentLocation.mapPaths || {};
+            Object.entries(mapPaths).forEach(([direction, targetLocationId]) => {
+                const offset = dirOffsets[direction];
+                if (!offset) return;
+
+                const targetFloor = getLocationFloor(targetLocationId);
+                const targetSize = getLocationSize(targetLocationId);
+
+                if (targetFloor !== floor) {
+                    if (current.id === locationId) {
+                        interFloorConnections.push({
+                            direction: offset.label,
+                            target: getLocationLabel(targetLocationId),
+                            floor: formatFloorLabel(targetFloor)
+                        });
+                    }
+                    return;
+                }
+
+                const spacing = 1;
+                let targetX = current.x;
+                let targetY = current.y;
+
+                if (direction === "east") {
+                    targetX += size.width + spacing;
+                } else if (direction === "west") {
+                    targetX -= targetSize.width + spacing;
+                } else if (direction === "south") {
+                    targetY += size.height + spacing;
+                } else if (direction === "north") {
+                    targetY -= targetSize.height + spacing;
+                }
+
+                if (!placements.has(targetLocationId) && !queue.some(entry => entry.id === targetLocationId)) {
+                    queue.push({ id: targetLocationId, x: targetX, y: targetY });
+                }
+            });
+        }
+
+        if (!placements.size) {
             mapSectionEl.classList.add("hidden");
             return;
         }
 
-        const dirOffsets = {
-            north: { dx: 0, dy: -1, label: "↑ Nord" },
-            south: { dx: 0, dy: 1, label: "↓ Sud" },
-            west: { dx: -1, dy: 0, label: "← Ouest" },
-            east: { dx: 1, dy: 0, label: "→ Est" }
-        };
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
 
-        const grid = Array.from({ length: 3 }, () => Array(3).fill(null));
-        grid[1][1] = {
-            label: getLocationLabel(locationId),
-            current: true
-        };
-
-        Object.entries(mapPaths).forEach(([direction, targetLocationId]) => {
-            const offset = dirOffsets[direction];
-            if (!offset) return;
-            const row = 1 + offset.dy;
-            const col = 1 + offset.dx;
-            if (row < 0 || row > 2 || col < 0 || col > 2) return;
-            const optionData = navigationOptions.get(targetLocationId);
-            if (!optionData) return; // pas de bouton inutile si l'option n'existe pas
-            grid[row][col] = {
-                label: getLocationLabel(targetLocationId),
-                directionLabel: offset.label,
-                optionData,
-                targetLocationId
-            };
+        placements.forEach(({ x, y, size }) => {
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            maxX = Math.max(maxX, x + size.width - 1);
+            maxY = Math.max(maxY, y + size.height - 1);
         });
 
-        const filledCells = [];
-        for (let row = 0; row < 3; row += 1) {
-            for (let col = 0; col < 3; col += 1) {
-                const cell = grid[row][col];
-                if (cell) {
-                    filledCells.push({ row, col, cell });
-                }
-            }
-        }
-
-        if (filledCells.length === 0) {
-            mapSectionEl.classList.add("hidden");
-            return;
-        }
-
-        const minRow = Math.min(...filledCells.map(entry => entry.row));
-        const maxRow = Math.max(...filledCells.map(entry => entry.row));
-        const minCol = Math.min(...filledCells.map(entry => entry.col));
-        const maxCol = Math.max(...filledCells.map(entry => entry.col));
-
-        const colCount = maxCol - minCol + 1;
+        const colCount = maxX - minX + 1;
 
         mapGridEl.innerHTML = "";
         mapGridEl.style.gridTemplateColumns = `repeat(${colCount}, minmax(0, 1fr))`;
+        mapGridEl.style.gridAutoRows = "minmax(80px, auto)";
 
-        filledCells.forEach(entry => {
-            const { row, col, cell } = entry;
+        placements.forEach((placement, id) => {
             const el = document.createElement("div");
             el.className = "map-cell";
-            el.style.gridRowStart = row - minRow + 1;
-            el.style.gridColumnStart = col - minCol + 1;
 
-            if (cell && cell.current) {
-                el.classList.add("current");
-                el.innerHTML = `<strong>${cell.label}</strong><span class="map-direction">(ici)</span>`;
-            } else if (cell) {
-                const parts = [`<span class="map-direction">${cell.directionLabel}</span>`, `<strong>${cell.label}</strong>`];
-                const actionText = cell.optionData && cell.optionData.option && cell.optionData.option.text;
-                if (actionText) {
-                    parts.push(`<span class="map-action">${actionText}</span>`);
-                }
-                el.innerHTML = parts.join("");
-                if (cell.optionData) {
-                    el.classList.add("clickable");
-                    el.addEventListener("click", () =>
-                        handleOption(cell.optionData.option, cell.optionData.index)
-                    );
-                }
+            const optionData = navigationOptions.get(id);
+            if (id === locationId) el.classList.add("current");
+            if (optionData) el.classList.add("reachable");
+
+            el.style.gridColumnStart = placement.x - minX + 1;
+            el.style.gridColumnEnd = `span ${placement.size.width}`;
+            el.style.gridRowStart = placement.y - minY + 1;
+            el.style.gridRowEnd = `span ${placement.size.height}`;
+
+            const tags = [];
+            if (optionData) {
+                tags.push('<span class="map-tag accent">Accessible via bouton</span>');
             }
+            if (placement.size.width > 1 || placement.size.height > 1) {
+                tags.push(`<span class="map-tag">Surface ${placement.size.width}×${placement.size.height}</span>`);
+            }
+            if (id === locationId) {
+                tags.push('<span class="map-tag accent">Position actuelle</span>');
+            }
+
+            const actionText = optionData && optionData.option && optionData.option.text;
+            const connectors = id === locationId && interFloorConnections.length
+                ? `<div class="map-connector">Vers autres étages : ${interFloorConnections
+                    .map(conn => `${conn.direction} → ${conn.target} (${conn.floor})`)
+                    .join(" • ")}</div>`
+                : "";
+
+            el.innerHTML = `
+                <strong>${getLocationLabel(id)}</strong>
+                ${tags.length ? `<div class="map-tags">${tags.join("")}</div>` : ""}
+                ${actionText ? `<div class="map-action">Bouton : ${actionText}</div>` : ""}
+                ${connectors}
+            `;
 
             mapGridEl.appendChild(el);
         });
 
+        if (mapHeaderEl) {
+            mapHeaderEl.textContent = `Carte du lieu — ${formatFloorLabel(floor)}`;
+        }
+
         mapSectionEl.classList.remove("hidden");
         if (mapHintEl) {
-            const hasClickable = Array.from(mapGridEl.children).some(child =>
-                child.classList.contains("clickable")
-            );
-            mapHintEl.classList.toggle("hidden", !hasClickable);
+            const hasInterFloor = interFloorConnections.length > 0;
+            mapHintEl.textContent = hasInterFloor
+                ? "Vue d'étage : utilisez les boutons pour changer de pièce ou emprunter les escaliers."
+                : "Vue d'étage : utilisez les boutons pour changer de pièce.";
+            mapHintEl.classList.remove("hidden");
         }
     }
 

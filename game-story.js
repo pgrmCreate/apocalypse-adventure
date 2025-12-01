@@ -761,6 +761,8 @@ window.GAME_STORY = {
         apt_main: {
             mapLabel: "Ta chambre (3A)",
             mapPaths: { east: "apt_kitchen", south: "apt_hallway" },
+            mapFloor: 3,
+            mapSize: { width: 2, height: 1 },
             minLoot: ["satchel", "toothbrush"],
             randomLoot: ["bandage"],
             randomLootRarity: { 1: 0.8, 2: 0.2 },
@@ -771,6 +773,8 @@ window.GAME_STORY = {
         apt_kitchen: {
             mapLabel: "Cuisine (3A)",
             mapPaths: { west: "apt_main", south: "apt_hallway" },
+            mapFloor: 3,
+            mapSize: { width: 1, height: 1 },
             minLoot: ["cannedFood", "towel"],
             randomLoot: ["waterBottle", "knife", "cloth", "matches", "lighter"],
             randomLootRarity: { 1: 0.85, 2: 0.15 },
@@ -786,6 +790,8 @@ window.GAME_STORY = {
                 east: "apt_neighbor3",
                 south: "stairs3"
             },
+            mapFloor: 3,
+            mapSize: { width: 3, height: 1 },
             minLoot: [],
             randomLoot: ["plank", "cloth", "pen", "paper"],
             randomLootRarity: { 1: 0.9, 2: 0.09, 3: 0.01 },
@@ -796,6 +802,8 @@ window.GAME_STORY = {
         apt_neighbor3: {
             mapLabel: "Appartement 3B",
             mapPaths: { west: "apt_hallway" },
+            mapFloor: 3,
+            mapSize: { width: 2, height: 1 },
             minLoot: ["cannedFood"],
             randomLoot: ["waterBottle", "bandage", "towel", "cigarette"],
             randomLootRarity: { 1: 0.78, 2: 0.18, 3: 0.04 },
@@ -806,6 +814,8 @@ window.GAME_STORY = {
         stairs3: {
             mapLabel: "Escalier (3e)",
             mapPaths: { north: "apt_hallway", south: "landing2" },
+            mapFloor: 3,
+            mapSize: { width: 1, height: 2 },
             minLoot: [],
             randomLoot: ["bandage", "cloth"],
             randomLootRarity: { 1: 0.8, 2: 0.17, 3: 0.03 },
@@ -816,6 +826,8 @@ window.GAME_STORY = {
         landing2: {
             mapLabel: "Palier 2e",
             mapPaths: { north: "stairs3", east: "apt2", south: "landing1" },
+            mapFloor: 2,
+            mapSize: { width: 2, height: 1 },
             minLoot: [],
             randomLoot: ["bandage", "toothbrush"],
             randomLootRarity: { 1: 0.82, 2: 0.15, 3: 0.03 },
@@ -826,6 +838,8 @@ window.GAME_STORY = {
         apt2: {
             mapLabel: "Appartement 2A",
             mapPaths: { west: "landing2" },
+            mapFloor: 2,
+            mapSize: { width: 2, height: 1 },
             minLoot: ["towel", "hammer"],
             randomLoot: ["bandage", "bigBag", "plank", "cloth", "nail"],
             randomLootRarity: { 1: 0.65, 2: 0.25, 3: 0.1 },
@@ -836,6 +850,8 @@ window.GAME_STORY = {
         landing1: {
             mapLabel: "Palier 1er",
             mapPaths: { north: "landing2", east: "apt1", south: "groundHall" },
+            mapFloor: 1,
+            mapSize: { width: 2, height: 1 },
             minLoot: [],
             randomLoot: ["cannedFood", "cloth"],
             randomLootRarity: { 1: 0.85, 2: 0.12, 3: 0.03 },
@@ -846,6 +862,8 @@ window.GAME_STORY = {
         apt1: {
             mapLabel: "Appartement 1A",
             mapPaths: { west: "landing1" },
+            mapFloor: 1,
+            mapSize: { width: 2, height: 1 },
             minLoot: ["waterBottle", "towel"],
             randomLoot: ["medkit", "toothbrush", "pen", "paper"],
             randomLootRarity: { 1: 0.7, 2: 0.2, 3: 0.1 },
@@ -856,6 +874,8 @@ window.GAME_STORY = {
         groundHall: {
             mapLabel: "Hall d'entrée",
             mapPaths: { north: "landing1", east: "garage" },
+            mapFloor: 0,
+            mapSize: { width: 2, height: 1 },
             minLoot: [],
             randomLoot: [],
             randomLootRarity: {},
@@ -866,6 +886,8 @@ window.GAME_STORY = {
         garage: {
             mapLabel: "Garage",
             mapPaths: { west: "groundHall", south: "outside" },
+            mapFloor: 0,
+            mapSize: { width: 3, height: 2 },
             minLoot: ["plank", "cloth"],
             randomLoot: ["cannedFood", "waterBottle", "anvil", "matches", "crowbar", "nail"],
             randomLootRarity: { 1: 0.6, 2: 0.25, 3: 0.15 },
@@ -876,6 +898,8 @@ window.GAME_STORY = {
         street_alley: {
             mapLabel: "Ruelle",
             mapPaths: { west: "outside", east: "pharmacy_front", south: "park" },
+            mapFloor: 0,
+            mapSize: { width: 3, height: 1 },
             minLoot: ["cloth"],
             randomLoot: ["toothbrush", "towel", "matches", "lighter"],
             randomLootRarity: { 1: 0.85, 2: 0.13, 3: 0.02 },
@@ -886,6 +910,8 @@ window.GAME_STORY = {
         pharmacy_front: {
             mapLabel: "Pharmacie (devant)",
             mapPaths: { west: "street_alley", east: "pharmacy_inside" },
+            mapFloor: 0,
+            mapSize: { width: 2, height: 1 },
             minLoot: [],
             randomLoot: [],
             randomLootRarity: {},
@@ -895,6 +921,8 @@ window.GAME_STORY = {
         pharmacy_inside: {
             mapLabel: "Pharmacie (intérieur)",
             mapPaths: { west: "pharmacy_front" },
+            mapFloor: 0,
+            mapSize: { width: 2, height: 2 },
             minLoot: ["bandage", "cleanBandage"],
             randomLoot: ["medkit", "waterBottle", "towel"],
             randomLootRarity: { 1: 0.7, 2: 0.2, 3: 0.1 },
@@ -904,6 +932,8 @@ window.GAME_STORY = {
         park: {
             mapLabel: "Square",
             mapPaths: { north: "street_alley", east: "camp" },
+            mapFloor: 0,
+            mapSize: { width: 3, height: 2 },
             minLoot: ["towel"],
             randomLoot: ["plank", "toothbrush", "bandage", "cloth"],
             randomLootRarity: { 1: 0.88, 2: 0.1, 3: 0.02 },
@@ -913,6 +943,8 @@ window.GAME_STORY = {
         camp: {
             mapLabel: "Camp de fortune",
             mapPaths: { west: "park" },
+            mapFloor: 0,
+            mapSize: { width: 2, height: 1 },
             minLoot: [],
             randomLoot: ["cannedFood", "waterBottle"],
             randomLootRarity: { 1: 0.7, 2: 0.25, 3: 0.05 },
@@ -922,6 +954,8 @@ window.GAME_STORY = {
         outside: {
             mapLabel: "Sortie du garage",
             mapPaths: { north: "garage", east: "street_alley" },
+            mapFloor: 0,
+            mapSize: { width: 2, height: 1 },
             minLoot: [],
             randomLoot: [],
             randomLootRarity: {},
