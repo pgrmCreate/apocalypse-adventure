@@ -121,6 +121,8 @@
     let mapHeaderEl;
     let mapGridEl;
     let mapHintEl;
+    let mapCanvasEl;
+    let mapLegendEl;
 
     let selectedItemNameEl;
     let selectedItemInfoEl;
@@ -163,6 +165,8 @@
         mapHeaderEl = mapSectionEl && mapSectionEl.querySelector(".map-header");
         mapGridEl = document.getElementById("map-grid");
         mapHintEl = document.getElementById("map-hint");
+        mapCanvasEl = document.getElementById("map-canvas");
+        mapLegendEl = document.getElementById("map-legend");
 
         craftInfoEl = document.getElementById("craft-info");
         craftListEl = document.getElementById("craft-list");
@@ -1678,6 +1682,13 @@
 
     /* --- Carte --- */
 
+    const MAP_DIR_OFFSETS = {
+        north: { dx: 0, dy: -1, label: "Nord" },
+        south: { dx: 0, dy: 1, label: "Sud" },
+        west: { dx: -1, dy: 0, label: "Ouest" },
+        east: { dx: 1, dy: 0, label: "Est" }
+    };
+
     function getLocationLabel(locationId) {
         if (!locationId) return "Lieu";
         const location = locations[locationId];
@@ -1708,21 +1719,38 @@
         return `Niveau ${floor}`;
     }
 
-    function renderMap(scene) {
-        if (!mapSectionEl || !mapGridEl) return;
-        const locationId = scene.locationId || scene.id;
+    function computeMapBounds(placements) {
+        if (!placements.size) {
+            return { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 1, height: 1 };
+        }
 
-        const dirOffsets = {
-            north: { dx: 0, dy: -1, label: "Nord" },
-            south: { dx: 0, dy: 1, label: "Sud" },
-            west: { dx: -1, dy: 0, label: "Ouest" },
-            east: { dx: 1, dy: 0, label: "Est" }
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+
+        placements.forEach(({ x, y, size }) => {
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            maxX = Math.max(maxX, x + size.width - 1);
+            maxY = Math.max(maxY, y + size.height - 1);
+        });
+
+        return {
+            minX,
+            minY,
+            maxX,
+            maxY,
+            width: maxX - minX + 1,
+            height: maxY - minY + 1
         };
+    }
 
-        const floor = getLocationFloor(locationId);
+    function buildMapLayout(locationId, floor) {
         const placements = new Map();
         const queue = [{ id: locationId, x: 0, y: 0 }];
         const interFloorConnections = [];
+        const spacing = 0.4;
 
         while (queue.length > 0) {
             const current = queue.shift();
@@ -1736,7 +1764,7 @@
 
             const mapPaths = currentLocation.mapPaths || {};
             Object.entries(mapPaths).forEach(([direction, targetLocationId]) => {
-                const offset = dirOffsets[direction];
+                const offset = MAP_DIR_OFFSETS[direction];
                 if (!offset) return;
 
                 const targetFloor = getLocationFloor(targetLocationId);
@@ -1753,7 +1781,6 @@
                     return;
                 }
 
-                const spacing = 1;
                 let targetX = current.x;
                 let targetY = current.y;
 
@@ -1773,74 +1800,210 @@
             });
         }
 
-        if (!placements.size) {
+        const bounds = computeMapBounds(placements);
+
+        return { placements, bounds, interFloorConnections };
+    }
+
+    function wrapTextToLines(ctx, text, maxWidth) {
+        const words = text.split(/\s+/);
+        const lines = [];
+        let current = "";
+
+        words.forEach(word => {
+            const next = current ? `${current} ${word}` : word;
+            if (ctx.measureText(next).width <= maxWidth || !current) {
+                current = next;
+            } else {
+                lines.push(current);
+                current = word;
+            }
+        });
+
+        if (current) {
+            lines.push(current);
+        }
+        return lines;
+    }
+
+    function getCanvasMetrics(bounds) {
+        const availableWidth = Math.max(320, (mapGridEl && mapGridEl.clientWidth) || 640) - 20;
+        const padding = 24;
+        const unit = Math.max(48, Math.min(120, (availableWidth - padding * 2) / Math.max(1, bounds.width)));
+        const width = Math.max(320, Math.round(bounds.width * unit + padding * 2));
+        const height = Math.max(220, Math.round(bounds.height * unit + padding * 2));
+        return { unit, padding, width, height };
+    }
+
+    function drawMapCanvas(layout, { locationId, reachableIds }) {
+        if (!mapCanvasEl) return;
+
+        const { placements, bounds } = layout;
+        const ctx = mapCanvasEl.getContext("2d");
+        const metrics = getCanvasMetrics(bounds);
+
+        mapCanvasEl.width = metrics.width;
+        mapCanvasEl.height = metrics.height;
+
+        ctx.clearRect(0, 0, mapCanvasEl.width, mapCanvasEl.height);
+        ctx.fillStyle = "#0b0f19";
+        ctx.fillRect(0, 0, mapCanvasEl.width, mapCanvasEl.height);
+
+        const positions = new Map();
+        placements.forEach((placement, id) => {
+            const x = metrics.padding + (placement.x - bounds.minX) * metrics.unit;
+            const y = metrics.padding + (placement.y - bounds.minY) * metrics.unit;
+            const w = placement.size.width * metrics.unit;
+            const h = placement.size.height * metrics.unit;
+            positions.set(id, { x, y, w, h });
+        });
+
+        // Liens entre salles
+        const drawnLinks = new Set();
+        placements.forEach((placement, id) => {
+            const location = locations[id];
+            const mapPaths = location && location.mapPaths ? location.mapPaths : {};
+            const pos = positions.get(id);
+            if (!pos) return;
+
+            Object.entries(mapPaths).forEach(([direction, targetId]) => {
+                if (!positions.has(targetId)) return;
+                if (getLocationFloor(targetId) !== getLocationFloor(id)) return;
+
+                const key = [id, targetId].sort().join(":");
+                if (drawnLinks.has(key)) return;
+                drawnLinks.add(key);
+
+                const targetPos = positions.get(targetId);
+                if (!targetPos) return;
+
+                const from = { x: pos.x + pos.w / 2, y: pos.y + pos.h / 2 };
+                const to = { x: targetPos.x + targetPos.w / 2, y: targetPos.y + targetPos.h / 2 };
+
+                ctx.strokeStyle = "rgba(126, 179, 255, 0.35)";
+                ctx.lineWidth = 5;
+                ctx.beginPath();
+                ctx.moveTo(from.x, from.y);
+                ctx.lineTo(to.x, to.y);
+                ctx.stroke();
+            });
+        });
+
+        placements.forEach((placement, id) => {
+            const pos = positions.get(id);
+            if (!pos) return;
+
+            const isCurrent = id === locationId;
+            const isReachable = reachableIds.has(id);
+            const isVisited = visitedLocations.has(id);
+
+            const fill = isCurrent
+                ? "#1f4c7d"
+                : isReachable
+                    ? "#24552c"
+                    : isVisited
+                        ? "#1d2336"
+                        : "#2b1a1a";
+            const stroke = isCurrent ? "#82b5ff" : isReachable ? "#3ad06a" : "#3a2b2b";
+
+            const { x, y, w, h } = pos;
+            const radius = Math.min(14, w / 4, h / 4);
+
+            ctx.fillStyle = fill;
+            ctx.strokeStyle = stroke;
+            ctx.lineWidth = 2.4;
+
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(x + w - radius, y);
+            ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+            ctx.lineTo(x + w, y + h - radius);
+            ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+            ctx.lineTo(x + radius, y + h);
+            ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+            ctx.lineTo(x, y + radius);
+            ctx.quadraticCurveTo(x, y, x + radius, y);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = "#e8edf7";
+            ctx.font = `${Math.max(12, Math.min(16, w / 6))}px 'Inter', sans-serif`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+
+            const lines = wrapTextToLines(ctx, getLocationLabel(id), w - 10);
+            const totalHeight = lines.length * 18;
+            let textY = y + h / 2 - totalHeight / 2 + 9;
+            lines.forEach(line => {
+                ctx.fillText(line, x + w / 2, textY);
+                textY += 18;
+            });
+
+            if (isCurrent) {
+                ctx.fillStyle = "#9cdfa7";
+                ctx.font = "12px 'Inter', sans-serif";
+                ctx.fillText("Ici", x + w / 2, y + h - 12);
+            }
+        });
+    }
+
+    function renderLegend({ reachableIds, interFloorConnections }) {
+        if (!mapLegendEl) return;
+
+        const rows = [
+            { color: "#1f4c7d", label: "Position actuelle" },
+            { color: "#24552c", label: "Déplacements possibles" },
+            { color: "#1d2336", label: "Pièces visitées" },
+            { color: "#2b1a1a", label: "Inconnues / non visitées" }
+        ];
+
+        const legendHtml = rows
+            .map(row => `<div class="legend-row"><span class="legend-swatch" style="background:${row.color}"></span><span>${row.label}</span></div>`)
+            .join("");
+
+        const connectors = interFloorConnections.length
+            ? `<div class="legend-row"><span class="legend-swatch" style="background:#5c6b85"></span><span>Vers autres étages : ${interFloorConnections
+                .map(conn => `${conn.direction} → ${conn.target} (${conn.floor})`)
+                .join(" • ")}</span></div>`
+            : "";
+
+        mapLegendEl.innerHTML = legendHtml + connectors;
+    }
+
+    function renderMap(scene) {
+        if (!mapSectionEl || !mapCanvasEl) return;
+        const locationId = scene.locationId || scene.id;
+
+        const floor = getLocationFloor(locationId);
+        const layout = buildMapLayout(locationId, floor);
+
+        if (!layout.placements.size) {
             mapSectionEl.classList.add("hidden");
             return;
         }
 
-        let minX = Infinity;
-        let minY = Infinity;
-        let maxX = -Infinity;
-        let maxY = -Infinity;
-
-        placements.forEach(({ x, y, size }) => {
-            minX = Math.min(minX, x);
-            minY = Math.min(minY, y);
-            maxX = Math.max(maxX, x + size.width - 1);
-            maxY = Math.max(maxY, y + size.height - 1);
+        const reachableIds = new Set();
+        const currentLocation = locations[locationId];
+        const mapPaths = currentLocation && currentLocation.mapPaths ? currentLocation.mapPaths : {};
+        Object.entries(mapPaths).forEach(([direction, targetId]) => {
+            const targetFloor = getLocationFloor(targetId);
+            if (targetFloor === floor) {
+                reachableIds.add(targetId);
+            } else {
+                const offset = MAP_DIR_OFFSETS[direction];
+                if (offset) {
+                    layout.interFloorConnections.push({
+                        direction: offset.label,
+                        target: getLocationLabel(targetId),
+                        floor: formatFloorLabel(targetFloor)
+                    });
+                }
+            }
         });
 
-        const colCount = maxX - minX + 1;
-
-        mapGridEl.innerHTML = "";
-        mapGridEl.style.gridTemplateColumns = `repeat(${colCount}, minmax(0, 1fr))`;
-        mapGridEl.style.gridAutoRows = "minmax(96px, auto)";
-
-        placements.forEach((placement, id) => {
-            const el = document.createElement("div");
-            el.className = "map-cell";
-
-            if (id === locationId) {
-                el.classList.add("current");
-            } else if (visitedLocations.has(id)) {
-                el.classList.add("visited");
-            }
-            if (id === locationId) {
-                tags.push('<span class="map-tag accent">Position actuelle</span>');
-            }
-
-            const actionText = optionData && optionData.option && optionData.option.text;
-            const connectors = id === locationId && interFloorConnections.length
-                ? `<div class="map-connector">Vers autres étages : ${interFloorConnections
-                    .map(conn => `${conn.direction} → ${conn.target} (${conn.floor})`)
-                    .join(" • ")}</div>`
-                : "";
-
-            el.innerHTML = `
-                <strong>${getLocationLabel(id)}</strong>
-                ${tags.length ? `<div class="map-tags">${tags.join("")}</div>` : ""}
-                ${actionText ? `<div class="map-action">Bouton : ${actionText}</div>` : ""}
-                ${connectors}
-            `;
-
-            el.style.gridColumnStart = placement.x - minX + 1;
-            el.style.gridColumnEnd = `span ${placement.size.width}`;
-            el.style.gridRowStart = placement.y - minY + 1;
-            el.style.gridRowEnd = `span ${placement.size.height}`;
-
-            const connectors = id === locationId && interFloorConnections.length
-                ? `<div class="map-connector">Vers autres étages : ${interFloorConnections
-                    .map(conn => `${conn.direction} → ${conn.target} (${conn.floor})`)
-                    .join(" • ")}</div>`
-                : "";
-
-            el.innerHTML = `
-                <div class="map-name">${getLocationLabel(id)}</div>
-                ${connectors}
-            `;
-
-            mapGridEl.appendChild(el);
-        });
+        drawMapCanvas(layout, { locationId, reachableIds });
+        renderLegend({ reachableIds, interFloorConnections: layout.interFloorConnections });
 
         if (mapHeaderEl) {
             mapHeaderEl.textContent = `Carte du lieu — ${formatFloorLabel(floor)}`;
@@ -1848,7 +2011,7 @@
 
         mapSectionEl.classList.remove("hidden");
         if (mapHintEl) {
-            const hasInterFloor = interFloorConnections.length > 0;
+            const hasInterFloor = layout.interFloorConnections.length > 0;
             mapHintEl.textContent = hasInterFloor
                 ? "Carte inspirée de Resident Evil : vue d'étage pour se repérer, les actions se font via les boutons."
                 : "Carte inspirée de Resident Evil : vue d'étage pour se repérer (les actions se font via les boutons).";
