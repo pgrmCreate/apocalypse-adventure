@@ -175,7 +175,7 @@ header h1 {
 }
 
 .map-cell {
-    min-height: 74px;
+    min-height: 88px;
     border-radius: 8px;
     background: #0c101c;
     border: 1px solid #2a3250;
@@ -199,16 +199,10 @@ header h1 {
     color: #dce8ff;
 }
 
-.map-cell.clickable {
-    cursor: pointer;
+.map-cell.reachable {
     border-color: var(--accent);
     color: #d7f5da;
-    transition: transform 0.08s ease, background 0.15s ease;
-}
-
-.map-cell.clickable:hover {
-    background: #162031;
-    transform: translateY(-1px);
+    box-shadow: 0 0 8px rgba(74, 222, 128, 0.15);
 }
 
 .map-direction {
@@ -219,6 +213,36 @@ header h1 {
 .map-action {
     font-size: 0.85rem;
     color: var(--text);
+}
+
+.map-size {
+    font-size: 0.8rem;
+    color: var(--muted);
+}
+
+.map-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.map-tag {
+    padding: 2px 6px;
+    border-radius: 12px;
+    font-size: 0.78rem;
+    background: #1b273c;
+    color: var(--muted);
+    border: 1px solid #27324a;
+}
+
+.map-tag.accent {
+    border-color: var(--accent);
+    color: #d7f5da;
+}
+
+.map-connector {
+    font-size: 0.82rem;
+    color: var(--muted);
 }
 
 .map-hint {
