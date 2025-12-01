@@ -1805,6 +1805,23 @@
             } else if (visitedLocations.has(id)) {
                 el.classList.add("visited");
             }
+            if (id === locationId) {
+                tags.push('<span class="map-tag accent">Position actuelle</span>');
+            }
+
+            const actionText = optionData && optionData.option && optionData.option.text;
+            const connectors = id === locationId && interFloorConnections.length
+                ? `<div class="map-connector">Vers autres étages : ${interFloorConnections
+                    .map(conn => `${conn.direction} → ${conn.target} (${conn.floor})`)
+                    .join(" • ")}</div>`
+                : "";
+
+            el.innerHTML = `
+                <strong>${getLocationLabel(id)}</strong>
+                ${tags.length ? `<div class="map-tags">${tags.join("")}</div>` : ""}
+                ${actionText ? `<div class="map-action">Bouton : ${actionText}</div>` : ""}
+                ${connectors}
+            `;
 
             el.style.gridColumnStart = placement.x - minX + 1;
             el.style.gridColumnEnd = `span ${placement.size.width}`;
