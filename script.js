@@ -1876,7 +1876,7 @@
                 const lineWidth = Math.max(2, size * 0.16);
                 const stepSpan = stairWidth / 3;
                 const stepRise = stairHeight / 3;
-                const arrowLength = size * 0.78;
+                const arrowLength = size * 0.74;
                 const arrowHead = arrowLength * 0.32;
 
                 ctx.save();
@@ -1904,11 +1904,13 @@
                 ctx.stroke();
 
                 const angle = -Math.PI / 4;
-                const arrowOffset = size * 0.14;
                 const normalX = Math.cos(angle + Math.PI / 2);
                 const normalY = Math.sin(angle + Math.PI / 2);
-                const arrowBaseX = startX + stepSpan * 0.2 + normalX * arrowOffset;
-                const arrowBaseY = startY - stepRise * 0.2 + normalY * arrowOffset;
+                const arrowOffset = size * 0.22;
+                const arrowBaseAnchorX = startX + stepSpan * 1.8;
+                const arrowBaseAnchorY = startY - stepRise * 2.2;
+                const arrowBaseX = arrowBaseAnchorX + normalX * arrowOffset;
+                const arrowBaseY = arrowBaseAnchorY + normalY * arrowOffset;
                 const arrowTipX = arrowBaseX + arrowLength * Math.cos(angle);
                 const arrowTipY = arrowBaseY + arrowLength * Math.sin(angle);
 
