@@ -772,7 +772,7 @@ window.GAME_STORY = {
 
         apt_kitchen: {
             mapLabel: "Cuisine (3A)",
-            mapPaths: { west: "apt_main", south: "apt_hallway" },
+            mapPaths: { west: "apt_main" },
             mapFloor: 3,
             mapSize: { width: 1, height: 1 },
             minLoot: ["cannedFood", "towel"],
@@ -786,7 +786,6 @@ window.GAME_STORY = {
             mapLabel: "Couloir 3e",
             mapPaths: {
                 north: "apt_main",
-                west: "apt_kitchen",
                 east: "apt_neighbor3",
                 south: "stairs3"
             },

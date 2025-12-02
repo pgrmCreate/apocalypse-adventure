@@ -1751,7 +1751,7 @@
     function buildMapLayout(locationId, floor) {
         const placements = new Map();
         const queue = [{ id: locationId, x: 0, y: 0 }];
-        const spacing = 0.4;
+        const spacing = 0;
 
         while (queue.length > 0) {
             const current = queue.shift();
@@ -1833,6 +1833,44 @@
         const width = Math.max(320, Math.round(bounds.width * unit + padding * 2));
         const height = Math.max(220, Math.round(bounds.height * unit + padding * 2));
         return { unit, padding, width, height };
+    }
+
+    function drawInterFloorMarkers(ctx, positions) {
+        const markerSizeRatio = 0.35;
+        const offsetInsetRatio = 0.15;
+
+        Object.entries(locations).forEach(([id, location]) => {
+            if (!positions.has(id)) return;
+            const pos = positions.get(id);
+            const mapPaths = location && location.mapPaths ? location.mapPaths : {};
+
+            Object.entries(mapPaths).forEach(([direction, targetId]) => {
+                if (getLocationFloor(targetId) === getLocationFloor(id)) return;
+                const offset = MAP_DIR_OFFSETS[direction];
+                if (!offset) return;
+
+                const size = Math.min(pos.w, pos.h) * markerSizeRatio;
+                const inset = size * offsetInsetRatio;
+                let centerX = pos.x + pos.w / 2;
+                let centerY = pos.y + pos.h / 2;
+
+                if (direction === "north") centerY = pos.y + inset + size / 2;
+                if (direction === "south") centerY = pos.y + pos.h - inset - size / 2;
+                if (direction === "west") centerX = pos.x + inset + size / 2;
+                if (direction === "east") centerX = pos.x + pos.w - inset - size / 2;
+
+                const tipX = centerX + offset.dx * size;
+                const tipY = centerY + offset.dy * size;
+
+                ctx.fillStyle = "rgba(255, 198, 107, 0.9)";
+                ctx.beginPath();
+                ctx.moveTo(tipX, tipY);
+                ctx.lineTo(centerX + (offset.dy || 1) * size * 0.6, centerY - (offset.dx || 1) * size * 0.6);
+                ctx.lineTo(centerX - (offset.dy || 1) * size * 0.6, centerY + (offset.dx || 1) * size * 0.6);
+                ctx.closePath();
+                ctx.fill();
+            });
+        });
     }
 
     function drawMapCanvas(layout, { locationId, reachableIds }) {
@@ -1946,6 +1984,8 @@
                 ctx.fillText("Ici", x + w / 2, y + h - 12);
             }
         });
+
+        drawInterFloorMarkers(ctx, positions);
     }
 
     function renderLegend({ reachableIds, interFloorConnections }) {
@@ -1955,7 +1995,8 @@
             { color: "#1f4c7d", label: "Position actuelle" },
             { color: "#24552c", label: "Déplacements possibles" },
             { color: "#1d2336", label: "Pièces visitées" },
-            { color: "#2b1a1a", label: "Inconnues / non visitées" }
+            { color: "#2b1a1a", label: "Inconnues / non visitées" },
+            { color: "#ffc66b", label: "Escalier vers un autre étage" }
         ];
 
         const legendHtml = rows
