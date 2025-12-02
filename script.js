@@ -1903,11 +1903,11 @@
                 ctx.lineTo(startX + stepSpan * 3, startY - stepRise * 3);
                 ctx.stroke();
 
-                const arrowBaseX = startX + stepSpan * 3;
-                const arrowBaseY = startY - stepRise * 3;
-                const arrowTipX = arrowBaseX + arrowLength * 0.7;
-                const arrowTipY = arrowBaseY - arrowLength * 0.7;
-                const angle = Math.atan2(arrowTipY - arrowBaseY, arrowTipX - arrowBaseX);
+                const arrowBaseX = startX + stairWidth / 2;
+                const arrowBaseY = startY - stepRise * 3 - lineWidth * 0.5;
+                const arrowTipX = arrowBaseX;
+                const arrowTipY = arrowBaseY - arrowLength;
+                const angle = -Math.PI / 2;
 
                 ctx.beginPath();
                 ctx.moveTo(arrowBaseX, arrowBaseY);
