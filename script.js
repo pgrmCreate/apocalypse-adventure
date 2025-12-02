@@ -120,9 +120,7 @@
     let mapSectionEl;
     let mapHeaderEl;
     let mapGridEl;
-    let mapHintEl;
     let mapCanvasEl;
-    let mapLegendEl;
     const mapLayouts = new Map();
     const mapMetricsByFloor = new Map();
 
@@ -166,9 +164,7 @@
         mapSectionEl = document.getElementById("map-section");
         mapHeaderEl = mapSectionEl && mapSectionEl.querySelector(".map-header");
         mapGridEl = document.getElementById("map-grid");
-        mapHintEl = document.getElementById("map-hint");
         mapCanvasEl = document.getElementById("map-canvas");
-        mapLegendEl = document.getElementById("map-legend");
 
         craftInfoEl = document.getElementById("craft-info");
         craftListEl = document.getElementById("craft-list");
@@ -1338,6 +1334,10 @@
     }
 
     function canUseMelee() {
+        const hasMeleeWeapon = Boolean(getEquippedWeaponTemplate());
+        if (!hasMeleeWeapon) {
+            return combatState.distance === 0;
+        }
         return combatState.distance <= 1;
     }
 
@@ -1847,8 +1847,8 @@
     }
 
     function drawInterFloorMarkers(ctx, positions) {
-        const markerSizeRatio = 0.35;
-        const offsetInsetRatio = 0.15;
+        const markerSizeRatio = 0.28;
+        const offsetInsetRatio = 0.18;
 
         Object.entries(locations).forEach(([id, location]) => {
             if (!positions.has(id)) return;
@@ -1872,13 +1872,12 @@
 
                 const stairWidth = size;
                 const stairHeight = size;
-                const strokeColor = "rgba(255, 198, 107, 0.9)";
-                const outlineColor = "rgba(24, 30, 46, 0.9)";
-                const lineWidth = Math.max(2, size * 0.12);
+                const strokeColor = "#ffffff";
+                const lineWidth = Math.max(2, size * 0.16);
                 const stepSpan = stairWidth / 3;
                 const stepRise = stairHeight / 3;
-                const arrowLength = size * 0.6;
-                const arrowHead = arrowLength * 0.28;
+                const arrowLength = size * 0.65;
+                const arrowHead = arrowLength * 0.32;
 
                 ctx.save();
                 ctx.translate(centerX, centerY);
@@ -1910,13 +1909,6 @@
                 const arrowTipY = arrowBaseY - arrowLength * 0.7;
                 const angle = Math.atan2(arrowTipY - arrowBaseY, arrowTipX - arrowBaseX);
 
-                ctx.strokeStyle = outlineColor;
-                ctx.beginPath();
-                ctx.moveTo(arrowBaseX, arrowBaseY);
-                ctx.lineTo(arrowTipX, arrowTipY);
-                ctx.stroke();
-
-                ctx.strokeStyle = strokeColor;
                 ctx.beginPath();
                 ctx.moveTo(arrowBaseX, arrowBaseY);
                 ctx.lineTo(arrowTipX, arrowTipY);
@@ -2054,30 +2046,6 @@
         drawInterFloorMarkers(ctx, positions);
     }
 
-    function renderLegend({ reachableIds, interFloorConnections }) {
-        if (!mapLegendEl) return;
-
-        const rows = [
-            { color: "#1f4c7d", label: "Position actuelle" },
-            { color: "#24552c", label: "Déplacements possibles" },
-            { color: "#1d2336", label: "Pièces visitées" },
-            { color: "#2b1a1a", label: "Inconnues / non visitées" },
-            { color: "#ffc66b", label: "Escalier vers un autre étage" }
-        ];
-
-        const legendHtml = rows
-            .map(row => `<div class="legend-row"><span class="legend-swatch" style="background:${row.color}"></span><span>${row.label}</span></div>`)
-            .join("");
-
-        const connectors = interFloorConnections.length
-            ? `<div class="legend-row"><span class="legend-swatch" style="background:#5c6b85"></span><span>Vers autres étages : ${interFloorConnections
-                .map(conn => `${conn.direction} → ${conn.target} (${conn.floor})`)
-                .join(" • ")}</span></div>`
-            : "";
-
-        mapLegendEl.innerHTML = legendHtml + connectors;
-    }
-
     function renderMap(scene) {
         if (!mapSectionEl || !mapCanvasEl) return;
         const locationId = scene.locationId || scene.id;
@@ -2093,38 +2061,20 @@
         const reachableIds = new Set();
         const currentLocation = locations[locationId];
         const mapPaths = currentLocation && currentLocation.mapPaths ? currentLocation.mapPaths : {};
-        const interFloorConnections = [];
         Object.entries(mapPaths).forEach(([direction, targetId]) => {
             const targetFloor = getLocationFloor(targetId);
             if (targetFloor === floor) {
                 reachableIds.add(targetId);
-            } else {
-                const offset = MAP_DIR_OFFSETS[direction];
-                if (offset) {
-                    interFloorConnections.push({
-                        direction: offset.label,
-                        target: getLocationLabel(targetId),
-                        floor: formatFloorLabel(targetFloor)
-                    });
-                }
             }
         });
 
         drawMapCanvas(layout, { locationId, reachableIds, floor });
-        renderLegend({ reachableIds, interFloorConnections });
 
         if (mapHeaderEl) {
             mapHeaderEl.textContent = `Carte du lieu — ${formatFloorLabel(floor)}`;
         }
 
         mapSectionEl.classList.remove("hidden");
-        if (mapHintEl) {
-            const hasInterFloor = interFloorConnections.length > 0;
-            mapHintEl.textContent = hasInterFloor
-                ? "Carte inspirée de Resident Evil : vue d'étage pour se repérer, les actions se font via les boutons."
-                : "Carte inspirée de Resident Evil : vue d'étage pour se repérer (les actions se font via les boutons).";
-            mapHintEl.classList.remove("hidden");
-        }
     }
 
     /* --- Gestion des lieux & scènes --- */
