@@ -124,6 +124,7 @@
     let mapCanvasEl;
     let mapLegendEl;
     const mapLayouts = new Map();
+    const mapMetricsByFloor = new Map();
 
     let selectedItemNameEl;
     let selectedItemInfoEl;
@@ -244,6 +245,7 @@
 
         visitedLocations.clear();
         mapLayouts.clear();
+        mapMetricsByFloor.clear();
 
         initHero();
         setupInitialInventory();
@@ -1826,13 +1828,22 @@
         return lines;
     }
 
-    function getCanvasMetrics(bounds) {
-        const availableWidth = Math.max(320, (mapGridEl && mapGridEl.clientWidth) || 640) - 20;
+    function getCanvasMetrics(bounds, floor) {
+        const key = String(floor === 0 || floor ? floor : "default");
+        if (mapMetricsByFloor.has(key)) {
+            return mapMetricsByFloor.get(key);
+        }
+
+        const rawGridWidth = mapGridEl && mapGridEl.clientWidth;
+        const availableWidth = Math.max(320, (rawGridWidth || 640)) - 20;
         const padding = 24;
         const unit = Math.max(48, Math.min(120, (availableWidth - padding * 2) / Math.max(1, bounds.width)));
         const width = Math.max(320, Math.round(bounds.width * unit + padding * 2));
         const height = Math.max(220, Math.round(bounds.height * unit + padding * 2));
-        return { unit, padding, width, height };
+        const metrics = { unit, padding, width, height };
+
+        mapMetricsByFloor.set(key, metrics);
+        return metrics;
     }
 
     function drawInterFloorMarkers(ctx, positions) {
@@ -1859,26 +1870,38 @@
                 if (direction === "west") centerX = pos.x + inset + size / 2;
                 if (direction === "east") centerX = pos.x + pos.w - inset - size / 2;
 
-                const tipX = centerX + offset.dx * size;
-                const tipY = centerY + offset.dy * size;
+                const stepThickness = size / 4;
+                const stepLength = size;
+
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                if (direction === "east") ctx.rotate(Math.PI / 2);
+                if (direction === "west") ctx.rotate(-Math.PI / 2);
+                if (direction === "south") ctx.rotate(Math.PI);
 
                 ctx.fillStyle = "rgba(255, 198, 107, 0.9)";
-                ctx.beginPath();
-                ctx.moveTo(tipX, tipY);
-                ctx.lineTo(centerX + (offset.dy || 1) * size * 0.6, centerY - (offset.dx || 1) * size * 0.6);
-                ctx.lineTo(centerX - (offset.dy || 1) * size * 0.6, centerY + (offset.dx || 1) * size * 0.6);
-                ctx.closePath();
-                ctx.fill();
+                ctx.strokeStyle = "rgba(24, 30, 46, 0.8)";
+                ctx.lineWidth = Math.max(1, stepThickness * 0.18);
+
+                for (let i = 0; i < 3; i += 1) {
+                    const x = -stepLength / 2 + i * (stepThickness * 0.8);
+                    const y = stepThickness * (i - 1.5);
+                    const width = stepLength - i * (stepThickness * 0.8);
+                    ctx.fillRect(x, y, width, stepThickness);
+                    ctx.strokeRect(x, y, width, stepThickness);
+                }
+
+                ctx.restore();
             });
         });
     }
 
-    function drawMapCanvas(layout, { locationId, reachableIds }) {
+    function drawMapCanvas(layout, { locationId, reachableIds, floor }) {
         if (!mapCanvasEl) return;
 
         const { placements, bounds } = layout;
         const ctx = mapCanvasEl.getContext("2d");
-        const metrics = getCanvasMetrics(bounds);
+        const metrics = getCanvasMetrics(bounds, floor);
 
         mapCanvasEl.width = metrics.width;
         mapCanvasEl.height = metrics.height;
@@ -2044,7 +2067,7 @@
             }
         });
 
-        drawMapCanvas(layout, { locationId, reachableIds });
+        drawMapCanvas(layout, { locationId, reachableIds, floor });
         renderLegend({ reachableIds, interFloorConnections });
 
         if (mapHeaderEl) {
