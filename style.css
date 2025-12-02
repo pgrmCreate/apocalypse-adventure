@@ -190,34 +190,6 @@ header h1 {
     border-radius: 8px;
     border: 1px solid #22304a;
 }
-
-.map-legend {
-    margin-top: 8px;
-    color: var(--muted);
-    font-size: 0.9rem;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.map-legend .legend-row {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-}
-
-.map-legend .legend-swatch {
-    width: 16px;
-    height: 12px;
-    border-radius: 4px;
-    border: 1px solid #1f2b40;
-}
-
-.map-hint {
-    margin: 8px 0 0;
-    color: var(--muted);
-    font-size: 0.9rem;
-}
 .choice-btn {
     padding: 8px 10px;
     border-radius: 8px;
