@@ -1870,8 +1870,15 @@
                 if (direction === "west") centerX = pos.x + inset + size / 2;
                 if (direction === "east") centerX = pos.x + pos.w - inset - size / 2;
 
-                const stepThickness = size / 4;
-                const stepLength = size;
+                const stairWidth = size;
+                const stairHeight = size;
+                const strokeColor = "rgba(255, 198, 107, 0.9)";
+                const outlineColor = "rgba(24, 30, 46, 0.9)";
+                const lineWidth = Math.max(2, size * 0.12);
+                const stepSpan = stairWidth / 3;
+                const stepRise = stairHeight / 3;
+                const arrowLength = size * 0.6;
+                const arrowHead = arrowLength * 0.28;
 
                 ctx.save();
                 ctx.translate(centerX, centerY);
@@ -1879,17 +1886,53 @@
                 if (direction === "west") ctx.rotate(-Math.PI / 2);
                 if (direction === "south") ctx.rotate(Math.PI);
 
-                ctx.fillStyle = "rgba(255, 198, 107, 0.9)";
-                ctx.strokeStyle = "rgba(24, 30, 46, 0.8)";
-                ctx.lineWidth = Math.max(1, stepThickness * 0.18);
+                ctx.strokeStyle = strokeColor;
+                ctx.lineWidth = lineWidth;
+                ctx.lineJoin = "round";
+                ctx.lineCap = "round";
 
-                for (let i = 0; i < 3; i += 1) {
-                    const x = -stepLength / 2 + i * (stepThickness * 0.8);
-                    const y = stepThickness * (i - 1.5);
-                    const width = stepLength - i * (stepThickness * 0.8);
-                    ctx.fillRect(x, y, width, stepThickness);
-                    ctx.strokeRect(x, y, width, stepThickness);
-                }
+                const startX = -stairWidth / 2;
+                const startY = stairHeight / 2;
+
+                ctx.beginPath();
+                ctx.moveTo(startX, startY);
+                ctx.lineTo(startX, startY - stepRise);
+                ctx.lineTo(startX + stepSpan, startY - stepRise);
+                ctx.lineTo(startX + stepSpan, startY - stepRise * 2);
+                ctx.lineTo(startX + stepSpan * 2, startY - stepRise * 2);
+                ctx.lineTo(startX + stepSpan * 2, startY - stepRise * 3);
+                ctx.lineTo(startX + stepSpan * 3, startY - stepRise * 3);
+                ctx.stroke();
+
+                const arrowBaseX = startX + stepSpan * 3;
+                const arrowBaseY = startY - stepRise * 3;
+                const arrowTipX = arrowBaseX + arrowLength * 0.7;
+                const arrowTipY = arrowBaseY - arrowLength * 0.7;
+                const angle = Math.atan2(arrowTipY - arrowBaseY, arrowTipX - arrowBaseX);
+
+                ctx.strokeStyle = outlineColor;
+                ctx.beginPath();
+                ctx.moveTo(arrowBaseX, arrowBaseY);
+                ctx.lineTo(arrowTipX, arrowTipY);
+                ctx.stroke();
+
+                ctx.strokeStyle = strokeColor;
+                ctx.beginPath();
+                ctx.moveTo(arrowBaseX, arrowBaseY);
+                ctx.lineTo(arrowTipX, arrowTipY);
+                ctx.stroke();
+
+                const leftHeadX = arrowTipX - arrowHead * Math.cos(angle - Math.PI / 6);
+                const leftHeadY = arrowTipY - arrowHead * Math.sin(angle - Math.PI / 6);
+                const rightHeadX = arrowTipX - arrowHead * Math.cos(angle + Math.PI / 6);
+                const rightHeadY = arrowTipY - arrowHead * Math.sin(angle + Math.PI / 6);
+
+                ctx.beginPath();
+                ctx.moveTo(arrowTipX, arrowTipY);
+                ctx.lineTo(leftHeadX, leftHeadY);
+                ctx.moveTo(arrowTipX, arrowTipY);
+                ctx.lineTo(rightHeadX, rightHeadY);
+                ctx.stroke();
 
                 ctx.restore();
             });
