@@ -123,6 +123,7 @@
     let mapHintEl;
     let mapCanvasEl;
     let mapLegendEl;
+    const mapLayouts = new Map();
 
     let selectedItemNameEl;
     let selectedItemInfoEl;
@@ -242,6 +243,7 @@
         }
 
         visitedLocations.clear();
+        mapLayouts.clear();
 
         initHero();
         setupInitialInventory();
@@ -1749,7 +1751,6 @@
     function buildMapLayout(locationId, floor) {
         const placements = new Map();
         const queue = [{ id: locationId, x: 0, y: 0 }];
-        const interFloorConnections = [];
         const spacing = 0.4;
 
         while (queue.length > 0) {
@@ -1770,16 +1771,7 @@
                 const targetFloor = getLocationFloor(targetLocationId);
                 const targetSize = getLocationSize(targetLocationId);
 
-                if (targetFloor !== floor) {
-                    if (current.id === locationId) {
-                        interFloorConnections.push({
-                            direction: offset.label,
-                            target: getLocationLabel(targetLocationId),
-                            floor: formatFloorLabel(targetFloor)
-                        });
-                    }
-                    return;
-                }
+                if (targetFloor !== floor) return;
 
                 let targetX = current.x;
                 let targetY = current.y;
@@ -1802,7 +1794,15 @@
 
         const bounds = computeMapBounds(placements);
 
-        return { placements, bounds, interFloorConnections };
+        return { placements, bounds };
+    }
+
+    function getCachedMapLayout(locationId, floor) {
+        const key = String(floor);
+        if (!mapLayouts.has(key)) {
+            mapLayouts.set(key, buildMapLayout(locationId, floor));
+        }
+        return mapLayouts.get(key);
     }
 
     function wrapTextToLines(ctx, text, maxWidth) {
@@ -1976,7 +1976,7 @@
         const locationId = scene.locationId || scene.id;
 
         const floor = getLocationFloor(locationId);
-        const layout = buildMapLayout(locationId, floor);
+        const layout = getCachedMapLayout(locationId, floor);
 
         if (!layout.placements.size) {
             mapSectionEl.classList.add("hidden");
@@ -1986,6 +1986,7 @@
         const reachableIds = new Set();
         const currentLocation = locations[locationId];
         const mapPaths = currentLocation && currentLocation.mapPaths ? currentLocation.mapPaths : {};
+        const interFloorConnections = [];
         Object.entries(mapPaths).forEach(([direction, targetId]) => {
             const targetFloor = getLocationFloor(targetId);
             if (targetFloor === floor) {
@@ -1993,7 +1994,7 @@
             } else {
                 const offset = MAP_DIR_OFFSETS[direction];
                 if (offset) {
-                    layout.interFloorConnections.push({
+                    interFloorConnections.push({
                         direction: offset.label,
                         target: getLocationLabel(targetId),
                         floor: formatFloorLabel(targetFloor)
@@ -2003,7 +2004,7 @@
         });
 
         drawMapCanvas(layout, { locationId, reachableIds });
-        renderLegend({ reachableIds, interFloorConnections: layout.interFloorConnections });
+        renderLegend({ reachableIds, interFloorConnections });
 
         if (mapHeaderEl) {
             mapHeaderEl.textContent = `Carte du lieu — ${formatFloorLabel(floor)}`;
@@ -2011,7 +2012,7 @@
 
         mapSectionEl.classList.remove("hidden");
         if (mapHintEl) {
-            const hasInterFloor = layout.interFloorConnections.length > 0;
+            const hasInterFloor = interFloorConnections.length > 0;
             mapHintEl.textContent = hasInterFloor
                 ? "Carte inspirée de Resident Evil : vue d'étage pour se repérer, les actions se font via les boutons."
                 : "Carte inspirée de Resident Evil : vue d'étage pour se repérer (les actions se font via les boutons).";
