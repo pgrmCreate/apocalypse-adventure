@@ -1903,13 +1903,14 @@
                 ctx.lineTo(startX + stepSpan * 3, startY - stepRise * 3);
                 ctx.stroke();
 
-                const arrowBaseX = startX + stepSpan * 0.2;
-                const arrowBaseY = startY - stepRise * 0.2;
                 const angle = -Math.PI / 4;
-                const arrowTipX =
-                    arrowBaseX + arrowLength * Math.cos(angle);
-                const arrowTipY =
-                    arrowBaseY + arrowLength * Math.sin(angle);
+                const arrowOffset = size * 0.14;
+                const normalX = Math.cos(angle + Math.PI / 2);
+                const normalY = Math.sin(angle + Math.PI / 2);
+                const arrowBaseX = startX + stepSpan * 0.2 + normalX * arrowOffset;
+                const arrowBaseY = startY - stepRise * 0.2 + normalY * arrowOffset;
+                const arrowTipX = arrowBaseX + arrowLength * Math.cos(angle);
+                const arrowTipY = arrowBaseY + arrowLength * Math.sin(angle);
 
                 ctx.beginPath();
                 ctx.moveTo(arrowBaseX, arrowBaseY);
