@@ -123,6 +123,9 @@
     let mapCanvasEl;
     const mapLayouts = new Map();
     const mapMetricsByFloor = new Map();
+    const STAIR_ICON_SRC = "assets/stairs-icon.svg";
+    let stairIconImg = null;
+    let stairIconPromise = null;
 
     let selectedItemNameEl;
     let selectedItemInfoEl;
@@ -165,6 +168,7 @@
         mapHeaderEl = mapSectionEl && mapSectionEl.querySelector(".map-header");
         mapGridEl = document.getElementById("map-grid");
         mapCanvasEl = document.getElementById("map-canvas");
+        loadStairIcon();
 
         craftInfoEl = document.getElementById("craft-info");
         craftListEl = document.getElementById("craft-list");
@@ -1693,6 +1697,28 @@
         east: { dx: 1, dy: 0, label: "Est" }
     };
 
+    function loadStairIcon() {
+        if (stairIconPromise) return stairIconPromise;
+
+        stairIconPromise = new Promise(resolve => {
+            const img = new Image();
+
+            img.onload = () => {
+                stairIconImg = img;
+                resolve(img);
+
+                if (currentSceneId && scenes[currentSceneId]) {
+                    renderMap(scenes[currentSceneId]);
+                }
+            };
+
+            img.onerror = () => resolve(null);
+            img.src = STAIR_ICON_SRC;
+        });
+
+        return stairIconPromise;
+    }
+
     function getLocationLabel(locationId) {
         if (!locationId) return "Lieu";
         const location = locations[locationId];
@@ -1855,6 +1881,9 @@
             const pos = positions.get(id);
             const mapPaths = location && location.mapPaths ? location.mapPaths : {};
 
+            loadStairIcon();
+            const hasIcon = stairIconImg && stairIconImg.complete && stairIconImg.naturalWidth > 0;
+
             Object.entries(mapPaths).forEach(([direction, targetId]) => {
                 if (getLocationFloor(targetId) === getLocationFloor(id)) return;
                 const offset = MAP_DIR_OFFSETS[direction];
@@ -1884,52 +1913,56 @@
                 if (direction === "east") ctx.rotate(Math.PI / 2);
                 if (direction === "west") ctx.rotate(-Math.PI / 2);
                 if (direction === "south") ctx.rotate(Math.PI);
+                if (hasIcon) {
+                    const iconSize = size * 1.05;
+                    ctx.drawImage(stairIconImg, -iconSize / 2, -iconSize / 2, iconSize, iconSize);
+                } else {
+                    ctx.strokeStyle = strokeColor;
+                    ctx.lineWidth = lineWidth;
+                    ctx.lineJoin = "round";
+                    ctx.lineCap = "round";
 
-                ctx.strokeStyle = strokeColor;
-                ctx.lineWidth = lineWidth;
-                ctx.lineJoin = "round";
-                ctx.lineCap = "round";
+                    const startX = -stairWidth / 2;
+                    const startY = stairHeight / 2;
 
-                const startX = -stairWidth / 2;
-                const startY = stairHeight / 2;
+                    ctx.beginPath();
+                    ctx.moveTo(startX, startY);
+                    ctx.lineTo(startX, startY - stepRise);
+                    ctx.lineTo(startX + stepSpan, startY - stepRise);
+                    ctx.lineTo(startX + stepSpan, startY - stepRise * 2);
+                    ctx.lineTo(startX + stepSpan * 2, startY - stepRise * 2);
+                    ctx.lineTo(startX + stepSpan * 2, startY - stepRise * 3);
+                    ctx.lineTo(startX + stepSpan * 3, startY - stepRise * 3);
+                    ctx.stroke();
 
-                ctx.beginPath();
-                ctx.moveTo(startX, startY);
-                ctx.lineTo(startX, startY - stepRise);
-                ctx.lineTo(startX + stepSpan, startY - stepRise);
-                ctx.lineTo(startX + stepSpan, startY - stepRise * 2);
-                ctx.lineTo(startX + stepSpan * 2, startY - stepRise * 2);
-                ctx.lineTo(startX + stepSpan * 2, startY - stepRise * 3);
-                ctx.lineTo(startX + stepSpan * 3, startY - stepRise * 3);
-                ctx.stroke();
+                    const angle = -Math.PI / 4;
+                    const normalX = Math.cos(angle + Math.PI / 2);
+                    const normalY = Math.sin(angle + Math.PI / 2);
+                    const arrowOffset = size * 0.42;
+                    const arrowBaseAnchorX = startX + stepSpan * 2.1;
+                    const arrowBaseAnchorY = startY - stepRise * 3.4;
+                    const arrowBaseX = arrowBaseAnchorX + normalX * arrowOffset;
+                    const arrowBaseY = arrowBaseAnchorY + normalY * arrowOffset;
+                    const arrowTipX = arrowBaseX + arrowLength * Math.cos(angle);
+                    const arrowTipY = arrowBaseY + arrowLength * Math.sin(angle);
 
-                const angle = -Math.PI / 4;
-                const normalX = Math.cos(angle + Math.PI / 2);
-                const normalY = Math.sin(angle + Math.PI / 2);
-                const arrowOffset = size * 0.42;
-                const arrowBaseAnchorX = startX + stepSpan * 2.1;
-                const arrowBaseAnchorY = startY - stepRise * 3.4;
-                const arrowBaseX = arrowBaseAnchorX + normalX * arrowOffset;
-                const arrowBaseY = arrowBaseAnchorY + normalY * arrowOffset;
-                const arrowTipX = arrowBaseX + arrowLength * Math.cos(angle);
-                const arrowTipY = arrowBaseY + arrowLength * Math.sin(angle);
+                    ctx.beginPath();
+                    ctx.moveTo(arrowBaseX, arrowBaseY);
+                    ctx.lineTo(arrowTipX, arrowTipY);
+                    ctx.stroke();
 
-                ctx.beginPath();
-                ctx.moveTo(arrowBaseX, arrowBaseY);
-                ctx.lineTo(arrowTipX, arrowTipY);
-                ctx.stroke();
+                    const leftHeadX = arrowTipX - arrowHead * Math.cos(angle - Math.PI / 6);
+                    const leftHeadY = arrowTipY - arrowHead * Math.sin(angle - Math.PI / 6);
+                    const rightHeadX = arrowTipX - arrowHead * Math.cos(angle + Math.PI / 6);
+                    const rightHeadY = arrowTipY - arrowHead * Math.sin(angle + Math.PI / 6);
 
-                const leftHeadX = arrowTipX - arrowHead * Math.cos(angle - Math.PI / 6);
-                const leftHeadY = arrowTipY - arrowHead * Math.sin(angle - Math.PI / 6);
-                const rightHeadX = arrowTipX - arrowHead * Math.cos(angle + Math.PI / 6);
-                const rightHeadY = arrowTipY - arrowHead * Math.sin(angle + Math.PI / 6);
-
-                ctx.beginPath();
-                ctx.moveTo(arrowTipX, arrowTipY);
-                ctx.lineTo(leftHeadX, leftHeadY);
-                ctx.moveTo(arrowTipX, arrowTipY);
-                ctx.lineTo(rightHeadX, rightHeadY);
-                ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(arrowTipX, arrowTipY);
+                    ctx.lineTo(leftHeadX, leftHeadY);
+                    ctx.moveTo(arrowTipX, arrowTipY);
+                    ctx.lineTo(rightHeadX, rightHeadY);
+                    ctx.stroke();
+                }
 
                 ctx.restore();
             });
