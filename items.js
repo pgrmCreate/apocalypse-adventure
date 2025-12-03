@@ -274,6 +274,21 @@ window.ITEM_TEMPLATES = {
             consume: ["plank", "cloth", "matches"]
         }
     },
+    studdedBat: {
+        name: "Bat cloutée",
+        value: 6,
+        type: "arme",
+        rarity: 6,
+        weaponStats: {
+            baseDamage: 7,
+            forceMultiplier: 1,
+            finesseMultiplier: 1
+        },
+        canCraft: {
+            ingredients: ["bat", "nails"],
+            consume: ["bat", "nails"]
+        }
+    },
 
     tornCloth: {
         name: "Tissu déchiré",

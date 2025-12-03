@@ -895,7 +895,7 @@ window.GAME_STORY = {
             mapFloor: 1,
             mapSize: { width: 2, height: 1 },
             minLoot: ["waterBottle", "towel"],
-            randomLoot: ["medkit", "toothbrush", "pen", "paper"],
+            randomLoot: [],
             randomLootRarity: { 1: 0.7, 2: 0.2, 3: 0.1 },
             randomLootQuantity: 1,
             enemyDistanceRange: { min: 0, max: 1 }
@@ -908,8 +908,8 @@ window.GAME_STORY = {
             mapSize: { width: 2, height: 1 },
             minLoot: [],
             randomLoot: [],
-            randomLootRarity: {},
-            randomLootQuantity: 0,
+            randomLootRarity: {1: 0.8, 2: 0.2},
+            randomLootQuantity: 2,
             enemyDistanceRange: { min: 1, max: 2 }
         },
 
