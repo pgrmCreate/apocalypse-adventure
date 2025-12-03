@@ -413,29 +413,44 @@
             return false;
         }
 
+        const sanitizedQuality = Math.max(0, quality || 0);
         const target = targetId
             ? wounds.find(w => w.id === targetId)
-            : wounds.find(w => !w.bandaged || w.bleeding) || wounds[0];
+            : wounds.find(
+                w => !w.bandaged || w.bleeding || sanitizedQuality > (w.bandageQuality || 0)
+            );
 
         if (!target) {
-            logMessage("Tu ne trouves pas de blessure correspondante pour ce bandage.");
+            logMessage(
+                targetId
+                    ? "Tu ne trouves pas de blessure correspondante pour ce bandage."
+                    : "Aucune blessure ne peut bénéficier de ce bandage."
+            );
             return false;
         }
 
-        if (target.bandaged && !target.bleeding) {
-            logMessage("Cette blessure est déjà bandée correctement.");
+        const previousQuality = target.bandageQuality || 0;
+        const wasBandaged = target.bandaged && !target.bleeding;
+        if (wasBandaged && sanitizedQuality <= previousQuality) {
+            logMessage("Cette blessure possède déjà un bandage équivalent ou meilleur.");
             return false;
         }
 
         target.bandaged = true;
         target.bleeding = false;
-        target.bandageQuality = Math.max(0, quality || 0);
+        target.bandageQuality = sanitizedQuality;
         const bonusReduction = 1 + target.bandageQuality;
         target.remainingTime = Math.max(1, target.remainingTime - bonusReduction);
         renderWounds();
-        logMessage(
-            `Tu poses un bandage sur ta ${target.type} au ${target.part}. La plaie est stabilisée.`
-        );
+        if (wasBandaged && sanitizedQuality > previousQuality) {
+            logMessage(
+                `Tu améliores le bandage sur ta ${target.part} (${target.type}) avec une meilleure qualité.`
+            );
+        } else {
+            logMessage(
+                `Tu poses un bandage sur ta ${target.type} au ${target.part}. La plaie est stabilisée.`
+            );
+        }
         return true;
     }
 
@@ -1021,10 +1036,25 @@
                 info.classList.add("selected-info");
                 selectedItemButtonsEl.appendChild(info);
             } else {
-                wounds.forEach(w => {
+                const usableWounds = wounds.filter(
+                    w => !w.bandaged || w.bleeding || bandageQuality > (w.bandageQuality || 0)
+                );
+
+                if (!usableWounds.length) {
+                    const info = document.createElement("div");
+                    info.textContent =
+                        "Aucune blessure ne peut bénéficier d'un bandage de cette qualité.";
+                    info.classList.add("selected-info");
+                    selectedItemButtonsEl.appendChild(info);
+                }
+
+                usableWounds.forEach(w => {
                     const useBtn = document.createElement("button");
                     useBtn.classList.add("small-btn");
-                    useBtn.textContent = `Utiliser sur ${w.part}`;
+                    const improving = w.bandaged && !w.bleeding && bandageQuality > (w.bandageQuality || 0);
+                    useBtn.textContent = improving
+                        ? `Améliorer le bandage sur ${w.part}`
+                        : `Utiliser sur ${w.part}`;
                     useBtn.addEventListener("click", () => {
                         useConsumableItem(itemEl, { targetWoundId: w.id });
                     });
@@ -1457,6 +1487,19 @@
         choicesEl.appendChild(fleeBtn);
     }
 
+    function computeHeroInitiativeChance() {
+        const finesse = Math.max(0, hero.finesse || 0);
+        const baseChance = 0.35;
+        const finesseBonus = Math.min(0.4, finesse * 0.08);
+        return Math.min(0.9, baseChance + finesseBonus);
+    }
+
+    function heroWinsApproachInitiative() {
+        const chance = computeHeroInitiativeChance();
+        const roll = Math.random();
+        return roll < chance;
+    }
+
     function approachEnemy() {
         if (!combatState.active) return;
         const enemy = combatState.enemies[0];
@@ -1474,7 +1517,22 @@
         logMessage(
             `Tu te rapproches de ${enemy.name} (${describeDistance(combatState.distance)}).`
         );
-        enemyTurn();
+
+        if (combatState.distance === 0) {
+            if (heroWinsApproachInitiative()) {
+                const percent = Math.round(computeHeroInitiativeChance() * 100);
+                logMessage(
+                    `Ta finesse te donne l'initiative (${percent}% de chance) : tu es prêt à frapper avant ${enemy.name}.`
+                );
+            } else {
+                logMessage(
+                    `${enemy.name} profite de ton approche pour tenter de frapper en premier !`
+                );
+                enemyTurn();
+            }
+        } else {
+            enemyTurn();
+        }
         if (combatState.active) renderCombatUI();
     }
 
