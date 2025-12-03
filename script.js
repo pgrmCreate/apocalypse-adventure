@@ -300,7 +300,7 @@
     }
 
     function getNeedState() {
-        const totalNeed = hero.hunger + hero.thirst;
+        const totalNeed = (hero.hunger + hero.thirst)/2;
         if (totalNeed < 15) {
             return {
                 label: "bien nourri",
