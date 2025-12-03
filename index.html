@@ -14,6 +14,15 @@
             </header>
 
             <div id="toast-container" class="toast-container"></div>
+            <div id="combat-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="combat-modal-title">
+                <div class="modal-content">
+                    <h2 id="combat-modal-title">Nouveau combat</h2>
+                    <p id="combat-modal-location" class="modal-meta"></p>
+                    <p id="combat-modal-difficulty" class="modal-meta"></p>
+                    <p id="combat-modal-description"></p>
+                    <button id="combat-modal-confirm" class="choice-btn modal-confirm">OK</button>
+                </div>
+            </div>
             <div class="floating-tags" aria-label="Raccourcis fixes">
                 <button class="tag-btn" id="tag-actions" data-target="#story-title" title="Aller aux actions">
                     <svg
