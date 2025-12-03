@@ -31,6 +31,9 @@
         rare: 3
     };
 
+    const XP_INITIAL_THRESHOLD = 15;
+    const XP_THRESHOLD_GROWTH = 1.35;
+
     const heroDefaults = {
         name: "Alex",
         hp: 30,
@@ -39,7 +42,9 @@
         finesse: 2,
         audace: 2,
         hunger: 0,
-        thirst: 0
+        thirst: 0,
+        experience: 0,
+        nextStatThreshold: XP_INITIAL_THRESHOLD
     };
 
     const hero = {
@@ -50,7 +55,9 @@
         finesse: heroDefaults.finesse,
         audace: heroDefaults.audace,
         hunger: heroDefaults.hunger,
-        thirst: heroDefaults.thirst
+        thirst: heroDefaults.thirst,
+        experience: heroDefaults.experience,
+        nextStatThreshold: heroDefaults.nextStatThreshold
     };
 
     function normalizeRarity(rawRarity) {
@@ -105,6 +112,8 @@
     let hungerEl;
     let thirstEl;
     let heroNameEl;
+    let experienceEl;
+    let nextThresholdEl;
 
     let capacityEl;
     let bagNameEl;
@@ -157,6 +166,8 @@
         hungerEl = document.getElementById("stat-hunger");
         thirstEl = document.getElementById("stat-thirst");
         heroNameEl = document.getElementById("hero-name");
+        experienceEl = document.getElementById("stat-xp");
+        nextThresholdEl = document.getElementById("stat-xp-threshold");
 
         capacityEl = document.getElementById("capacity-value");
         bagNameEl = document.getElementById("bag-name");
@@ -246,6 +257,8 @@
         hero.audace = heroDefaults.audace;
         hero.hunger = heroDefaults.hunger;
         hero.thirst = heroDefaults.thirst;
+        hero.experience = heroDefaults.experience;
+        hero.nextStatThreshold = heroDefaults.nextStatThreshold;
         lastNeedStatus = null;
         wounds = [];
 
@@ -294,9 +307,24 @@
         if (forceEl) forceEl.textContent = String(hero.force);
         if (finesseEl) finesseEl.textContent = String(hero.finesse);
         if (audaceEl) audaceEl.textContent = String(hero.audace);
+        updateExperienceUI();
         updateNeedsUI();
         updateEquippedWeaponUI();
         updateCapacityUI();
+    }
+
+    function updateExperienceUI() {
+        if (experienceEl) {
+            experienceEl.textContent = `${hero.experience} XP`;
+        }
+        if (nextThresholdEl) {
+            if (hero.experience >= hero.nextStatThreshold) {
+                nextThresholdEl.textContent = "Palier atteint : bonus disponible";
+            } else {
+                const remaining = hero.nextStatThreshold - hero.experience;
+                nextThresholdEl.textContent = `${remaining} XP avant le prochain bonus`;
+            }
+        }
     }
 
     function getNeedState() {
@@ -345,6 +373,57 @@
         if (needState.label !== lastNeedStatus) {
             lastNeedStatus = needState.label;
             logMessage(`Ton état alimentaire passe à : ${needState.label}.`);
+        }
+    }
+
+    function computeExperienceRewardFromDifficulty(difficulty) {
+        if (!Number.isFinite(difficulty)) return 1;
+        return Math.max(1, Math.round(difficulty));
+    }
+
+    function grantExperience(amount, source = "combat") {
+        const xpGain = Math.max(0, Math.round(amount || 0));
+        if (xpGain <= 0) return;
+        hero.experience += xpGain;
+        logMessage(`Tu gagnes ${xpGain} XP (${source}).`);
+        showToast(`+${xpGain} XP`, "info");
+        handleStatGainThreshold();
+        updateStatsUI();
+    }
+
+    function describeStatLabel(key) {
+        switch (key) {
+            case "force":
+                return "Force";
+            case "finesse":
+                return "Finesse";
+            case "audace":
+                return "Audace";
+            default:
+                return key;
+        }
+    }
+
+    function grantRandomStatPoint() {
+        const stats = ["force", "finesse", "audace"];
+        const stat = stats[Math.floor(Math.random() * stats.length)];
+        hero[stat] = Math.max(0, (hero[stat] || 0) + 1);
+        const label = describeStatLabel(stat);
+        logMessage(`Palier franchi ! ${label} +1.`);
+        showToast(`${label} +1`, "success");
+    }
+
+    function handleStatGainThreshold() {
+        let gained = false;
+        while (hero.experience >= hero.nextStatThreshold) {
+            grantRandomStatPoint();
+            hero.nextStatThreshold = Math.ceil(hero.nextStatThreshold * XP_THRESHOLD_GROWTH);
+            gained = true;
+        }
+        if (gained) {
+            logMessage(
+                `Prochain palier de caractéristique à ${hero.nextStatThreshold} XP.`
+            );
         }
     }
 
@@ -1519,6 +1598,7 @@
 
         combatState = {
             active: true,
+            difficulty,
             enemies: [enemy],
             victoryScene: option.successScene || (d && d.successScene),
             defeatScene: option.failScene || (d && d.failScene),
@@ -1788,6 +1868,11 @@
         const effectToApply = victory
             ? combatState.victoryEffect
             : combatState.defeatEffect;
+        if (victory) {
+            const difficulty = combatState.difficulty || 0;
+            const reward = computeExperienceRewardFromDifficulty(difficulty);
+            grantExperience(reward, `Combat (difficulté ${difficulty})`);
+        }
 
         if (victory && combatState.originCombatId && combatState.originLocationId) {
             const state = getLocationState(combatState.originLocationId);
