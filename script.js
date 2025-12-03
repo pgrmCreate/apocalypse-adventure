@@ -841,6 +841,12 @@
         return getZoneTemplateCounts(inventoryEl);
     }
 
+    function hasItemInInventory(templateId, counts = null) {
+        if (!templateId) return false;
+        const sourceCounts = counts || getInventoryTemplateCounts();
+        return !!(sourceCounts && sourceCounts[templateId] > 0);
+    }
+
     function getGroundTemplateCounts() {
         return getZoneTemplateCounts(lootEl);
     }
@@ -2364,10 +2370,17 @@
 
         if (choicesEl) {
             choicesEl.innerHTML = "";
+            const inventoryCounts = getInventoryTemplateCounts();
             scene.options.forEach((option, index) => {
                 const btn = document.createElement("button");
                 btn.classList.add("choice-btn");
-                btn.textContent = option.text;
+                const missingRequiredItem =
+                    option.requiredItem &&
+                    !hasItemInInventory(option.requiredItem, inventoryCounts);
+                const labels = [];
+                const requirementLabel = missingRequiredItem
+                    ? ITEM_TEMPLATES[option.requiredItem]?.name || option.requiredItem
+                    : null;
                 const isCombatOption =
                     option.diceTest && option.diceTest.type === "combat";
                 const combatOptionId = isCombatOption
@@ -2377,9 +2390,18 @@
                     isCombatOption &&
                     state.defeatedCombats &&
                     state.defeatedCombats.has(combatOptionId);
+                if (missingRequiredItem && requirementLabel) {
+                    labels.push(`besoin : ${requirementLabel}`);
+                }
                 if (alreadyDefeated) {
+                    labels.push("ennemi vaincu");
+                }
+                btn.textContent =
+                    labels.length > 0
+                        ? `${option.text} (${labels.join(" ; ")})`
+                        : option.text;
+                if (missingRequiredItem || alreadyDefeated) {
                     btn.disabled = true;
-                    btn.textContent = `${option.text} (ennemi vaincu)`;
                 }
                 btn.addEventListener("click", () => handleOption(option, index));
                 choicesEl.appendChild(btn);
@@ -2432,6 +2454,12 @@
             locationState.defeatedCombats.has(combatOptionId)
         ) {
             showToast("L'ennemi de ce lieu est déjà neutralisé.", "info");
+            return;
+        }
+        if (option.requiredItem && !hasItemInInventory(option.requiredItem)) {
+            const requirementLabel =
+                ITEM_TEMPLATES[option.requiredItem]?.name || option.requiredItem;
+            showToast(`Il te manque ${requirementLabel} pour faire cela.`, "warning");
             return;
         }
         if (

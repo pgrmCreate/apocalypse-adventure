@@ -348,6 +348,7 @@ window.GAME_STORY = {
                 },
                 {
                     text: "Forcer la chambre barricadée",
+                    requiredItem: "hammer",
                     diceTest: {
                         type: "combat",
                         diceCount: 2,
@@ -403,7 +404,7 @@ window.GAME_STORY = {
                 "Le salon est en désordre, mais relativement épargné. Une table renversée, des verres brisés, des papiers griffonnés éparpillés et une cuisine encore pleine de traces de vie normale.",
             locationId: "apt1",
             timeContext: "slow",
-            minLoot: ["waterBottle", "towel"],
+            minLoot: ["waterBottle", "towel", "garageKey"],
             randomLoot: ["medkit", "toothbrush", "pen", "paper"],
             randomLootRarity: { 1: 0.7, 2: 0.2, 3: 0.1 },
             options: [
@@ -450,6 +451,7 @@ window.GAME_STORY = {
                 {
                     text: "Chercher la porte qui mène au garage",
                     nextScene: "garageEntrance",
+                    requiredItem: "garageKey",
                     timeCost: 1
                 },
                 {
@@ -478,6 +480,7 @@ window.GAME_STORY = {
                 {
                     text: "Te résoudre à passer par le garage",
                     nextScene: "garageEntrance",
+                    requiredItem: "garageKey",
                     timeCost: 1
                 }
             ]
@@ -894,7 +897,7 @@ window.GAME_STORY = {
             mapPaths: { west: "landing1" },
             mapFloor: 1,
             mapSize: { width: 2, height: 1 },
-            minLoot: ["waterBottle", "towel", "smallBag"],
+            minLoot: ["waterBottle", "towel", "smallBag", "garageKey"],
             randomLoot: [],
             randomLootRarity: { 1: 0.7, 2: 0.15, 3: 0.05 },
             randomLootQuantity: 1,

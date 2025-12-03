@@ -126,6 +126,13 @@ window.ITEM_TEMPLATES = {
         }
     },
 
+    garageKey: {
+        name: "Clé du garage",
+        value: 1,
+        type: "clé",
+        rarity: 2
+    },
+
     cloth: {
         name: "Torchon",
         value: 1,
