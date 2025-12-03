@@ -894,9 +894,9 @@ window.GAME_STORY = {
             mapPaths: { west: "landing1" },
             mapFloor: 1,
             mapSize: { width: 2, height: 1 },
-            minLoot: ["waterBottle", "towel"],
+            minLoot: ["waterBottle", "towel", "smallBag"],
             randomLoot: [],
-            randomLootRarity: { 1: 0.7, 2: 0.2, 3: 0.1 },
+            randomLootRarity: { 1: 0.7, 2: 0.15, 3: 0.05 },
             randomLootQuantity: 1,
             enemyDistanceRange: { min: 0, max: 1 }
         },

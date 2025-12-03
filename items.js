@@ -189,7 +189,7 @@ window.ITEM_TEMPLATES = {
         value: 3,
         type: "consommable",
         rarity: 2,
-        thirstRestore: 5
+        thirstRestore: 7
     },
 
     medkit: {
@@ -204,7 +204,7 @@ window.ITEM_TEMPLATES = {
         name: "Cartable",
         value: 5,
         type: "sac",
-        rarity: 1,
+        rarity: 2,
         bagStats: {
             capacity: 30
         }
@@ -213,7 +213,7 @@ window.ITEM_TEMPLATES = {
         name: "Petit sac à dos",
         value: 5,
         type: "sac",
-        rarity: 2,
+        rarity: 3,
         bagStats: {
             capacity: 35
         }
@@ -232,7 +232,7 @@ window.ITEM_TEMPLATES = {
         name: "Sac de rando",
         value: 8,
         type: "sac",
-        rarity: 4,
+        rarity: 5,
         bagStats: {
             capacity: 50
         }
