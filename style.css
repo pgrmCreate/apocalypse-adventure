@@ -63,7 +63,7 @@ body {
 
 .floating-tags {
     position: fixed;
-    bottom: 12px;
+    bottom: calc(60px);
     left: 0;
     display: flex;
     flex-direction: column;
