@@ -113,6 +113,7 @@
 
     let toastContainerEl;
 
+    let tagActionsBtn;
     let tagInventoryBtn;
     let tagStatsBtn;
     let tagWoundsBtn;
@@ -182,6 +183,7 @@
 
         toastContainerEl = document.getElementById("toast-container");
 
+        tagActionsBtn = document.getElementById("tag-actions");
         tagInventoryBtn = document.getElementById("tag-inventory");
         tagStatsBtn = document.getElementById("tag-stats");
         tagWoundsBtn = document.getElementById("tag-wounds");
@@ -207,7 +209,7 @@
     });
 
     function setupTagNavigation() {
-        const tags = [tagInventoryBtn, tagStatsBtn, tagWoundsBtn].filter(Boolean);
+        const tags = [tagActionsBtn, tagInventoryBtn, tagStatsBtn, tagWoundsBtn].filter(Boolean);
         tags.forEach(tag => {
             tag.addEventListener("click", () => {
                 const targetSelector = tag.dataset.target;
