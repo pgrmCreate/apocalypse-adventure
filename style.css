@@ -64,7 +64,7 @@ body {
 .floating-tags {
     position: fixed;
     top: 12px;
-    left: 12px;
+    left: 0;
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -76,7 +76,8 @@ body {
     height: 44px;
     border-radius: 12px;
     border: 1px solid var(--border);
-    background: rgba(15, 18, 32, 0.92);
+    border-left: none;
+    background: rgba(59, 130, 246, 0.8);
     color: var(--text);
     display: inline-flex;
     align-items: center;
@@ -117,7 +118,7 @@ body {
 
 .tag-danger {
     border-color: rgba(255, 85, 85, 0.35);
-    background: linear-gradient(160deg, rgba(255, 85, 85, 0.2), rgba(10, 12, 20, 0.92));
+    background: rgba(255, 85, 85, 0.8);
 }
 
 .tag-danger:hover,
