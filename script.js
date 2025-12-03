@@ -113,6 +113,11 @@
 
     let toastContainerEl;
 
+    let tagInventoryBtn;
+    let tagStatsBtn;
+    let tagWoundsBtn;
+    let tagWoundCountEl;
+
     let restartBtn;
     let equippedWeaponNameEl;
     let attackPreviewEl;
@@ -177,6 +182,12 @@
 
         toastContainerEl = document.getElementById("toast-container");
 
+        tagInventoryBtn = document.getElementById("tag-inventory");
+        tagStatsBtn = document.getElementById("tag-stats");
+        tagWoundsBtn = document.getElementById("tag-wounds");
+        tagWoundCountEl = document.getElementById("tag-wound-count");
+        setupTagNavigation();
+
         restartBtn = document.getElementById("restart-btn");
         if (restartBtn) {
             restartBtn.addEventListener("click", restartGame);
@@ -194,6 +205,23 @@
         renderScene("intro");
         logMessage("Bienvenue, survivant. Clique sur un objet pour le voir, l'équiper, le consommer ou le prendre.");
     });
+
+    function setupTagNavigation() {
+        const tags = [tagInventoryBtn, tagStatsBtn, tagWoundsBtn].filter(Boolean);
+        tags.forEach(tag => {
+            tag.addEventListener("click", () => {
+                const targetSelector = tag.dataset.target;
+                if (!targetSelector) return;
+                scrollToTarget(targetSelector);
+            });
+        });
+    }
+
+    function scrollToTarget(selector) {
+        const target = document.querySelector(selector);
+        if (!target) return;
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
 
     /* --- Héros & stats --- */
 
@@ -329,6 +357,7 @@
             ok.classList.add("wound-ok");
             ok.textContent = "Aucune blessure en cours. Tes PV remonteront à fond.";
             woundsEl.appendChild(ok);
+            updateWoundTagUI();
             return;
         }
 
@@ -343,6 +372,22 @@
             row.textContent = `${w.type} au ${w.part} (${statusParts.join(", ")})`;
             woundsEl.appendChild(row);
         });
+
+        updateWoundTagUI();
+    }
+
+    function updateWoundTagUI() {
+        if (!tagWoundsBtn) return;
+        if (!wounds.length) {
+            tagWoundsBtn.classList.add("hidden");
+            if (tagWoundCountEl) tagWoundCountEl.textContent = "";
+            return;
+        }
+
+        tagWoundsBtn.classList.remove("hidden");
+        if (tagWoundCountEl) {
+            tagWoundCountEl.textContent = `${wounds.length}`;
+        }
     }
 
     function applyEffect(effect) {

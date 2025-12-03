@@ -22,6 +22,18 @@ body {
     overflow-x: hidden;
 }
 
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
 .hidden {
     display: none !important;
 }
@@ -47,6 +59,71 @@ body {
     background: #1f2538;
     opacity: 1;
     transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.floating-tags {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 1100;
+}
+
+.tag-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: rgba(15, 18, 32, 0.92);
+    color: var(--text);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+    transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease,
+        background 0.2s ease;
+    position: relative;
+}
+
+.tag-btn:hover,
+.tag-btn:focus-visible {
+    transform: translateY(-2px);
+    border-color: var(--info);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+    outline: none;
+}
+
+.tag-icon {
+    font-size: 1.2rem;
+}
+
+.tag-counter {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    min-width: 18px;
+    padding: 1px 5px;
+    border-radius: 999px;
+    background: var(--danger);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    line-height: 1.1;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.tag-danger {
+    border-color: rgba(255, 85, 85, 0.35);
+    background: linear-gradient(160deg, rgba(255, 85, 85, 0.2), rgba(10, 12, 20, 0.92));
+}
+
+.tag-danger:hover,
+.tag-danger:focus-visible {
+    border-color: var(--danger);
+    box-shadow: 0 12px 28px rgba(255, 85, 85, 0.35);
 }
 
 .toast-info {
