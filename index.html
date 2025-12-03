@@ -14,6 +14,26 @@
             </header>
 
             <div id="toast-container" class="toast-container"></div>
+            <div class="floating-tags" aria-label="Raccourcis fixes">
+                <button class="tag-btn" id="tag-inventory" data-target="#inventory-panel" title="Aller à l'inventaire">
+                    <span class="tag-icon" aria-hidden="true">🎒</span>
+                    <span class="sr-only">Inventaire</span>
+                </button>
+                <button class="tag-btn" id="tag-stats" data-target="#hero-panel" title="Aller aux statistiques">
+                    <span class="tag-icon" aria-hidden="true">📊</span>
+                    <span class="sr-only">Statistiques</span>
+                </button>
+                <button
+                    class="tag-btn tag-danger hidden"
+                    id="tag-wounds"
+                    data-target="#wound-panel"
+                    title="Aller aux blessures"
+                >
+                    <span class="tag-icon" aria-hidden="true">🩸</span>
+                    <span class="tag-counter" id="tag-wound-count" aria-hidden="true"></span>
+                    <span class="sr-only">Blessures</span>
+                </button>
+            </div>
 
             <main class="layout">
                 <section id="game">
@@ -48,7 +68,7 @@
                         </div>
                     </section>
 
-                    <section class="inventory-panel personal-panel">
+                    <section class="inventory-panel personal-panel" id="inventory-panel">
                         <h2>Inventaire du héros</h2>
                         <div class="capacity">
                             Charge : <span id="capacity-value"></span>
@@ -89,7 +109,7 @@
                         </div>
                     </section>
 
-                    <section class="hero-panel">
+                    <section class="hero-panel" id="hero-panel">
                         <h2>Héros</h2>
                         <div class="hero-name">Nom : <span id="hero-name"></span></div>
                         <ul class="stats">
@@ -112,7 +132,7 @@
                 </aside>
             </main>
 
-            <section class="wound-panel">
+            <section class="wound-panel" id="wound-panel">
                 <h3 id="wound-header">Blessures</h3>
                 <div id="wounds" class="wounds"></div>
             </section>
