@@ -382,11 +382,15 @@
         if (!tagWoundsBtn) return;
         if (!wounds.length) {
             tagWoundsBtn.classList.add("hidden");
+            tagWoundsBtn.classList.remove("tag-danger", "tag-warning");
             if (tagWoundCountEl) tagWoundCountEl.textContent = "";
             return;
         }
 
         tagWoundsBtn.classList.remove("hidden");
+        const hasUnbandaged = wounds.some(w => !w.bandaged || w.bleeding);
+        tagWoundsBtn.classList.toggle("tag-danger", hasUnbandaged);
+        tagWoundsBtn.classList.toggle("tag-warning", !hasUnbandaged);
         if (tagWoundCountEl) {
             tagWoundCountEl.textContent = `${wounds.length}`;
         }

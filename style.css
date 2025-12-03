@@ -128,6 +128,17 @@ body {
     box-shadow: 0 12px 28px rgba(255, 85, 85, 0.35);
 }
 
+.tag-warning {
+    border-color: rgba(253, 186, 116, 0.35);
+    background: rgba(251, 191, 36, 0.9);
+}
+
+.tag-warning:hover,
+.tag-warning:focus-visible {
+    border-color: #f59e0b;
+    box-shadow: 0 12px 28px rgba(251, 191, 36, 0.35);
+}
+
 .toast-info {
     border-color: var(--info);
     background: linear-gradient(120deg, #3b82f6, #1f2538);
