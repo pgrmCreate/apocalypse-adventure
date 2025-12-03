@@ -629,6 +629,98 @@ window.GAME_STORY = {
                     text: "Retourner vers le garage (improbable)",
                     nextScene: "garageExit",
                     timeCost: 1
+                },
+                {
+                    text: "Remonter l'impasse au nord-est jusqu'aux livraisons",
+                    nextScene: "deliveryYard",
+                    timeCost: 1
+                },
+                {
+                    text: "Descendre vers la bouche de métro au sud-est",
+                    nextScene: "subwayEntrance",
+                    timeCost: 1
+                }
+            ]
+        },
+
+        deliveryYard: {
+            id: "deliveryYard",
+            title: "Quai de livraison encombré",
+            text:
+                "Une série de quais s'enfonce entre deux immeubles. Des palettes renversées et un camion frigorifique bloqué te laissent un couloir étroit pour progresser.",
+            locationId: "delivery_yard",
+            timeContext: "slow",
+            minLoot: ["plank"],
+            randomLoot: ["bandage", "matches", "waterBottle"],
+            randomLootRarity: { 1: 0.8, 2: 0.15, 3: 0.05 },
+            options: [
+                {
+                    text: "Fouiller le camion frigorifique renversé",
+                    diceTest: {
+                        type: "skill",
+                        diceCount: 2,
+                        diceSides: 6,
+                        stat: "finesse",
+                        difficulty: 8,
+                        description:
+                            "Tu te glisses par la porte arrière en espérant éviter le bruit de métal qui résonne."
+                    },
+                    successScene: "deliveryYard",
+                    failScene: "deliveryYard",
+                    successEffect: { audaceChange: 1 },
+                    failEffect: { hpChange: -2 },
+                    timeCost: 1
+                },
+                {
+                    text: "Suivre l'échelle de secours jusqu'aux balcons (nord-est)",
+                    nextScene: "fireEscapeLanding",
+                    timeCost: 1
+                },
+                {
+                    text: "Revenir à la ruelle",
+                    nextScene: "streetIntro",
+                    timeCost: 1
+                }
+            ]
+        },
+
+        subwayEntrance: {
+            id: "subwayEntrance",
+            title: "Bouche de métro condamnée",
+            text:
+                "Les grilles du métro sont soudées mais l'escalier reste praticable. L'odeur d'ozone et de poussière remonte avec un courant d'air froid.",
+            locationId: "subway_entrance",
+            timeContext: "fast",
+            minLoot: ["waterBottle"],
+            randomLoot: ["paper", "pen", "lighter"],
+            randomLootQuantity: 1,
+            options: [
+                {
+                    text: "Tenter de forcer une grille latérale",
+                    diceTest: {
+                        type: "skill",
+                        diceCount: 2,
+                        diceSides: 6,
+                        stat: "audace",
+                        difficulty: 10,
+                        description:
+                            "Tes doigts cherchent une faille pour faire levier avant qu'un rôdeur ne t'entende."
+                    },
+                    successScene: "subwayEntrance",
+                    failScene: "subwayEntrance",
+                    successEffect: { audaceChange: 1 },
+                    failEffect: { hpChange: -3 },
+                    timeCost: 1
+                },
+                {
+                    text: "Contourner par la grille sud pour rejoindre le square",
+                    nextScene: "parkSquare",
+                    timeCost: 1
+                },
+                {
+                    text: "Remonter vers la ruelle",
+                    nextScene: "streetIntro",
+                    timeCost: 1
                 }
             ]
         },
@@ -709,6 +801,143 @@ window.GAME_STORY = {
                 {
                     text: "Revenir vers la ruelle",
                     nextScene: "streetIntro",
+                    timeCost: 1
+                },
+                {
+                    text: "Remonter l'allée nord-est vers un kiosque fermé",
+                    nextScene: "parkKiosk",
+                    timeCost: 1
+                },
+                {
+                    text: "Descendre vers le bassin asséché au sud-ouest",
+                    nextScene: "dryFountain",
+                    timeCost: 1
+                }
+            ]
+        },
+
+        parkKiosk: {
+            id: "parkKiosk",
+            title: "Kiosque effondré",
+            text:
+                "Le kiosque à journaux est couché sur le côté. Des magazines détrempés forment un tapis glissant et une petite caisse reste coincée sous un panneau.",
+            locationId: "park_kiosk",
+            timeContext: "slow",
+            minLoot: ["paper"],
+            randomLoot: ["pen", "matches", "waterBottle"],
+            randomLootRarity: { 1: 0.75, 2: 0.2, 3: 0.05 },
+            options: [
+                {
+                    text: "Tenter d'ouvrir la caisse",
+                    diceTest: {
+                        type: "skill",
+                        diceCount: 2,
+                        diceSides: 6,
+                        stat: "finesse",
+                        difficulty: 7,
+                        description:
+                            "Tu fais sauter le cadenas rouillé en espérant ne pas attirer l'attention."
+                    },
+                    successScene: "parkKiosk",
+                    failScene: "parkKiosk",
+                    successEffect: { audaceChange: 1 },
+                    failEffect: { hpChange: -1 },
+                    timeCost: 1
+                },
+                {
+                    text: "Continuer vers la ruelle par le passage nord-est",
+                    nextScene: "streetIntro",
+                    timeCost: 1
+                },
+                {
+                    text: "Revenir dans le square",
+                    nextScene: "parkSquare",
+                    timeCost: 1
+                }
+            ]
+        },
+
+        dryFountain: {
+            id: "dryFountain",
+            title: "Bassin asséché",
+            text:
+                "Un ancien bassin ornemental envahi de feuilles mortes et d'emballages vides. L'écho porte loin ici, et tu entends parfois un grattement sous la grille d'évacuation.",
+            locationId: "park_fountain",
+            timeContext: "slow",
+            minLoot: [],
+            randomLoot: ["bandage", "cloth", "toothbrush"],
+            randomLootQuantity: 1,
+            options: [
+                {
+                    text: "Inspecter la grille d'évacuation",
+                    diceTest: {
+                        type: "combat",
+                        diceCount: 1,
+                        diceSides: 6,
+                        difficulty: 7,
+                        description:
+                            "Tu soulèves la grille pour voir ce qui bouge dessous."
+                    },
+                    successScene: "dryFountain",
+                    failScene: "dryFountain",
+                    successEffect: { audaceChange: 1 },
+                    failEffect: { hpChange: -2 },
+                    timeCost: 1
+                },
+                {
+                    text: "Remonter vers le kiosque au nord-est",
+                    nextScene: "parkKiosk",
+                    timeCost: 1
+                },
+                {
+                    text: "Suivre le chemin sud vers la bouche de métro",
+                    nextScene: "subwayEntrance",
+                    timeCost: 1
+                },
+                {
+                    text: "Rejoindre le centre du square",
+                    nextScene: "parkSquare",
+                    timeCost: 1
+                }
+            ]
+        },
+
+        fireEscapeLanding: {
+            id: "fireEscapeLanding",
+            title: "Palier d'escalier de secours",
+            text:
+                "Depuis le palier métallique, tu domines la ruelle et le square. Les barreaux grincent au moindre mouvement et un appartement entrouvert laisse échapper une odeur de brûlé.",
+            locationId: "fire_escape",
+            timeContext: "slow",
+            minLoot: [],
+            randomLoot: ["paper", "cloth"],
+            randomLootQuantity: 1,
+            options: [
+                {
+                    text: "Jeter un coup d'œil dans l'appartement ouvert",
+                    diceTest: {
+                        type: "skill",
+                        diceCount: 1,
+                        diceSides: 6,
+                        stat: "audace",
+                        difficulty: 5,
+                        description:
+                            "Tu te hisses par la fenêtre en prenant appui sur la rambarde."
+                    },
+                    successScene: "fireEscapeLanding",
+                    failScene: "fireEscapeLanding",
+                    successEffect: { hpChange: 1 },
+                    failEffect: { hpChange: -1 },
+                    timeCost: 1
+                },
+                {
+                    text: "Redescendre vers le quai de livraison",
+                    nextScene: "deliveryYard",
+                    timeCost: 1
+                },
+                {
+                    text: "Descendre l'échelle vers le square (sud)",
+                    nextScene: "parkSquare",
                     timeCost: 1
                 }
             ]
@@ -930,7 +1159,13 @@ window.GAME_STORY = {
 
         street_alley: {
             mapLabel: "Ruelle",
-            mapPaths: { west: "outside", east: "pharmacy_front", south: "park" },
+            mapPaths: {
+                west: "outside",
+                east: "pharmacy_front",
+                south: "park",
+                northeast: "delivery_yard",
+                southeast: "subway_entrance"
+            },
             mapFloor: 0,
             mapSize: { width: 3, height: 1 },
             minLoot: ["cloth"],
@@ -964,7 +1199,14 @@ window.GAME_STORY = {
 
         park: {
             mapLabel: "Square",
-            mapPaths: { north: "street_alley", east: "camp" },
+            mapPaths: {
+                north: "street_alley",
+                east: "camp",
+                northeast: "park_kiosk",
+                southwest: "park_fountain",
+                south: "subway_entrance",
+                northwest: "fire_escape"
+            },
             mapFloor: 0,
             mapSize: { width: 3, height: 2 },
             minLoot: ["towel"],
@@ -987,6 +1229,61 @@ window.GAME_STORY = {
         outside: {
             mapLabel: "Sortie du garage",
             mapPaths: { north: "garage", east: "street_alley" },
+            mapFloor: 0,
+            mapSize: { width: 2, height: 1 },
+            minLoot: [],
+            randomLoot: [],
+            randomLootRarity: {},
+            randomLootQuantity: 0
+        },
+
+        delivery_yard: {
+            mapLabel: "Quai de livraison",
+            mapPaths: { southwest: "street_alley", northeast: "fire_escape" },
+            mapFloor: 0,
+            mapSize: { width: 3, height: 1 },
+            minLoot: [],
+            randomLoot: [],
+            randomLootRarity: {},
+            randomLootQuantity: 0
+        },
+
+        subway_entrance: {
+            mapLabel: "Bouche de métro",
+            mapPaths: { northwest: "street_alley", north: "park_fountain" },
+            mapFloor: 0,
+            mapSize: { width: 2, height: 1 },
+            minLoot: [],
+            randomLoot: [],
+            randomLootRarity: {},
+            randomLootQuantity: 0
+        },
+
+        park_kiosk: {
+            mapLabel: "Kiosque effondré",
+            mapPaths: { southwest: "park", northeast: "street_alley" },
+            mapFloor: 0,
+            mapSize: { width: 2, height: 1 },
+            minLoot: [],
+            randomLoot: [],
+            randomLootRarity: {},
+            randomLootQuantity: 0
+        },
+
+        park_fountain: {
+            mapLabel: "Bassin asséché",
+            mapPaths: { north: "park", northeast: "park_kiosk", south: "subway_entrance" },
+            mapFloor: 0,
+            mapSize: { width: 2, height: 1 },
+            minLoot: [],
+            randomLoot: [],
+            randomLootRarity: {},
+            randomLootQuantity: 0
+        },
+
+        fire_escape: {
+            mapLabel: "Escalier de secours",
+            mapPaths: { southwest: "delivery_yard", south: "park" },
             mapFloor: 0,
             mapSize: { width: 2, height: 1 },
             minLoot: [],

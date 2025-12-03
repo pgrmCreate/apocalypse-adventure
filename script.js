@@ -2023,7 +2023,11 @@
         north: { dx: 0, dy: -1, label: "Nord" },
         south: { dx: 0, dy: 1, label: "Sud" },
         west: { dx: -1, dy: 0, label: "Ouest" },
-        east: { dx: 1, dy: 0, label: "Est" }
+        east: { dx: 1, dy: 0, label: "Est" },
+        northeast: { dx: 1, dy: -1, label: "Nord-Est" },
+        southeast: { dx: 1, dy: 1, label: "Sud-Est" },
+        northwest: { dx: -1, dy: -1, label: "Nord-Ouest" },
+        southwest: { dx: -1, dy: 1, label: "Sud-Ouest" }
     };
 
     function loadStairIcon() {
@@ -2130,18 +2134,11 @@
 
                 if (targetFloor !== floor) return;
 
-                let targetX = current.x;
-                let targetY = current.y;
+                const xSpacing = (offset.dx >= 0 ? size.width : targetSize.width) + spacing;
+                const ySpacing = (offset.dy >= 0 ? size.height : targetSize.height) + spacing;
 
-                if (direction === "east") {
-                    targetX += size.width + spacing;
-                } else if (direction === "west") {
-                    targetX -= targetSize.width + spacing;
-                } else if (direction === "south") {
-                    targetY += size.height + spacing;
-                } else if (direction === "north") {
-                    targetY -= targetSize.height + spacing;
-                }
+                const targetX = current.x + offset.dx * xSpacing;
+                const targetY = current.y + offset.dy * ySpacing;
 
                 if (!placements.has(targetLocationId) && !queue.some(entry => entry.id === targetLocationId)) {
                     queue.push({ id: targetLocationId, x: targetX, y: targetY });
@@ -2220,13 +2217,10 @@
 
                 const size = Math.min(pos.w, pos.h) * markerSizeRatio;
                 const inset = size * offsetInsetRatio;
-                let centerX = pos.x + pos.w / 2;
-                let centerY = pos.y + pos.h / 2;
-
-                if (direction === "north") centerY = pos.y + inset + size / 2;
-                if (direction === "south") centerY = pos.y + pos.h - inset - size / 2;
-                if (direction === "west") centerX = pos.x + inset + size / 2;
-                if (direction === "east") centerX = pos.x + pos.w - inset - size / 2;
+                const maxInsetX = pos.w / 2 - inset - size / 2;
+                const maxInsetY = pos.h / 2 - inset - size / 2;
+                const centerX = pos.x + pos.w / 2 + offset.dx * maxInsetX;
+                const centerY = pos.y + pos.h / 2 + offset.dy * maxInsetY;
 
                 const stairWidth = size;
                 const stairHeight = size;
