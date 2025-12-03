@@ -63,7 +63,7 @@ body {
 
 .floating-tags {
     position: fixed;
-    top: 12px;
+    bottom: 12px;
     left: 0;
     display: flex;
     flex-direction: column;
@@ -74,7 +74,7 @@ body {
 .tag-btn {
     width: 44px;
     height: 44px;
-    border-radius: 12px;
+    border-radius: 0 12px 12px 0;
     border: 1px solid var(--border);
     border-left: none;
     background: rgba(59, 130, 246, 0.8);
