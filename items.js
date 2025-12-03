@@ -26,7 +26,7 @@ window.ITEM_TEMPLATES = {
         name: "Batte de base-ball",
         value: 8,
         type: "arme",
-        rarity: 2,
+        rarity: 3,
         weaponStats: {
             baseDamage: 3,
             forceMultiplier: 1.0,
@@ -38,7 +38,7 @@ window.ITEM_TEMPLATES = {
         name: "Pied-de-biche",
         value: 9,
         type: "arme",
-        rarity: 2,
+        rarity: 3,
         weaponStats: {
             baseDamage: 4,
             forceMultiplier: 1.1,
