@@ -822,15 +822,34 @@
 
     /* --- Crafting --- */
 
-    function getInventoryTemplateCounts() {
+    function getZoneTemplateCounts(zoneEl) {
         const counts = {};
-        if (!inventoryEl) return counts;
-        inventoryEl.querySelectorAll(".item").forEach(el => {
+        if (!zoneEl) return counts;
+        zoneEl.querySelectorAll(".item").forEach(el => {
             const tplId = el.dataset.templateId;
             if (!tplId) return;
             counts[tplId] = (counts[tplId] || 0) + 1;
         });
         return counts;
+    }
+
+    function getInventoryTemplateCounts() {
+        return getZoneTemplateCounts(inventoryEl);
+    }
+
+    function getGroundTemplateCounts() {
+        return getZoneTemplateCounts(lootEl);
+    }
+
+    function getAvailableTemplateCounts() {
+        const inventoryCounts = getInventoryTemplateCounts();
+        const groundCounts = getGroundTemplateCounts();
+        const combined = { ...inventoryCounts };
+        for (const tplId in groundCounts) {
+            if (!Object.prototype.hasOwnProperty.call(groundCounts, tplId)) continue;
+            combined[tplId] = (combined[tplId] || 0) + groundCounts[tplId];
+        }
+        return combined;
     }
 
     function resolveRecipeConsumption(recipe, counts) {
@@ -881,7 +900,7 @@
     function computeCraftableTemplates() {
         const result = [];
         if (currentTimeContext !== "slow") return result;
-        const counts = getInventoryTemplateCounts();
+        const counts = getAvailableTemplateCounts();
         for (const templateId in ITEM_TEMPLATES) {
             if (!Object.prototype.hasOwnProperty.call(ITEM_TEMPLATES, templateId)) continue;
             const tpl = ITEM_TEMPLATES[templateId];
@@ -944,7 +963,7 @@
             return;
         }
 
-        const counts = getInventoryTemplateCounts();
+        const counts = getAvailableTemplateCounts();
         const resolved = resolveRecipeConsumption(recipe, counts);
         if (!resolved) {
             logMessage("Tu n'as plus les ressources nécessaires pour fabriquer ça.");
@@ -953,28 +972,64 @@
         }
 
         const consumedCounts = resolved.consumeCounts;
+        const unequipState = { weaponChanged: false, bagChanged: false };
 
-        if (inventoryEl) {
-            for (const tplId in consumedCounts) {
-                if (!Object.prototype.hasOwnProperty.call(consumedCounts, tplId)) continue;
-                let toRemove = consumedCounts[tplId];
-                const itemEls = Array.from(
-                    inventoryEl.querySelectorAll(`.item[data-template-id="${tplId}"]`)
-                );
-                for (const el of itemEls) {
-                    if (toRemove <= 0) break;
-                    el.remove();
-                    toRemove -= 1;
+        const removeFromZone = (zoneEl, tplId, remaining) => {
+            if (!zoneEl || remaining <= 0) return remaining;
+            const itemEls = Array.from(
+                zoneEl.querySelectorAll(`.item[data-template-id="${tplId}"]`)
+            );
+            for (const el of itemEls) {
+                if (remaining <= 0) break;
+                if (el.classList.contains("equipped-weapon")) {
+                    equippedWeaponTemplateId = null;
+                    unequipState.weaponChanged = true;
                 }
+                if (el.classList.contains("equipped-bag")) {
+                    equippedBagTemplateId = null;
+                    unequipState.bagChanged = true;
+                }
+                el.remove();
+                remaining -= 1;
+            }
+            return remaining;
+        };
+
+        for (const tplId in consumedCounts) {
+            if (!Object.prototype.hasOwnProperty.call(consumedCounts, tplId)) continue;
+            let toRemove = consumedCounts[tplId];
+            toRemove = removeFromZone(inventoryEl, tplId, toRemove);
+            toRemove = removeFromZone(lootEl, tplId, toRemove);
+            if (toRemove > 0) {
+                console.warn("Impossible de retirer assez d'items pour le craft", tplId);
             }
         }
 
-        addItemToInventory(outputTemplateId);
-        updateCapacityUI();
+        if (unequipState.weaponChanged) updateEquippedWeaponUI();
+        if (unequipState.bagChanged) updateCapacityUI();
 
         const outTpl = ITEM_TEMPLATES[outputTemplateId];
         const craftedName = outTpl ? outTpl.name : outputTemplateId;
-        logMessage(`Tu fabriques ${craftedName}.`);
+        const outputValue = outTpl && typeof outTpl.value === "number" ? outTpl.value : 0;
+        const currentLoad = calculateInventoryLoad();
+        const maxCap = getCurrentMaxCapacity();
+        const canCarry = currentLoad + outputValue <= maxCap;
+
+        if (canCarry) {
+            addItemToInventory(outputTemplateId);
+            logMessage(`Tu fabriques ${craftedName} et le ranges dans ton inventaire.`);
+        } else {
+            const craftedItem = createItemFromTemplate(outputTemplateId);
+            if (craftedItem) {
+                const el = createItemElement(craftedItem);
+                appendItemToZone(el, lootEl);
+                logMessage(
+                    `Tu fabriques ${craftedName} mais n'as pas assez de place : tu le laisses au sol.`
+                );
+            }
+        }
+
+        updateCapacityUI();
     }
 
     /* --- Panneau d'actions sur l'objet --- */
