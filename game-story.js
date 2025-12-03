@@ -338,7 +338,7 @@ window.GAME_STORY = {
             locationId: "apt2",
             timeContext: "slow",
             minLoot: ["bandage", "towel"],
-            randomLoot: ["bigBag", "plank", "cloth", "nail"],
+            randomLoot: ["sportBag", "plank", "cloth", "nail"],
             randomLootRarity: { 1: 0.65, 2: 0.25, 3: 0.1 },
             options: [
                 {

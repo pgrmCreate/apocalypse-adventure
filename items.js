@@ -169,12 +169,19 @@ window.ITEM_TEMPLATES = {
         }
     },
 
-    cannedFood: {
+    cannedFoodBeans: {
         name: "Conserve de haricots",
         value: 4,
         type: "consommable",
         rarity: 2,
-        hungerRestore: 3
+        hungerRestore: 5
+    },
+    cannedFoodCarrots: {
+        name: "Conserve de carottes",
+        value: 4,
+        type: "consommable",
+        rarity: 2,
+        hungerRestore: 4
     },
 
     waterBottle: {
@@ -182,7 +189,7 @@ window.ITEM_TEMPLATES = {
         value: 3,
         type: "consommable",
         rarity: 2,
-        thirstRestore: 3
+        thirstRestore: 5
     },
 
     medkit: {
@@ -211,12 +218,21 @@ window.ITEM_TEMPLATES = {
             capacity: 35
         }
     },
-
-    bigBag: {
-        name: "Gros sac de rando",
-        value: 8,
+    sportBag: {
+        name: "Sac de sport",
+        value: 5,
         type: "sac",
         rarity: 3,
+        bagStats: {
+            capacity: 40
+        }
+    },
+
+    trailBag: {
+        name: "Sac de rando",
+        value: 8,
+        type: "sac",
+        rarity: 4,
         bagStats: {
             capacity: 50
         }
@@ -247,11 +263,11 @@ window.ITEM_TEMPLATES = {
         name: "Torche improvisée",
         value: 6,
         type: "arme",
-        rarity: 1,
+        rarity: 3,
         weaponStats: {
-            baseDamage: 2,
+            baseDamage: 5,
             forceMultiplier: 0.7,
-            finesseMultiplier: 0.5
+            finesseMultiplier: 0.8
         },
         canCraft: {
             ingredients: ["plank", "cloth", "matches"],
