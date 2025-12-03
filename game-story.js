@@ -1159,7 +1159,13 @@ window.GAME_STORY = {
 
         street_alley: {
             mapLabel: "Ruelle",
-            mapPaths: { west: "outside", east: "pharmacy_front", south: "park" },
+            mapPaths: {
+                west: "outside",
+                east: "pharmacy_front",
+                south: "park",
+                northeast: "delivery_yard",
+                southeast: "subway_entrance"
+            },
             mapFloor: 0,
             mapSize: { width: 3, height: 1 },
             minLoot: ["cloth"],
@@ -1193,7 +1199,14 @@ window.GAME_STORY = {
 
         park: {
             mapLabel: "Square",
-            mapPaths: { north: "street_alley", east: "camp" },
+            mapPaths: {
+                north: "street_alley",
+                east: "camp",
+                northeast: "park_kiosk",
+                southwest: "park_fountain",
+                south: "subway_entrance",
+                northwest: "fire_escape"
+            },
             mapFloor: 0,
             mapSize: { width: 3, height: 2 },
             minLoot: ["towel"],
@@ -1216,6 +1229,61 @@ window.GAME_STORY = {
         outside: {
             mapLabel: "Sortie du garage",
             mapPaths: { north: "garage", east: "street_alley" },
+            mapFloor: 0,
+            mapSize: { width: 2, height: 1 },
+            minLoot: [],
+            randomLoot: [],
+            randomLootRarity: {},
+            randomLootQuantity: 0
+        },
+
+        delivery_yard: {
+            mapLabel: "Quai de livraison",
+            mapPaths: { southwest: "street_alley", northeast: "fire_escape" },
+            mapFloor: 0,
+            mapSize: { width: 3, height: 1 },
+            minLoot: [],
+            randomLoot: [],
+            randomLootRarity: {},
+            randomLootQuantity: 0
+        },
+
+        subway_entrance: {
+            mapLabel: "Bouche de métro",
+            mapPaths: { northwest: "street_alley", north: "park_fountain" },
+            mapFloor: 0,
+            mapSize: { width: 2, height: 1 },
+            minLoot: [],
+            randomLoot: [],
+            randomLootRarity: {},
+            randomLootQuantity: 0
+        },
+
+        park_kiosk: {
+            mapLabel: "Kiosque effondré",
+            mapPaths: { southwest: "park", northeast: "street_alley" },
+            mapFloor: 0,
+            mapSize: { width: 2, height: 1 },
+            minLoot: [],
+            randomLoot: [],
+            randomLootRarity: {},
+            randomLootQuantity: 0
+        },
+
+        park_fountain: {
+            mapLabel: "Bassin asséché",
+            mapPaths: { north: "park", northeast: "park_kiosk", south: "subway_entrance" },
+            mapFloor: 0,
+            mapSize: { width: 2, height: 1 },
+            minLoot: [],
+            randomLoot: [],
+            randomLootRarity: {},
+            randomLootQuantity: 0
+        },
+
+        fire_escape: {
+            mapLabel: "Escalier de secours",
+            mapPaths: { southwest: "delivery_yard", south: "park" },
             mapFloor: 0,
             mapSize: { width: 2, height: 1 },
             minLoot: [],
