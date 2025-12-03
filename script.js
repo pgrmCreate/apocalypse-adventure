@@ -121,6 +121,12 @@
     let lootEl;
 
     let toastContainerEl;
+    let combatModalEl;
+    let combatModalTitleEl;
+    let combatModalLocationEl;
+    let combatModalDifficultyEl;
+    let combatModalDescriptionEl;
+    let combatModalConfirmBtn;
 
     let tagActionsBtn;
     let tagInventoryBtn;
@@ -193,6 +199,20 @@
         takeAllBtn = document.getElementById("take-all-btn");
 
         toastContainerEl = document.getElementById("toast-container");
+
+        combatModalEl = document.getElementById("combat-modal");
+        combatModalTitleEl = document.getElementById("combat-modal-title");
+        combatModalLocationEl = document.getElementById("combat-modal-location");
+        combatModalDifficultyEl = document.getElementById("combat-modal-difficulty");
+        combatModalDescriptionEl = document.getElementById("combat-modal-description");
+        combatModalConfirmBtn = document.getElementById("combat-modal-confirm");
+        if (combatModalConfirmBtn) {
+            combatModalConfirmBtn.addEventListener("click", () => {
+                closeCombatIntroModal();
+                renderCombatUI();
+                scrollToTarget("#story-title");
+            });
+        }
 
         tagActionsBtn = document.getElementById("tag-actions");
         tagInventoryBtn = document.getElementById("tag-inventory");
@@ -1558,6 +1578,58 @@
         return "loin";
     }
 
+    function describeCombatDifficulty(difficulty) {
+        if (difficulty >= 20) return "Mortel";
+        if (difficulty >= 16) return "Éprouvant";
+        if (difficulty >= 12) return "Risque notable";
+        if (difficulty >= 8) return "Modéré";
+        return "Mineur";
+    }
+
+    function getLocationLabel(locationId = currentLocationId) {
+        const location = locations[locationId] || {};
+        return location.mapLabel || location.name || "Lieu inconnu";
+    }
+
+    function showCombatIntroModal(enemy, difficulty, startDistance) {
+        if (!combatModalEl) {
+            renderCombatUI();
+            return;
+        }
+        const locationLabel = getLocationLabel(currentLocationId);
+        const distanceLabel = describeDistance(startDistance);
+        const difficultyLabel = describeCombatDifficulty(difficulty);
+
+        if (combatModalTitleEl) {
+            combatModalTitleEl.textContent = `Nouveau combat : ${enemy.name}`;
+        }
+        if (combatModalLocationEl) {
+            combatModalLocationEl.textContent = `Lieu : ${locationLabel}`;
+        }
+        if (combatModalDifficultyEl) {
+            combatModalDifficultyEl.textContent =
+                `Difficulté estimée : ${difficulty} (${difficultyLabel})`;
+        }
+        if (combatModalDescriptionEl) {
+            combatModalDescriptionEl.textContent =
+                `Tu engages le combat ${distanceLabel} de ${enemy.name}. ` +
+                `Prépare-toi à agir vite dans cet environnement.`;
+        }
+
+        combatModalEl.classList.remove("hidden");
+        combatModalEl.classList.add("open");
+
+        if (combatModalConfirmBtn) {
+            combatModalConfirmBtn.focus();
+        }
+    }
+
+    function closeCombatIntroModal() {
+        if (!combatModalEl) return;
+        combatModalEl.classList.remove("open");
+        combatModalEl.classList.add("hidden");
+    }
+
     function canUseMelee() {
         const hasMeleeWeapon = Boolean(getEquippedWeaponTemplate());
         if (!hasMeleeWeapon) {
@@ -1618,6 +1690,7 @@
         logMessage(`Un combat s'engage contre ${enemy.name}.`);
         logMessage(`Le zombie est ${describeDistance(combatState.distance)}.`);
         showToast(`Combat contre ${enemy.name}`, "info");
+        showCombatIntroModal(enemy, difficulty, combatState.distance);
     }
 
     function renderCombatUI() {
@@ -1862,6 +1935,7 @@
     }
 
     function endCombat(victory) {
+        closeCombatIntroModal();
         const nextSceneId = victory
             ? combatState.victoryScene
             : combatState.defeatScene;
