@@ -20,13 +20,8 @@ window.GAME_STORY = {
                     timeCost: 1
                 },
                 {
-                    text: "Aller à la cuisine",
-                    nextScene: "aptKitchen",
-                    timeCost: 1
-                },
-                {
-                    text: "Sortir dans le couloir de l'étage",
-                    nextScene: "aptHallway",
+                    text: "Passer dans le salon",
+                    nextScene: "aptLiving",
                     timeCost: 1
                 }
             ]
@@ -65,6 +60,35 @@ window.GAME_STORY = {
                     startDistanceRange: { min: 0, max: 1 }
                 },
                 {
+                    text: "Passer dans le salon",
+                    nextScene: "aptLiving",
+                    timeCost: 1
+                }
+            ]
+        },
+
+        aptLiving: {
+            id: "aptLiving",
+            title: "Salon encombré",
+            text:
+                "Le salon est en désordre mais praticable. La lumière filtrant des planches donne au tapis une teinte poussiéreuse. Le couloir est visible au sud, la cuisine à l'est et ta chambre à l'ouest.",
+            locationId: "apt_living",
+            timeContext: "slow",
+            minLoot: [],
+            randomLoot: ["waterBottle", "paper"],
+            randomLootRarity: { 1: 0.85, 2: 0.13, 3: 0.02 },
+            options: [
+                {
+                    text: "Retourner dans ta chambre",
+                    nextScene: "intro",
+                    timeCost: 1
+                },
+                {
+                    text: "Aller à la cuisine",
+                    nextScene: "aptKitchen",
+                    timeCost: 1
+                },
+                {
                     text: "Sortir dans le couloir",
                     nextScene: "aptHallway",
                     timeCost: 1
@@ -84,11 +108,6 @@ window.GAME_STORY = {
             randomLootRarity: { 1: 0.85, 2: 0.15 },
             options: [
                 {
-                    text: "Retourner dans ta chambre",
-                    nextScene: "intro",
-                    timeCost: 1
-                },
-                {
                     text: "Inspecter le placard qui s'ouvre tout seul",
                     diceTest: {
                         type: "combat",
@@ -105,8 +124,8 @@ window.GAME_STORY = {
                     startDistanceRange: { min: 0, max: 1 }
                 },
                 {
-                    text: "Passer par la porte qui donne sur le couloir",
-                    nextScene: "aptHallway",
+                    text: "Retourner au salon",
+                    nextScene: "aptLiving",
                     timeCost: 1
                 }
             ]
@@ -135,7 +154,7 @@ window.GAME_STORY = {
                 },
                 {
                     text: "Retourner dans ton appartement",
-                    nextScene: "intro",
+                    nextScene: "aptLiving",
                     timeCost: 1
                 }
             ]
@@ -760,7 +779,7 @@ window.GAME_STORY = {
     locations: {
         apt_main: {
             mapLabel: "Ta chambre (3A)",
-            mapPaths: { east: "apt_kitchen", south: "apt_hallway" },
+            mapPaths: { east: "apt_living" },
             mapFloor: 3,
             mapSize: { width: 2, height: 1 },
             minLoot: ["satchel", "toothbrush"],
@@ -770,9 +789,21 @@ window.GAME_STORY = {
             enemyDistanceRange: { min: 0, max: 1 }
         },
 
+        apt_living: {
+            mapLabel: "Salon (3A)",
+            mapPaths: { west: "apt_main", east: "apt_kitchen", south: "apt_hallway" },
+            mapFloor: 3,
+            mapSize: { width: 2, height: 1 },
+            minLoot: [],
+            randomLoot: ["waterBottle", "paper"],
+            randomLootRarity: { 1: 0.85, 2: 0.13, 3: 0.02 },
+            randomLootQuantity: 0.4,
+            enemyDistanceRange: { min: 0, max: 1 }
+        },
+
         apt_kitchen: {
             mapLabel: "Cuisine (3A)",
-            mapPaths: { west: "apt_main" },
+            mapPaths: { west: "apt_living" },
             mapFloor: 3,
             mapSize: { width: 1, height: 1 },
             minLoot: ["cannedFood", "towel"],
@@ -785,7 +816,7 @@ window.GAME_STORY = {
         apt_hallway: {
             mapLabel: "Couloir 3e",
             mapPaths: {
-                north: "apt_main",
+                north: "apt_living",
                 east: "apt_neighbor3",
                 south: "stairs3"
             },
