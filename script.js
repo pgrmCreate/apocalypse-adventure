@@ -1906,9 +1906,9 @@
                 const angle = -Math.PI / 4;
                 const normalX = Math.cos(angle + Math.PI / 2);
                 const normalY = Math.sin(angle + Math.PI / 2);
-                const arrowOffset = size * 0.22;
-                const arrowBaseAnchorX = startX + stepSpan * 1.8;
-                const arrowBaseAnchorY = startY - stepRise * 2.2;
+                const arrowOffset = size * 0.42;
+                const arrowBaseAnchorX = startX + stepSpan * 2.1;
+                const arrowBaseAnchorY = startY - stepRise * 3.4;
                 const arrowBaseX = arrowBaseAnchorX + normalX * arrowOffset;
                 const arrowBaseY = arrowBaseAnchorY + normalY * arrowOffset;
                 const arrowTipX = arrowBaseX + arrowLength * Math.cos(angle);

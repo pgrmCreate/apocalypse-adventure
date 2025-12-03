@@ -202,6 +202,17 @@ header h1 {
     transition: background 0.15s ease, transform 0.06s ease, box-shadow 0.15s ease;
 }
 
+.choice-btn:disabled,
+.small-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+    pointer-events: none;
+    background: #1a1f2e;
+    color: var(--muted);
+}
+
 .choice-btn:hover {
     background: #2a3550;
     box-shadow: 0 0 8px rgba(0, 0, 0, 0.6);
