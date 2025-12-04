@@ -461,6 +461,12 @@
         return bandages;
     }
 
+    function refreshWoundsIfRelevant() {
+        if (wounds.length) {
+            renderWounds();
+        }
+    }
+
     function renderWounds() {
         if (!woundsEl || !woundHeaderEl) return;
         woundHeaderEl.textContent = wounds.length
@@ -1165,6 +1171,9 @@
             }
         }
 
+        // Met à jour immédiatement les options de craft après consommation
+        refreshCraftingUI();
+
         if (unequipState.weaponChanged) updateEquippedWeaponUI();
         if (unequipState.bagChanged) updateCapacityUI();
 
@@ -1191,6 +1200,9 @@
 
         updateCapacityUI();
         refreshWoundsIfRelevant();
+
+        // Assure l'affichage des bandages fraîchement créés dans les blessures
+        renderWounds();
     }
 
     /* --- Panneau d'actions sur l'objet --- */
