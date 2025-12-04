@@ -38,6 +38,8 @@
     const DEFAULT_USE_DURATION_MS = 4000;
     const DEFAULT_CRAFT_DURATION_MS = 5000;
     const ATTACK_COOLDOWN_MS = 2000;
+    const ENEMY_ATTACK_COOLDOWN_MS = 3000;
+    const LOOT_PICKUP_DURATION_MS = 500;
     const DEFAULT_START_HOUR = 8;
 
     const XP_INITIAL_THRESHOLD = 15;
@@ -109,6 +111,8 @@
     let actionProgressInterval = null;
     let actionTimeout = null;
     let combatApproachTimer = null;
+    let needHourBuffer = 0;
+    let activePickupSequenceToken = null;
 
     // DOM
     let storyTitleEl;
@@ -339,6 +343,7 @@
     function restartGame() {
         endBlockingAction();
         stopCombatApproachTimer();
+        document.body.classList.remove("combat-active");
         if (inventoryEl) inventoryEl.innerHTML = "";
         if (lootEl) lootEl.innerHTML = "";
 
@@ -375,6 +380,7 @@
         gameTimeMinutes = DEFAULT_START_HOUR * 60;
         elapsedHoursBuffer = 0;
         lastRealTickMs = performance.now();
+        needHourBuffer = 0;
         updateGameClockUI();
     }
 
@@ -924,8 +930,17 @@
         const hungerBefore = hero.hunger;
         const thirstBefore = hero.thirst;
 
-        hero.hunger += timeUnits;
-        hero.thirst += timeUnits;
+        needHourBuffer += timeUnits;
+        let hungerGain = 0;
+        let thirstGain = 0;
+        while (needHourBuffer >= 1) {
+            hungerGain += 1;
+            thirstGain += 1;
+            needHourBuffer -= 1;
+        }
+
+        hero.hunger += hungerGain;
+        hero.thirst += thirstGain;
 
         let damage = 0;
         if (hero.hunger > MAX_HUNGER) {
@@ -951,10 +966,14 @@
         updateStatsUI();
 
         if (!silent) {
-            const hungerGain = Math.max(0, Math.round((hero.hunger - hungerBefore) * 10) / 10);
-            const thirstGain = Math.max(0, Math.round((hero.thirst - thirstBefore) * 10) / 10);
+            const hungerDelta = Math.max(0, Math.round((hero.hunger - hungerBefore) * 10) / 10);
+            const thirstDelta = Math.max(0, Math.round((hero.thirst - thirstBefore) * 10) / 10);
             const deltaLabel = formatTimeUnits(timeUnits);
-            logMessage(`Le temps passe (${deltaLabel}) : faim +${hungerGain}, soif +${thirstGain}.`);
+            if (hungerDelta > 0 || thirstDelta > 0) {
+                logMessage(`Le temps passe (${deltaLabel}) : faim +${hungerDelta}, soif +${thirstDelta}.`);
+            } else {
+                logMessage(`Le temps passe (${deltaLabel}).`);
+            }
         }
     }
 
@@ -1609,7 +1628,7 @@
         if (selectedItemButtonsEl) selectedItemButtonsEl.innerHTML = "";
     }
 
-    function takeAllLoot() {
+    async function takeAllLoot() {
         if (!lootEl || !inventoryEl) return;
         const groundItems = Array.from(lootEl.querySelectorAll(".item"));
         if (!groundItems.length) {
@@ -1617,44 +1636,53 @@
             return;
         }
 
+        const sequenceToken = Symbol("pickup-sequence");
+        activePickupSequenceToken = sequenceToken;
         let takenCount = 0;
-        const skipped = [];
-        let runningLoad = calculateInventoryLoad();
-        const maxCap = getCurrentMaxCapacity();
 
-        groundItems.forEach(itemEl => {
+        for (const itemEl of groundItems) {
+            if (activePickupSequenceToken !== sequenceToken) break;
+
             const value = parseInt(itemEl.dataset.value || "0", 10) || 0;
-            if (runningLoad + value <= maxCap) {
-                appendItemToZone(itemEl, inventoryEl);
-                runningLoad += value;
-                takenCount += 1;
-            } else {
-                skipped.push(itemEl.dataset.name || "objet");
+            const currentLoad = calculateInventoryLoad();
+            const maxCap = getCurrentMaxCapacity();
+            if (currentLoad + value > maxCap) {
+                showToast("Inventaire plein", "danger");
+                activePickupSequenceToken = null;
+                break;
             }
-        });
 
-        updateCapacityUI();
+            const success = await takeItemToInventory(itemEl, {
+                asPartOfSequence: true,
+                sequenceToken
+            });
+            if (!success) break;
+            takenCount += 1;
+        }
+
         clearSelectedItem();
+        updateCapacityUI();
 
         if (takenCount > 0) {
             logMessage(`Tu ramasses ${takenCount} objet(s) au sol.`);
             showToast("Ramassage effectué", "success");
         }
-        if (skipped.length) {
-            logMessage(
-                `Charge limite atteinte, tu laisses : ${skipped.join(", ")}.`
-            );
-        }
 
         refreshWoundsIfRelevant();
+        activePickupSequenceToken = null;
     }
 
-    function takeItemToInventory(itemEl) {
-        if (!inventoryEl) return;
+    async function takeItemToInventory(itemEl, opts = {}) {
+        if (!inventoryEl) return false;
         const originZone = itemEl.parentElement;
-        if (!originZone || !originZone.dataset) return;
+        if (!originZone || !originZone.dataset) return false;
         const zoneType = originZone.dataset.zone;
-        if (zoneType !== "loot") return;
+        if (zoneType !== "loot") return false;
+
+        const { asPartOfSequence = false, sequenceToken = null } = opts;
+        if (asPartOfSequence && activePickupSequenceToken && sequenceToken !== activePickupSequenceToken) {
+            return false;
+        }
 
         const value = parseInt(itemEl.dataset.value || "0", 10) || 0;
         const currentTotal = calculateInventoryLoad();
@@ -1662,17 +1690,15 @@
         const maxCap = getCurrentMaxCapacity();
 
         if (newTotal > maxCap) {
-            logMessage(
-                `Tu n'as plus de place pour ${itemEl.dataset.name}. (${newTotal} / ${maxCap})`
-            );
-            if (capacityEl) {
-                capacityEl.classList.add("over-limit");
-                setTimeout(() => {
-                    capacityEl.classList.remove("over-limit");
-                }, 400);
+            showToast("Inventaire plein", "danger");
+            if (asPartOfSequence && activePickupSequenceToken === sequenceToken) {
+                activePickupSequenceToken = null;
             }
-            return;
+            return false;
         }
+
+        const pickupLabel = `Ramassage : ${itemEl.dataset.name || "objet"}`;
+        await startBlockingAction(pickupLabel, LOOT_PICKUP_DURATION_MS, { hideInventory: false });
 
         appendItemToZone(itemEl, inventoryEl);
         updateCapacityUI();
@@ -1680,6 +1706,7 @@
         showToast(`Tu ramasses ${itemEl.dataset.name}.`, "success");
         clearSelectedItem();
         refreshWoundsIfRelevant();
+        return true;
     }
 
     function canDropItems() {
@@ -1961,6 +1988,7 @@
         if (!approach || (!approach.totalMs && approach.initialDistance === 0)) return;
         const ratio = approach.totalMs === 0 ? 0 : approach.remainingMs / approach.totalMs;
         const nextDistance = Math.max(0, Math.ceil(approach.initialDistance * ratio));
+        const previousDistance = combatState.distance;
         if (nextDistance !== combatState.distance) {
             combatState.distance = nextDistance;
             const enemy = combatState.enemies && combatState.enemies[0];
@@ -1971,32 +1999,86 @@
 
         if (approach.remainingMs <= 0 && approach.initialDistance > 0 && !approach.contactTriggered) {
             approach.contactTriggered = true;
-            enemyTurn();
+            attemptEnemyAttack();
+        }
+
+        if (previousDistance !== combatState.distance && combatState.distance === 0 && combatState.active) {
+            renderCombatUI();
         }
     }
 
     function startCombatApproachTimer() {
         stopCombatApproachTimer();
         const approach = combatState.approach;
-        if (!combatState.active || !approach || approach.totalMs <= 0) return;
+        if (!combatState.active || !approach || approach.totalMs <= 0) {
+            if (combatState.active) {
+                combatApproachTimer = setInterval(() => {
+                    if (!combatState.active) {
+                        stopCombatApproachTimer();
+                        return;
+                    }
+                    const attacked = attemptEnemyAttack();
+                    if (attacked && combatState.active) renderCombatUI();
+                }, 200);
+            }
+            return;
+        }
         combatApproachTimer = setInterval(() => {
             if (!combatState.active) {
                 stopCombatApproachTimer();
                 return;
             }
-            if (!combatState.approach || combatState.approach.totalMs <= 0) {
+            if (combatState.approach && combatState.approach.totalMs > 0) {
+                combatState.approach.remainingMs = Math.max(0, combatState.approach.remainingMs - 200);
+                syncCombatDistanceFromApproach();
                 updateApproachMeterUI();
-                return;
             }
-            combatState.approach.remainingMs = Math.max(0, combatState.approach.remainingMs - 200);
-            syncCombatDistanceFromApproach();
-            updateApproachMeterUI();
+            const attacked = attemptEnemyAttack();
+            if (attacked && combatState.active) renderCombatUI();
         }, 200);
     }
 
     function stopCombatApproachTimer() {
         if (combatApproachTimer) clearInterval(combatApproachTimer);
         combatApproachTimer = null;
+    }
+
+    function attemptEnemyAttack(opts = {}) {
+        if (!combatState.active) return false;
+        const enemy = combatState.enemies && combatState.enemies[0];
+        if (!enemy) return false;
+
+        syncCombatDistanceFromApproach();
+        updateApproachMeterUI();
+
+        if (combatState.distance > 0 && !opts.ignoreDistance) {
+            if (opts.logApproach) {
+                logMessage(
+                    `${enemy.name} continue de se rapprocher (${describeDistance(combatState.distance)}).`
+                );
+            }
+            return false;
+        }
+
+        const now = performance.now();
+        if (!opts.ignoreCooldown && now < (combatState.nextEnemyAttackAt || 0)) {
+            return false;
+        }
+
+        const roll = rollDice(6, 1);
+        const damage = enemy.baseDamage + roll.sum;
+        hero.hp = Math.max(0, hero.hp - damage);
+        registerWound(Math.ceil(damage / 3));
+        logMessage(`${enemy.name} riposte et inflige ${damage} dégâts.`);
+        showToast(`Tu es blessé : -${damage} PV`, "danger");
+        combatState.nextEnemyAttackAt = now + ENEMY_ATTACK_COOLDOWN_MS;
+        updateStatsUI();
+
+        if (hero.hp <= 0) {
+            endCombat(false);
+            return true;
+        }
+        return true;
     }
 
     function showCombatIntroModal(enemy, difficulty, startDistance) {
@@ -2107,6 +2189,7 @@
             previousTimeContext: currentTimeContext,
             distance: startDistance,
             attackCooldownEndsAt: 0,
+            nextEnemyAttackAt: performance.now(),
             approach: buildApproachState(startDistance),
             originCombatId:
                 typeof optionIndex === "number"
@@ -2115,6 +2198,7 @@
             originLocationId: currentLocationId
         };
         currentTimeContext = "fast";
+        document.body.classList.add("combat-active");
         updateGroundPanelVisibility();
         renderCombatUI();
         logMessage(`Un combat s'engage contre ${enemy.name}.`);
@@ -2122,6 +2206,7 @@
         showToast(`Combat contre ${enemy.name}`, "info");
         showCombatIntroModal(enemy, difficulty, combatState.distance);
         startCombatApproachTimer();
+        attemptEnemyAttack();
     }
 
     function renderCombatUI() {
@@ -2388,32 +2473,18 @@
         } else {
             logMessage("Tu n'arrives pas à fuir, l'ennemi en profite !");
             showToast("Fuite ratée", "warning");
-            enemyTurn();
+            const forcedHit = attemptEnemyAttack({ ignoreCooldown: true, ignoreDistance: true });
+            if (!forcedHit) {
+                combatState.nextEnemyAttackAt = performance.now() + ENEMY_ATTACK_COOLDOWN_MS;
+            }
             if (combatState.active) renderCombatUI();
         }
     }
 
     function enemyTurn() {
-        if (!combatState.active) return;
-        const enemy = combatState.enemies[0];
-        if (!enemy) return;
-        syncCombatDistanceFromApproach();
-        updateApproachMeterUI();
-        if (combatState.distance > 0) {
-            logMessage(
-                `${enemy.name} continue de se rapprocher (${describeDistance(combatState.distance)}).`
-            );
-            return;
-        }
-        const roll = rollDice(6, 1);
-        const damage = enemy.baseDamage + roll.sum;
-        hero.hp = Math.max(0, hero.hp - damage);
-        registerWound(Math.ceil(damage / 3));
-        logMessage(`${enemy.name} riposte et inflige ${damage} dégâts.`);
-        showToast(`Tu es blessé : -${damage} PV`, "danger");
-        updateStatsUI();
-        if (hero.hp <= 0) {
-            endCombat(false);
+        const attacked = attemptEnemyAttack({ logApproach: true });
+        if (attacked && combatState.active) {
+            renderCombatUI();
         }
     }
 
@@ -2443,6 +2514,7 @@
         showToast(victory ? "Victoire" : "Défaite", victory ? "success" : "danger");
         currentTimeContext = previousCombat.previousTimeContext || currentTimeContext;
         combatState = { active: false };
+        document.body.classList.remove("combat-active");
         updateGroundPanelVisibility();
         if (choiceTitleEl) choiceTitleEl.textContent = "Que fais-tu ?";
         refreshCraftingUI();
@@ -3073,6 +3145,7 @@
         }
 
         combatState = { active: false };
+        document.body.classList.remove("combat-active");
         updateGroundPanelVisibility();
         if (choiceTitleEl) {
             choiceTitleEl.textContent = "Que fais-tu ?";

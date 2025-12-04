@@ -731,6 +731,11 @@ body.inventory-hidden #ground-panel {
     display: none;
 }
 
+body.combat-active #map-section,
+body.combat-active .craft-panel {
+    display: none;
+}
+
 .choice-spinner {
     padding: 16px;
     border-radius: 12px;
