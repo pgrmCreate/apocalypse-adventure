@@ -32,6 +32,20 @@
                     <button id="outcome-modal-confirm" class="choice-btn modal-confirm">Continuer</button>
                 </div>
             </div>
+
+            <div
+                id="defeat-modal"
+                class="modal hidden"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="defeat-modal-title"
+            >
+                <div class="modal-content">
+                    <h2 id="defeat-modal-title">Tu es mort</h2>
+                    <p id="defeat-modal-message" class="modal-meta"></p>
+                    <button id="defeat-modal-restart" class="choice-btn modal-confirm">Recommencer</button>
+                </div>
+            </div>
             <div class="floating-tags" aria-label="Raccourcis fixes">
                 <button class="tag-btn" id="tag-actions" data-target="#story-title" title="Aller aux actions">
                     <svg
