@@ -2618,12 +2618,20 @@
 
     function applyOutcomeLootOnce(locationId, key, templates = []) {
         const state = getLocationState(locationId);
+        if (!state || !key || state.lootApplied.has(key) || !lootEl) return;
+
+        let added = false;
         if (!state || !key || state.lootApplied.has(key)) return;
         const fragment = document.createDocumentFragment();
         templates.forEach(templateId => {
             const item = createItemFromTemplate(templateId);
             if (!item) return;
             const node = createItemElement(item);
+            appendItemToZone(node, lootEl);
+            added = true;
+        });
+
+        if (added) {
             fragment.appendChild(node);
         });
         if (fragment.childNodes.length > 0 && lootEl) {

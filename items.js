@@ -163,6 +163,14 @@ window.ITEM_TEMPLATES = {
         bandageQuality: 1
     },
 
+    cannedFood: {
+        name: "Conserve",
+        value: 4,
+        type: "consommable",
+        rarity: 2,
+        hungerRestore: 5
+    },
+
     improvisedBandage: {
         name: "Bandage de fortune",
         value: 2,
