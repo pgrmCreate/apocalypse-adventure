@@ -2633,7 +2633,8 @@
 
         if (added) {
             fragment.appendChild(node);
-        });
+        }
+
         if (fragment.childNodes.length > 0 && lootEl) {
             lootEl.appendChild(fragment);
             state.lootApplied.add(key);

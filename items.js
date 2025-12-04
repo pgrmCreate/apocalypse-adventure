@@ -135,14 +135,14 @@ window.ITEM_TEMPLATES = {
 
     cloth: {
         name: "Torchon",
-        value: 1,
+        value: 3,
         type: "divers",
         rarity: 1
     },
 
     towel: {
         name: "Serviette",
-        value: 2,
+        value: 4,
         type: "divers",
         rarity: 1
     },
@@ -164,11 +164,11 @@ window.ITEM_TEMPLATES = {
     },
 
     cannedFood: {
-        name: "Conserve",
+        name: "Conserve de petits pois",
         value: 4,
         type: "consommable",
         rarity: 2,
-        hungerRestore: 5
+        hungerRestore: 3
     },
 
     improvisedBandage: {
@@ -307,7 +307,7 @@ window.ITEM_TEMPLATES = {
 
     tornCloth: {
         name: "Tissu déchiré",
-        value: 1,
+        value: 3,
         type: "divers",
         rarity: 1,
         canCraft: {
@@ -318,7 +318,7 @@ window.ITEM_TEMPLATES = {
 
     cleanBandage: {
         name: "Bandage stérilisé",
-        value: 3,
+        value: 2,
         type: "consommable",
         rarity: 2,
         heal: 0,
