@@ -47,6 +47,7 @@
                     </svg>
                     <span class="sr-only">Actions</span>
                 </button>
+                <div id="game-clock" class="time-tag" aria-label="Heure en jeu">08:00</div>
                 <button class="tag-btn" id="tag-inventory" data-target="#inventory-panel" title="Aller à l'inventaire">
                     <svg
                         class="tag-icon"
@@ -217,5 +218,16 @@
         <script src="game-story.js"></script>
         <!-- Mécaniques de jeu -->
         <script src="script.js"></script>
+
+        <div id="action-overlay" class="action-overlay hidden" aria-live="polite">
+            <div class="action-overlay-backdrop"></div>
+            <div class="action-overlay-box">
+                <div class="action-overlay-spinner" aria-hidden="true"></div>
+                <div class="action-overlay-progress" aria-hidden="true">
+                    <div class="action-overlay-bar" id="action-progress-bar"></div>
+                </div>
+                <div class="action-overlay-label" id="action-overlay-text"></div>
+            </div>
+        </div>
     </body>
 </html>

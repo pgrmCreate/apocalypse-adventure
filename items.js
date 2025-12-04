@@ -89,7 +89,8 @@ window.ITEM_TEMPLATES = {
         name: "Cigarettes",
         value: 1,
         type: "consommable",
-        rarity: 2
+        rarity: 2,
+        useDurationSec: 3
     },
 
     paper: {
@@ -160,7 +161,8 @@ window.ITEM_TEMPLATES = {
         type: "consommable",
         rarity: 2,
         heal: 0,
-        bandageQuality: 1
+        bandageQuality: 1,
+        useDurationSec: 4
     },
 
     cannedFood: {
@@ -168,7 +170,8 @@ window.ITEM_TEMPLATES = {
         value: 3,
         type: "consommable",
         rarity: 2,
-        hungerRestore: 3
+        hungerRestore: 3,
+        useDurationSec: 6
     },
 
     improvisedBandage: {
@@ -178,6 +181,8 @@ window.ITEM_TEMPLATES = {
         rarity: 1,
         heal: 0,
         bandageQuality: 1,
+        useDurationSec: 4,
+        craftDurationSec: 4,
         canCraft: {
             ingredients: ["tornCloth"],
             consume: ["tornCloth"]
@@ -189,14 +194,16 @@ window.ITEM_TEMPLATES = {
         value: 4,
         type: "consommable",
         rarity: 2,
-        hungerRestore: 5
+        hungerRestore: 5,
+        useDurationSec: 6
     },
     cannedFoodCarrots: {
         name: "Conserve de carottes",
         value: 4,
         type: "consommable",
         rarity: 2,
-        hungerRestore: 4
+        hungerRestore: 4,
+        useDurationSec: 6
     },
 
     waterBottle: {
@@ -265,6 +272,7 @@ window.ITEM_TEMPLATES = {
             finesseMultiplier: 0.8,
             throwable: true
         },
+        craftDurationSec: 7,
         // Recette de craft pour fabriquer une lance
         // - ingredients : les modèles nécessaires
         // - consume : ceux qui disparaissent (les autres restent dans l'inventaire)
@@ -284,6 +292,7 @@ window.ITEM_TEMPLATES = {
             forceMultiplier: 0.7,
             finesseMultiplier: 0.8
         },
+        craftDurationSec: 8,
         canCraft: {
             ingredients: ["plank", "cloth", "matches"],
             consume: ["plank", "cloth", "matches"]
@@ -299,6 +308,7 @@ window.ITEM_TEMPLATES = {
             forceMultiplier: 1,
             finesseMultiplier: 1
         },
+        craftDurationSec: 6,
         canCraft: {
             ingredients: ["bat", "nails"],
             consume: ["bat", "nails"]
@@ -310,6 +320,7 @@ window.ITEM_TEMPLATES = {
         value: 3,
         type: "divers",
         rarity: 1,
+        craftDurationSec: 3,
         canCraft: {
             ingredients: [["towel", "cloth"]],
             consume: [["towel", "cloth"]]
@@ -323,6 +334,8 @@ window.ITEM_TEMPLATES = {
         rarity: 2,
         heal: 0,
         bandageQuality: 2,
+        useDurationSec: 4,
+        craftDurationSec: 6,
         canCraft: {
             ingredients: ["bandage", "towel"],
             consume: ["bandage", "towel"]
