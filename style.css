@@ -860,16 +860,20 @@ body.combat-active .craft-panel {
 }
 
 .damage-flash-normal {
-    background: radial-gradient(circle at center, rgba(255, 0, 0, 0.18), rgba(255, 0, 0, 0.05));
-    box-shadow: inset 0 0 45px rgba(255, 0, 0, 0.35);
+    background: radial-gradient(circle at center, rgba(255, 0, 0, 0.80), rgba(255, 0, 0, 0.4));
+    box-shadow: inset 0 0 45px rgba(255, 0, 0, 0.60);
 }
 
 .damage-flash-time {
-    background: radial-gradient(circle at center, rgba(255, 138, 76, 0.16), rgba(255, 138, 76, 0.04));
-    box-shadow: inset 0 0 38px rgba(255, 138, 76, 0.3);
+    background: radial-gradient(circle at center, rgba(255, 138, 76, 0.32), rgba(255, 138, 76, 0.1));
+    box-shadow: inset 0 0 38px rgba(255, 138, 76, 0.4);
 }
 
-.damage-flash.is-active {
+.damage-flash-normal.is-active {
+    animation: damage-pulse 900ms ease;
+}
+
+.damage-flash-time.is-active {
     animation: damage-pulse 320ms ease;
 }
 
