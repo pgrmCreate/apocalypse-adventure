@@ -838,10 +838,29 @@ window.GAME_STORY = {
                         description:
                             "Tu fais sauter le cadenas rouillé en espérant ne pas attirer l'attention."
                     },
+                    lockedByFlag: "park_kiosk_crate_opened",
+                    lockedLabel: "caisse ouverte",
                     successScene: "parkKiosk",
                     failScene: "parkKiosk",
                     successEffect: { audaceChange: 1 },
                     failEffect: { hpChange: -1 },
+                    stateFlagOnSuccess: "park_kiosk_crate_opened",
+                    outcomeDetails: {
+                        lootOnSuccess: ["cannedFood", "waterBottle", "matches"],
+                        statusOnSuccess: "La caisse a été ouverte.",
+                        successDescription: "Le cadenas cède dans un claquement sec.",
+                        failDescription: "Le cadenas résiste et t'écorche les doigts.",
+                        successEffect:
+                            "Tu gagnes en audace et récupères quelques vivres cachés dans la caisse.",
+                        failEffect: "Tu perds 1 PV et restes bredouille."
+                    },
+                    outcomeModal: {
+                        title: "Caisse du kiosque",
+                        successDescription: "Le verrou tombe et la caisse s'entrouvre enfin.",
+                        failDescription: "Tu secoues la caisse, mais le cadenas tient bon.",
+                        successEffect: "Audace +1 et du loot supplémentaire apparaît au sol.",
+                        failEffect: "Tu subis -1 PV en écorchant tes doigts."
+                    },
                     timeCost: 1
                 },
                 {
@@ -964,10 +983,31 @@ window.GAME_STORY = {
                         description:
                             "Tu approches les mains ouvertes en promettant d'aider."
                     },
+                    lockedByFlag: "camp_survivor_interaction",
+                    lockedLabel: "survivant déjà approché",
                     successScene: "parkSquare",
                     failScene: "parkSquare",
                     successEffect: { hpChange: 2, finesseChange: 1 },
-                    failEffect: { hpChange: -2 }
+                    failEffect: { hpChange: -2 },
+                    stateFlagOnAttempt: "camp_survivor_interaction",
+                    stateFlagOnSuccess: "camp_survivor_charmed",
+                    outcomeDetails: {
+                        lootOnSuccess: ["bandage", "waterBottle"],
+                        statusOnSuccess: "Le survivant a été amadoué et partage ses ressources.",
+                        statusOnFail: "Le survivant reste sur ses gardes après ton approche.",
+                        successDescription: "Tu tends l'eau et le blessé se détend enfin.",
+                        failDescription: "Il détourne le visage, persuadé que tu veux le voler.",
+                        successEffect:
+                            "Tu gagnes sa confiance : il soigne tes blessures, améliore ta finesse et laisse tomber quelques objets.",
+                        failEffect: "Il te repousse brusquement et te blesse (-2 PV)."
+                    },
+                    outcomeModal: {
+                        title: "Approche du survivant",
+                        successDescription: "Le regard du survivant s'adoucit et il te tend ses trouvailles.",
+                        failDescription: "Le survivant se crispe et te repousse violemment.",
+                        successEffect: "PV +2, Finesse +1 et du loot apparaît au sol.",
+                        failEffect: "Tu perds 2 PV et n'obtiens rien."
+                    }
                 },
                 {
                     text: "Fouiller discrètement le camp",
@@ -980,10 +1020,29 @@ window.GAME_STORY = {
                         description:
                             "Tu cherches des vivres sans attirer l'attention du survivant."
                     },
+                    lockedByFlag: "camp_scavenged",
+                    lockedLabel: "camp déjà fouillé",
                     successScene: "parkSquare",
                     failScene: "parkSquare",
                     successEffect: {},
-                    failEffect: { hpChange: -1 }
+                    failEffect: { hpChange: -1 },
+                    stateFlagOnAttempt: "camp_scavenged",
+                    outcomeDetails: {
+                        lootOnSuccess: ["cannedFood", "matches"],
+                        statusOnSuccess: "Le camp a été fouillé et vidé de ses réserves.",
+                        statusOnFail: "Le camp a été fouillé sans grand succès.",
+                        successDescription: "Tu récupères discrètement quelques provisions.",
+                        failDescription: "Une bourrasque renverse une gamelle et tu te coupes en la rattrapant.",
+                        successEffect: "De nouvelles ressources apparaissent au sol.",
+                        failEffect: "Tu perds 1 PV et n'as presque rien trouvé."
+                    },
+                    outcomeModal: {
+                        title: "Fouille du camp",
+                        successDescription: "Tu rafles quelques objets sans réveiller le blessé.",
+                        failDescription: "Ta fouille bâclée te coûte une coupure douloureuse.",
+                        successEffect: "Du loot supplémentaire est déposé au sol.",
+                        failEffect: "-1 PV, et le camp semble vide."
+                    }
                 }
             ]
         },
