@@ -447,6 +447,20 @@
         }
     }
 
+    function getAvailableBandageItems() {
+        const bandages = [];
+        [inventoryEl, lootEl].forEach(zone => {
+            if (!zone) return;
+            zone.querySelectorAll(".item").forEach(itemEl => {
+                const quality = parseInt(itemEl.dataset.bandageQuality || "0", 10) || 0;
+                if (quality > 0) {
+                    bandages.push(itemEl);
+                }
+            });
+        });
+        return bandages;
+    }
+
     function renderWounds() {
         if (!woundsEl || !woundHeaderEl) return;
         woundHeaderEl.textContent = wounds.length
@@ -462,15 +476,51 @@
             return;
         }
 
+        const bandageItems = getAvailableBandageItems();
+
         wounds.forEach(w => {
             const row = document.createElement("div");
             row.classList.add("wound-row");
+
+            const desc = document.createElement("div");
+            desc.classList.add("wound-description");
             const statusParts = [];
             if (w.bleeding && !w.bandaged) statusParts.push("saigne");
             if (w.bandaged) statusParts.push("bandée");
             const turnsLeft = Math.max(1, Math.ceil(w.remainingTime));
             statusParts.push(`guérison estimée : ${turnsLeft} unité(s) de temps`);
-            row.textContent = `${w.type} au ${w.part} (${statusParts.join(", ")})`;
+            desc.textContent = `${w.type} au ${w.part} (${statusParts.join(", ")})`;
+            row.appendChild(desc);
+
+            const usableBandages = bandageItems.filter(itemEl => {
+                const quality = parseInt(itemEl.dataset.bandageQuality || "0", 10) || 0;
+                return quality > 0 && (
+                    !w.bandaged ||
+                    w.bleeding ||
+                    quality > (w.bandageQuality || 0)
+                );
+            });
+
+            if (usableBandages.length) {
+                const actions = document.createElement("div");
+                actions.classList.add("wound-actions");
+                usableBandages.forEach(itemEl => {
+                    const quality = parseInt(itemEl.dataset.bandageQuality || "0", 10) || 0;
+                    const improving = w.bandaged && !w.bleeding && quality > (w.bandageQuality || 0);
+                    const btn = document.createElement("button");
+                    btn.classList.add("small-btn", "wound-action-btn");
+                    const itemName = itemEl.dataset.name || "bandage";
+                    btn.textContent = improving
+                        ? `Améliorer avec ${itemName}`
+                        : `Utiliser ${itemName}`;
+                    btn.addEventListener("click", () => {
+                        useConsumableItem(itemEl, { targetWoundId: w.id });
+                    });
+                    actions.appendChild(btn);
+                });
+                row.appendChild(actions);
+            }
+
             woundsEl.appendChild(row);
         });
 
