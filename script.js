@@ -117,6 +117,7 @@
     let affameDamageMinuteBuffer = 0;
     let affameDamageRemainder = 0;
     let affameActive = false;
+    let defeatState = { active: false, message: "" };
 
     // DOM
     let storyTitleEl;
@@ -159,6 +160,10 @@
     let outcomeModalDescriptionEl;
     let outcomeModalEffectEl;
     let outcomeModalConfirmBtn;
+
+    let defeatModalEl;
+    let defeatModalMessageEl;
+    let defeatModalRestartBtn;
 
     let actionOverlayEl;
     let actionOverlayTextEl;
@@ -262,6 +267,16 @@
             outcomeModalConfirmBtn.addEventListener("click", closeOutcomeModal);
         }
 
+        defeatModalEl = document.getElementById("defeat-modal");
+        defeatModalMessageEl = document.getElementById("defeat-modal-message");
+        defeatModalRestartBtn = document.getElementById("defeat-modal-restart");
+        if (defeatModalRestartBtn) {
+            defeatModalRestartBtn.addEventListener("click", () => {
+                closeDefeatModal();
+                restartGame();
+            });
+        }
+
         actionOverlayEl = document.getElementById("action-overlay");
         actionOverlayTextEl = document.getElementById("action-overlay-text");
         actionProgressBarEl = document.getElementById("action-progress-bar");
@@ -352,6 +367,8 @@
         endBlockingAction();
         stopCombatApproachTimer();
         document.body.classList.remove("combat-active");
+        defeatState = { active: false, message: "" };
+        closeDefeatModal();
         if (inventoryEl) inventoryEl.innerHTML = "";
         if (lootEl) lootEl.innerHTML = "";
 
@@ -680,11 +697,48 @@
         damageFlashEl.classList.add(effectClass, "is-active");
     }
 
+    function showDefeatModal(message) {
+        if (!defeatModalEl) return;
+        if (defeatModalMessageEl) {
+            defeatModalMessageEl.textContent = message;
+        }
+        defeatModalEl.classList.remove("hidden");
+        defeatModalEl.classList.add("open");
+        if (defeatModalRestartBtn) {
+            defeatModalRestartBtn.focus();
+        }
+    }
+
+    function closeDefeatModal() {
+        if (!defeatModalEl) return;
+        defeatModalEl.classList.remove("open");
+        defeatModalEl.classList.add("hidden");
+    }
+
+    function handleHeroDefeat(reason) {
+        if (defeatState.active) return;
+
+        const message = reason || "Tu succombes à tes blessures.";
+        defeatState = { active: true, message };
+        endBlockingAction();
+        stopCombatApproachTimer();
+        renderScene("gameOver");
+        showDefeatModal(message);
+    }
+
     function applyHeroDamage(rawAmount, opts = {}) {
         const amount = Math.max(0, rawAmount || 0);
         if (amount <= 0) return 0;
         hero.hp = Math.max(0, hero.hp - amount);
         triggerDamageEffect(opts.type || "normal");
+        if (hero.hp <= 0) {
+            const reason =
+                opts.reason ||
+                (opts.type === "time"
+                    ? "Le temps et tes blessures t'ont achevé."
+                    : "Tu es mortellement blessé.");
+            handleHeroDefeat(reason);
+        }
         return amount;
     }
 
@@ -804,7 +858,7 @@
     }
 
     function isTimeFrozen() {
-        return combatState.active;
+        return combatState.active || defeatState.active;
     }
 
     function formatClockLabel(minutesTotal = gameTimeMinutes) {
@@ -968,7 +1022,7 @@
         });
 
         if (bleedDamage > 0) {
-            applyHeroDamage(bleedDamage, { type: "time" });
+            applyHeroDamage(bleedDamage, { type: "time", reason: "Tu te vides de ton sang." });
             if (!silent) {
                 logMessage(
                     `Une plaie saigne encore et te coûte ${bleedDamage} PV pendant le temps qui passe.`
@@ -1026,7 +1080,7 @@
         }
 
         if (damage > 0) {
-            applyHeroDamage(damage, { type: "time" });
+            applyHeroDamage(damage, { type: "time", reason: "La faim et la soif t'achèvent." });
             logMessage(`La faim et la soif t'épuisent : tu perds ${damage} PV.`);
         }
 
@@ -1084,7 +1138,10 @@
                     affameDamageMinuteBuffer -= 30;
                 }
                 if (totalPenalty > 0) {
-                    applyHeroDamage(totalPenalty, { type: "time" });
+                    applyHeroDamage(totalPenalty, {
+                        type: "time",
+                        reason: "Tu t'effondres, terrassé par la faim."
+                    });
                     if (!silent) {
                         logMessage(
                             `Tu t'affaiblis (${needState.label}) et perds ${totalPenalty} PV en attendant.`
@@ -2163,15 +2220,14 @@
 
         const roll = rollDice(6, 1);
         const damage = enemy.baseDamage + roll.sum;
-        applyHeroDamage(damage, { type: "normal" });
+        applyHeroDamage(damage, { type: "normal", reason: "Ton adversaire t'assène le coup fatal." });
         registerWound(Math.ceil(damage / 3));
         logMessage(`${enemy.name} riposte et inflige ${damage} dégâts.`);
         showToast(`Tu es blessé : -${damage} PV`, "danger");
         combatState.nextEnemyAttackAt = now + ENEMY_ATTACK_COOLDOWN_MS;
         updateStatsUI();
 
-        if (hero.hp <= 0) {
-            endCombat(false);
+        if (hero.hp <= 0 || defeatState.active) {
             return true;
         }
         return true;
@@ -2633,7 +2689,7 @@
         }
 
         if (hero.hp <= 0) {
-            renderScene("gameOver");
+            handleHeroDefeat("Tu t'effondres après ce combat.");
             return;
         }
 
@@ -3361,7 +3417,7 @@
         if (option.effect) {
             applyEffect(option.effect);
             if (hero.hp <= 0) {
-                renderScene("gameOver");
+                handleHeroDefeat("Tu succombes aux conséquences de ton choix.");
                 return;
             }
         }
@@ -3459,7 +3515,7 @@
         }
 
         if (hero.hp <= 0) {
-            renderScene("gameOver");
+            handleHeroDefeat("Tu succombes après ce jet.");
             return;
         }
 
