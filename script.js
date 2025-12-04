@@ -461,12 +461,6 @@
         return bandages;
     }
 
-    function refreshWoundsIfRelevant() {
-        if (wounds.length) {
-            renderWounds();
-        }
-    }
-
     function renderWounds() {
         if (!woundsEl || !woundHeaderEl) return;
         woundHeaderEl.textContent = wounds.length
