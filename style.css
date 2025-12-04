@@ -109,7 +109,8 @@ body.has-game-overlay::before {
 
 .new-game-input-row {
     display: flex;
-    gap: 10px;
+    flex-direction: column;
+    gap: 12px;
     align-items: stretch;
     width: 100%;
 }
@@ -131,6 +132,7 @@ body.has-game-overlay::before {
 
 .new-game-submit {
     min-width: 140px;
+    width: 100%;
     font-size: 1rem;
     height: 100%;
 }
@@ -947,6 +949,57 @@ body.combat-active .craft-panel {
 .action-overlay-label {
     font-weight: 700;
     letter-spacing: 0.04em;
+}
+
+.loader {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    border: 4px solid var(--border);
+    border-top-color: var(--info);
+    animation: spin 0.9s linear infinite;
+}
+
+.asset-loader {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1850;
+}
+
+.asset-loader-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(11, 12, 16, 0.82);
+    backdrop-filter: blur(2px);
+}
+
+.asset-loader-box {
+    position: relative;
+    background: #0e1422;
+    border: 1px solid var(--border);
+    padding: 22px 26px;
+    border-radius: 14px;
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    text-align: center;
+    max-width: 360px;
+    width: calc(100% - 32px);
+}
+
+.asset-loader-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+}
+
+.asset-loader-progress {
+    color: var(--muted);
+    font-size: 0.95rem;
 }
 
 .damage-flash {

@@ -330,6 +330,8 @@ import { GAME_CONSTANTS } from "./game-constants.js";
     let actionProgressBarEl;
 
     let damageFlashEl;
+    let assetLoaderEl;
+    let assetLoaderProgressEl;
 
     let tagActionsBtn;
     let tagInventoryBtn;
@@ -351,9 +353,16 @@ import { GAME_CONSTANTS } from "./game-constants.js";
     let stairIconImg = null;
     let stairIconPromise = null;
 
+    const BASE_IMAGE_ASSETS = ["assets/images/new-game.jpg", STAIR_ICON_SRC];
+    const AUDIO_ASSETS = Object.values(MUSIC_SOURCES || {}).flat();
+    const PRELOAD_ASSETS = Array.from(new Set([...BASE_IMAGE_ASSETS, ...AUDIO_ASSETS].filter(Boolean)));
+    let assetPreloadPromise = null;
+    let assetsReady = false;
+
     let selectedItemNameEl;
     let selectedItemInfoEl;
     let selectedItemButtonsEl;
+    let selectedItemEl;
 
     let craftInfoEl;
     let craftListEl;
@@ -442,6 +451,8 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         actionProgressBarEl = document.getElementById("action-progress-bar");
 
         damageFlashEl = document.getElementById("damage-flash");
+        assetLoaderEl = document.getElementById("asset-loader");
+        assetLoaderProgressEl = document.getElementById("asset-loader-progress");
 
         tagActionsBtn = document.getElementById("tag-actions");
         tagInventoryBtn = document.getElementById("tag-inventory");
@@ -482,6 +493,98 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         const target = document.querySelector(selector);
         if (!target) return;
         target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function updateAssetLoaderProgress(completed, total) {
+        if (!assetLoaderProgressEl) return;
+        if (total <= 0) {
+            assetLoaderProgressEl.textContent = "Préparation des ressources";
+            return;
+        }
+
+        assetLoaderProgressEl.textContent = `Chargement des ressources : ${completed}/${total}`;
+    }
+
+    function showAssetLoader(total) {
+        if (!assetLoaderEl) return;
+        assetLoaderEl.classList.remove("hidden");
+        updateAssetLoaderProgress(0, total);
+    }
+
+    function hideAssetLoader() {
+        assetLoaderEl?.classList.add("hidden");
+    }
+
+    function preloadImage(src) {
+        return new Promise(resolve => {
+            const img = new Image();
+            img.onload = () => resolve(src);
+            img.onerror = () => resolve(src);
+            img.src = src;
+        });
+    }
+
+    function preloadAudio(src) {
+        return new Promise(resolve => {
+            const audio = new Audio();
+
+            const cleanup = () => {
+                audio.removeEventListener("canplaythrough", cleanup);
+                audio.removeEventListener("error", cleanup);
+                resolve(src);
+            };
+
+            audio.addEventListener("canplaythrough", cleanup);
+            audio.addEventListener("error", cleanup);
+            audio.preload = "auto";
+            audio.src = src;
+            audio.load();
+
+            if (audio.readyState >= 3) {
+                cleanup();
+            }
+        });
+    }
+
+    function preloadAsset(src) {
+        if (!src) return Promise.resolve();
+        if (/\.mp3(\?.*)?$/i.test(src)) {
+            return preloadAudio(src);
+        }
+
+        return preloadImage(src);
+    }
+
+    function ensureAssetsLoaded(onProgress) {
+        if (assetsReady) {
+            onProgress?.(PRELOAD_ASSETS.length, PRELOAD_ASSETS.length);
+            return Promise.resolve();
+        }
+
+        if (!assetPreloadPromise) {
+            if (PRELOAD_ASSETS.length === 0) {
+                assetsReady = true;
+                assetPreloadPromise = Promise.resolve();
+                return assetPreloadPromise;
+            }
+
+            let completed = 0;
+            const total = PRELOAD_ASSETS.length;
+            onProgress?.(completed, total);
+
+            assetPreloadPromise = Promise.all(
+                PRELOAD_ASSETS.map(src =>
+                    preloadAsset(src).finally(() => {
+                        completed += 1;
+                        onProgress?.(completed, total);
+                    })
+                )
+            ).then(() => {
+                assetsReady = true;
+            });
+        }
+
+        return assetPreloadPromise;
     }
 
     /* --- Héros & stats --- */
@@ -544,6 +647,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         if (inventoryEl) inventoryEl.innerHTML = "";
         if (lootEl) lootEl.innerHTML = "";
 
+        selectedItemEl = null;
         if (selectedItemNameEl) selectedItemNameEl.textContent = "Aucun";
         if (selectedItemInfoEl) selectedItemInfoEl.textContent = "";
         if (selectedItemButtonsEl) selectedItemButtonsEl.innerHTML = "";
@@ -569,11 +673,30 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         if (logEl) logEl.innerHTML = "";
     }
 
-    function startNewGame(chosenName) {
+    async function startNewGame(chosenName) {
         const safeName = typeof chosenName === "string" && chosenName.trim()
             ? chosenName.trim()
             : heroDefaults.name;
         heroDefaults.name = safeName;
+
+        const totalAssets = PRELOAD_ASSETS.length;
+        const shouldShowLoader = !assetsReady && totalAssets > 0;
+
+        if (shouldShowLoader) {
+            showAssetLoader(totalAssets);
+        }
+
+        try {
+            await ensureAssetsLoaded((completed, total) => {
+                if (shouldShowLoader) {
+                    updateAssetLoaderProgress(completed, total);
+                }
+            });
+        } finally {
+            if (shouldShowLoader) {
+                hideAssetLoader();
+            }
+        }
 
         resetGameStateForNewRun();
         hideNewGameScreen();
@@ -1809,7 +1932,21 @@ import { GAME_CONSTANTS } from "./game-constants.js";
 
     /* --- Panneau d'actions sur l'objet --- */
 
+    function refreshSelectedItemUI() {
+        if (!selectedItemEl || !selectedItemEl.isConnected) {
+            clearSelectedItem();
+            return;
+        }
+
+        renderSelectedItemDetails(selectedItemEl);
+    }
+
     function handleItemClick(itemEl) {
+        selectedItemEl = itemEl;
+        renderSelectedItemDetails(itemEl);
+    }
+
+    function renderSelectedItemDetails(itemEl) {
         if (!selectedItemNameEl || !selectedItemInfoEl || !selectedItemButtonsEl) {
             return;
         }
@@ -1879,7 +2016,9 @@ import { GAME_CONSTANTS } from "./game-constants.js";
                 equipBtn.classList.add("small-btn");
                 equipBtn.textContent = "Équiper comme arme";
                 equipBtn.addEventListener("click", () => {
+                    equipBtn.disabled = true;
                     equipWeaponFromElement(itemEl);
+                    refreshSelectedItemUI();
                 });
                 selectedItemButtonsEl.appendChild(equipBtn);
             }
@@ -1896,7 +2035,9 @@ import { GAME_CONSTANTS } from "./game-constants.js";
                 bagBtn.classList.add("small-btn");
                 bagBtn.textContent = "Équiper comme sac";
                 bagBtn.addEventListener("click", () => {
+                    bagBtn.disabled = true;
                     equipBagFromElement(itemEl);
+                    refreshSelectedItemUI();
                 });
                 selectedItemButtonsEl.appendChild(bagBtn);
             }
@@ -1986,6 +2127,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
     }
 
     function clearSelectedItem() {
+        selectedItemEl = null;
         if (selectedItemNameEl) selectedItemNameEl.textContent = "Aucun";
         if (selectedItemInfoEl) selectedItemInfoEl.textContent = "";
         if (selectedItemButtonsEl) selectedItemButtonsEl.innerHTML = "";
