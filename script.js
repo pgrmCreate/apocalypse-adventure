@@ -1190,6 +1190,7 @@
         }
 
         updateCapacityUI();
+        refreshWoundsIfRelevant();
     }
 
     /* --- Panneau d'actions sur l'objet --- */
@@ -2629,6 +2630,7 @@
         }
 
         updateCapacityUI();
+        refreshWoundsIfRelevant();
     }
 
     function handleOption(option, optionIndex = 0) {
