@@ -31,6 +31,15 @@
         rare: 3
     };
 
+    const REAL_SECONDS_PER_GAME_HOUR = 10;
+    const GAME_MINUTES_PER_MS = 60 / (REAL_SECONDS_PER_GAME_HOUR * 1000);
+    const TIME_COST_STEP_HOURS = 0.5;
+    const MOVE_DURATION_MS = 4000;
+    const DEFAULT_USE_DURATION_MS = 4000;
+    const DEFAULT_CRAFT_DURATION_MS = 5000;
+    const ATTACK_COOLDOWN_MS = 2000;
+    const DEFAULT_START_HOUR = 8;
+
     const XP_INITIAL_THRESHOLD = 15;
     const XP_THRESHOLD_GROWTH = 1.35;
 
@@ -92,6 +101,14 @@
     let combatState = { active: false };
     let lastNeedStatus = null;
     const visitedLocations = new Set();
+    let gameTimeMinutes = DEFAULT_START_HOUR * 60;
+    let elapsedHoursBuffer = 0;
+    let lastRealTickMs = null;
+    let gameClockInterval = null;
+    let actionInProgress = false;
+    let actionProgressInterval = null;
+    let actionTimeout = null;
+    let combatApproachTimer = null;
 
     // DOM
     let storyTitleEl;
@@ -114,6 +131,7 @@
     let heroNameEl;
     let experienceEl;
     let nextThresholdEl;
+    let gameClockEl;
 
     let capacityEl;
     let bagNameEl;
@@ -133,6 +151,10 @@
     let outcomeModalDescriptionEl;
     let outcomeModalEffectEl;
     let outcomeModalConfirmBtn;
+
+    let actionOverlayEl;
+    let actionOverlayTextEl;
+    let actionProgressBarEl;
 
     let tagActionsBtn;
     let tagInventoryBtn;
@@ -180,6 +202,7 @@
         heroNameEl = document.getElementById("hero-name");
         experienceEl = document.getElementById("stat-xp");
         nextThresholdEl = document.getElementById("stat-xp-threshold");
+        gameClockEl = document.getElementById("game-clock");
 
         capacityEl = document.getElementById("capacity-value");
         bagNameEl = document.getElementById("bag-name");
@@ -229,6 +252,10 @@
             outcomeModalConfirmBtn.addEventListener("click", closeOutcomeModal);
         }
 
+        actionOverlayEl = document.getElementById("action-overlay");
+        actionOverlayTextEl = document.getElementById("action-overlay-text");
+        actionProgressBarEl = document.getElementById("action-progress-bar");
+
         tagActionsBtn = document.getElementById("tag-actions");
         tagInventoryBtn = document.getElementById("tag-inventory");
         tagStatsBtn = document.getElementById("tag-stats");
@@ -244,6 +271,9 @@
         if (takeAllBtn) {
             takeAllBtn.addEventListener("click", takeAllLoot);
         }
+
+        resetGameClock();
+        startGameClockLoop();
 
         chooseHeroName();
         initHero();
@@ -307,6 +337,8 @@
     }
 
     function restartGame() {
+        endBlockingAction();
+        stopCombatApproachTimer();
         if (inventoryEl) inventoryEl.innerHTML = "";
         if (lootEl) lootEl.innerHTML = "";
 
@@ -325,6 +357,8 @@
         mapLayouts.clear();
         mapMetricsByFloor.clear();
 
+        resetGameClock();
+
         initHero();
         setupInitialInventory();
         updateCapacityUI();
@@ -335,6 +369,32 @@
         currentSceneId = null;
         renderScene("intro");
         logMessage("Nouvelle partie lancée.");
+    }
+
+    function resetGameClock() {
+        gameTimeMinutes = DEFAULT_START_HOUR * 60;
+        elapsedHoursBuffer = 0;
+        lastRealTickMs = performance.now();
+        updateGameClockUI();
+    }
+
+    function startGameClockLoop() {
+        if (gameClockInterval) return;
+        lastRealTickMs = performance.now();
+        gameClockInterval = setInterval(() => {
+            const now = performance.now();
+            if (lastRealTickMs == null) {
+                lastRealTickMs = now;
+                return;
+            }
+            const deltaMs = Math.max(0, now - lastRealTickMs);
+            lastRealTickMs = now;
+            if (isTimeFrozen()) return;
+            const gainedMinutes = deltaMs * GAME_MINUTES_PER_MS;
+            if (gainedMinutes > 0) {
+                addGameMinutes(gainedMinutes, { silent: true });
+            }
+        }, 250);
     }
 
     function updateStatsUI() {
@@ -398,11 +458,15 @@
 
     function updateNeedsUI() {
         const needState = getNeedState();
+        hero.hunger = Math.max(0, Math.min(MAX_HUNGER, hero.hunger));
+        hero.thirst = Math.max(0, Math.min(MAX_THIRST, hero.thirst));
+        const hungerVal = Math.round(hero.hunger);
+        const thirstVal = Math.round(hero.thirst);
         if (hungerEl) {
-            hungerEl.textContent = `${hero.hunger} / ${MAX_HUNGER} (${needState.label})`;
+            hungerEl.textContent = `${hungerVal} / ${MAX_HUNGER} (${needState.label})`;
         }
         if (thirstEl) {
-            thirstEl.textContent = `${hero.thirst} / ${MAX_THIRST} (${needState.label})`;
+            thirstEl.textContent = `${thirstVal} / ${MAX_THIRST} (${needState.label})`;
         }
 
         if (needState.label !== lastNeedStatus) {
@@ -675,7 +739,137 @@
         return true;
     }
 
-    function processWoundsOverTime(timeUnits) {
+    function isTimeFrozen() {
+        return combatState.active;
+    }
+
+    function formatClockLabel(minutesTotal = gameTimeMinutes) {
+        const totalMinutes = Math.max(0, Math.floor(minutesTotal));
+        const days = Math.floor(totalMinutes / (24 * 60));
+        const minutesInDay = totalMinutes % (24 * 60);
+        const hours = Math.floor(minutesInDay / 60);
+        const minutes = minutesInDay % 60;
+        return {
+            dayLabel: days + 1,
+            timeLabel: `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`
+        };
+    }
+
+    function updateGameClockUI() {
+        const { dayLabel, timeLabel } = formatClockLabel();
+        if (gameClockEl) {
+            gameClockEl.textContent = timeLabel;
+            gameClockEl.setAttribute("title", `Jour ${dayLabel} • ${timeLabel}`);
+        }
+        if (timeContextEl) {
+            timeContextEl.textContent = `Horloge : Jour ${dayLabel} ${timeLabel} (1h = ${REAL_SECONDS_PER_GAME_HOUR}s réelles)`;
+        }
+    }
+
+    function formatTimeUnits(hours) {
+        const totalMinutes = Math.round(hours * 60);
+        const h = Math.floor(totalMinutes / 60);
+        const m = Math.abs(totalMinutes % 60);
+        if (h > 0 && m > 0) return `${h}h${String(m).padStart(2, "0")}`;
+        if (h > 0) return `${h}h`;
+        return `${m}min`;
+    }
+
+    function addGameMinutes(minutes, opts = {}) {
+        if (!Number.isFinite(minutes) || minutes <= 0) return;
+        gameTimeMinutes += minutes;
+        updateGameClockUI();
+        accumulateTimeHours(minutes / 60, opts);
+    }
+
+    function accumulateTimeHours(hours, opts = {}) {
+        if (!Number.isFinite(hours) || hours <= 0) return;
+        elapsedHoursBuffer += hours;
+        while (elapsedHoursBuffer >= TIME_COST_STEP_HOURS) {
+            applyTimeCost(TIME_COST_STEP_HOURS, { silent: opts.silent !== false });
+            elapsedHoursBuffer -= TIME_COST_STEP_HOURS;
+        }
+    }
+
+    function setTagButtonsDisabled(disabled) {
+        [tagActionsBtn, tagInventoryBtn, tagStatsBtn, tagWoundsBtn].forEach(btn => {
+            if (btn) {
+                btn.disabled = disabled;
+                btn.setAttribute("aria-disabled", String(disabled));
+            }
+        });
+    }
+
+    function showChoiceSpinner(label) {
+        if (!choicesEl) return;
+        choicesEl.innerHTML = "";
+        const spinner = document.createElement("div");
+        spinner.classList.add("choice-spinner");
+
+        const loader = document.createElement("div");
+        loader.classList.add("loader");
+        const text = document.createElement("div");
+        text.classList.add("label");
+        text.textContent = label || "Action en cours...";
+
+        spinner.appendChild(loader);
+        spinner.appendChild(text);
+        choicesEl.appendChild(spinner);
+    }
+
+    function startBlockingAction(label, durationMs, opts = {}) {
+        const safeDuration = Math.max(300, durationMs || 0);
+        endBlockingAction();
+        actionInProgress = true;
+        document.body.classList.add("action-blocked");
+        if (opts.hideInventory !== false) {
+            document.body.classList.add("inventory-hidden");
+        }
+        if (opts.spinnerInChoices) {
+            showChoiceSpinner(label);
+        }
+        setTagButtonsDisabled(true);
+
+        if (actionOverlayEl && opts.useOverlay !== false) {
+            actionOverlayEl.classList.remove("hidden");
+            if (actionOverlayTextEl) actionOverlayTextEl.textContent = label || "Action en cours";
+            if (actionProgressBarEl) actionProgressBarEl.style.width = "0%";
+        }
+
+        const start = performance.now();
+        actionProgressInterval = setInterval(() => {
+            if (!actionProgressBarEl) return;
+            const elapsed = performance.now() - start;
+            const percent = Math.min(100, Math.round((elapsed / safeDuration) * 100));
+            actionProgressBarEl.style.width = `${percent}%`;
+        }, 120);
+
+        return new Promise(resolve => {
+            actionTimeout = setTimeout(() => {
+                endBlockingAction();
+                resolve();
+            }, safeDuration);
+        });
+    }
+
+    function endBlockingAction() {
+        if (actionTimeout) clearTimeout(actionTimeout);
+        if (actionProgressInterval) clearInterval(actionProgressInterval);
+        actionTimeout = null;
+        actionProgressInterval = null;
+        if (actionOverlayEl) actionOverlayEl.classList.add("hidden");
+        if (actionProgressBarEl) actionProgressBarEl.style.width = "0%";
+        actionInProgress = false;
+        document.body.classList.remove("action-blocked");
+        document.body.classList.remove("inventory-hidden");
+        setTagButtonsDisabled(false);
+    }
+
+    function isActionInProgress() {
+        return actionInProgress;
+    }
+
+    function processWoundsOverTime(timeUnits, silent = false) {
         if (!timeUnits || timeUnits <= 0 || !wounds.length) return;
 
         let bleedDamage = 0;
@@ -698,19 +892,23 @@
 
         if (bleedDamage > 0) {
             hero.hp = Math.max(0, hero.hp - bleedDamage);
-            logMessage(
-                `Une plaie saigne encore et te coûte ${bleedDamage} PV pendant le temps qui passe.`
-            );
+            if (!silent) {
+                logMessage(
+                    `Une plaie saigne encore et te coûte ${bleedDamage} PV pendant le temps qui passe.`
+                );
+            }
         }
 
         const beforeCount = wounds.length;
         wounds = wounds.filter(w => w.remainingTime > 0 && hero.hp > 0);
-        if (beforeCount !== wounds.length) {
+        if (beforeCount !== wounds.length && !silent) {
             logMessage("Certaines blessures se referment enfin.");
         }
         if (wounds.length === 0 && hero.hp > 0) {
             hero.hp = hero.maxHp;
-            logMessage("Tu n'as plus de plaies ouvertes : tes forces reviennent au maximum.");
+            if (!silent) {
+                logMessage("Tu n'as plus de plaies ouvertes : tes forces reviennent au maximum.");
+            }
         }
 
         renderWounds();
@@ -718,8 +916,13 @@
 
     /* --- Temps / faim / soif --- */
 
-    function applyTimeCost(timeUnits) {
+    function applyTimeCost(timeUnits, opts = {}) {
         if (!timeUnits || timeUnits <= 0) return;
+
+        const silent = Boolean(opts.silent);
+
+        const hungerBefore = hero.hunger;
+        const thirstBefore = hero.thirst;
 
         hero.hunger += timeUnits;
         hero.thirst += timeUnits;
@@ -742,21 +945,27 @@
             logMessage(`La faim et la soif t'épuisent : tu perds ${damage} PV.`);
         }
 
-        processWoundsOverTime(timeUnits);
-        applyNeedBasedRecovery(timeUnits);
+        processWoundsOverTime(timeUnits, silent);
+        applyNeedBasedRecovery(timeUnits, silent);
 
         updateStatsUI();
-        logMessage(`Le temps passe : faim +${timeUnits}, soif +${timeUnits}.`);
+
+        if (!silent) {
+            const hungerGain = Math.max(0, Math.round((hero.hunger - hungerBefore) * 10) / 10);
+            const thirstGain = Math.max(0, Math.round((hero.thirst - thirstBefore) * 10) / 10);
+            const deltaLabel = formatTimeUnits(timeUnits);
+            logMessage(`Le temps passe (${deltaLabel}) : faim +${hungerGain}, soif +${thirstGain}.`);
+        }
     }
 
-    function applyNeedBasedRecovery(timeUnits) {
+    function applyNeedBasedRecovery(timeUnits, silent = false) {
         const needState = getNeedState();
         const regen = Math.max(0, Math.round(needState.regenPerUnit * timeUnits));
         if (regen > 0 && hero.hp > 0 && hero.hp < hero.maxHp) {
             const before = hero.hp;
             hero.hp = Math.min(hero.maxHp, hero.hp + regen);
             const gained = hero.hp - before;
-            if (gained > 0) {
+            if (gained > 0 && !silent) {
                 logMessage(
                     `Ton corps récupère ${gained} PV grâce à tes réserves (${needState.label}).`
                 );
@@ -767,9 +976,11 @@
             const penalty = Math.ceil(needState.damagePerUnit * timeUnits);
             if (penalty > 0) {
                 hero.hp = Math.max(0, hero.hp - penalty);
-                logMessage(
-                    `Tu t'affaiblis (${needState.label}) et perds ${penalty} PV en attendant.`
-                );
+                if (!silent) {
+                    logMessage(
+                        `Tu t'affaiblis (${needState.label}) et perds ${penalty} PV en attendant.`
+                    );
+                }
             }
         }
     }
@@ -1080,7 +1291,6 @@
 
     function computeCraftableTemplates() {
         const result = [];
-        if (currentTimeContext !== "slow") return result;
         const counts = getAvailableTemplateCounts();
         for (const templateId in ITEM_TEMPLATES) {
             if (!Object.prototype.hasOwnProperty.call(ITEM_TEMPLATES, templateId)) continue;
@@ -1098,14 +1308,8 @@
 
         craftListEl.innerHTML = "";
 
-        if (currentTimeContext !== "slow") {
-            craftInfoEl.textContent =
-                "Tu ne peux fabriquer qu'en contexte de temps long (hors action immédiate).";
-            return;
-        }
-
         craftInfoEl.textContent =
-            "Si tu as les bons matériaux sur toi, tu peux fabriquer :";
+            "Fabriquer prend du temps réel : un compte à rebours bloque les autres actions.";
 
         const craftable = computeCraftableTemplates();
         if (!craftable.length) {
@@ -1136,11 +1340,21 @@
         });
     }
 
+    function getCraftDurationMs(templateId) {
+        const tpl = ITEM_TEMPLATES[templateId];
+        const seconds = tpl && Number.isFinite(tpl.craftDurationSec)
+            ? tpl.craftDurationSec
+            : DEFAULT_CRAFT_DURATION_MS / 1000;
+        return Math.max(500, seconds * 1000);
+    }
+
     function performCraft(outputTemplateId, recipe) {
-        if (currentTimeContext !== "slow") {
-            logMessage(
-                "Tu n'as pas le temps de fabriquer quoi que ce soit en pleine action rapide."
-            );
+        if (combatState.active) {
+            logMessage("Impossible de fabriquer pendant un combat : le temps est figé.");
+            return;
+        }
+        if (isActionInProgress()) {
+            showToast("Une autre action est déjà en cours.", "info");
             return;
         }
 
@@ -1191,33 +1405,41 @@
 
         if (unequipState.weaponChanged) updateEquippedWeaponUI();
         if (unequipState.bagChanged) updateCapacityUI();
+        updateCapacityUI();
 
         const outTpl = ITEM_TEMPLATES[outputTemplateId];
         const craftedName = outTpl ? outTpl.name : outputTemplateId;
-        const outputValue = outTpl && typeof outTpl.value === "number" ? outTpl.value : 0;
-        const currentLoad = calculateInventoryLoad();
-        const maxCap = getCurrentMaxCapacity();
-        const canCarry = currentLoad + outputValue <= maxCap;
+        const craftLabel = `Fabrication de « ${craftedName} »`;
+        const durationMs = getCraftDurationMs(outputTemplateId);
 
-        if (canCarry) {
-            addItemToInventory(outputTemplateId);
-            logMessage(`Tu fabriques ${craftedName} et le ranges dans ton inventaire.`);
-        } else {
-            const craftedItem = createItemFromTemplate(outputTemplateId);
-            if (craftedItem) {
-                const el = createItemElement(craftedItem);
-                appendItemToZone(el, lootEl);
-                logMessage(
-                    `Tu fabriques ${craftedName} mais n'as pas assez de place : tu le laisses au sol.`
-                );
+        const finalizeCraft = () => {
+            const outputValue = outTpl && typeof outTpl.value === "number" ? outTpl.value : 0;
+            const currentLoad = calculateInventoryLoad();
+            const maxCap = getCurrentMaxCapacity();
+            const canCarry = currentLoad + outputValue <= maxCap;
+
+            if (canCarry) {
+                addItemToInventory(outputTemplateId);
+                logMessage(`Tu fabriques ${craftedName} et le ranges dans ton inventaire.`);
+            } else {
+                const craftedItem = createItemFromTemplate(outputTemplateId);
+                if (craftedItem) {
+                    const el = createItemElement(craftedItem);
+                    appendItemToZone(el, lootEl);
+                    logMessage(
+                        `Tu fabriques ${craftedName} mais n'as pas assez de place : tu le laisses au sol.`
+                    );
+                }
             }
-        }
 
-        updateCapacityUI();
-        refreshWoundsIfRelevant();
+            updateCapacityUI();
+            refreshWoundsIfRelevant();
+            renderWounds();
+            refreshCraftingUI();
+        };
 
-        // Assure l'affichage des bandages fraîchement créés dans les blessures
-        renderWounds();
+        logMessage(`${craftLabel} en cours...`);
+        startBlockingAction(craftLabel, durationMs, { hideInventory: true }).then(finalizeCraft);
     }
 
     /* --- Panneau d'actions sur l'objet --- */
@@ -1461,7 +1683,7 @@
     }
 
     function canDropItems() {
-        return !combatState.active && currentTimeContext !== "fast";
+        return !combatState.active && !isActionInProgress();
     }
 
     function dropItemToGround(itemEl, opts = {}) {
@@ -1534,7 +1756,25 @@
         showToast(`${itemEl.dataset.name} équipé(e) comme sac.`, "info");
     }
 
+    function getUseDurationMs(templateId) {
+        const tpl = ITEM_TEMPLATES[templateId];
+        const seconds = tpl && Number.isFinite(tpl.useDurationSec)
+            ? tpl.useDurationSec
+            : DEFAULT_USE_DURATION_MS / 1000;
+        return Math.max(600, seconds * 1000);
+    }
+
     function useConsumableItem(itemEl, opts) {
+        if (!itemEl) return;
+        if (combatState.active) {
+            logMessage("Impossible de consommer ou se soigner pendant un combat gelé.");
+            return;
+        }
+        if (isActionInProgress()) {
+            showToast("Attends la fin de l'action en cours.", "info");
+            return;
+        }
+
         const heal = parseInt(itemEl.dataset.heal || "0", 10) || 0;
         const hungerRestore =
                   parseInt(itemEl.dataset.hungerRestore || "0", 10) || 0;
@@ -1546,51 +1786,56 @@
         const targetWoundId = opts && opts.targetWoundId;
         const isBandage = bandageQuality > 0;
         const name = itemEl.dataset.name || "objet";
+        const templateId = itemEl.dataset.templateId;
 
-        const scene = scenes[currentSceneId];
-        const context = (scene && scene.timeContext) || currentTimeContext;
+        const overlayLabel = isFoodOrDrink
+            ? `Consommation de « ${name} »`
+            : isBandage
+                ? `Soin avec « ${name} »`
+                : `Utilisation de « ${name} »`;
 
-        if (isFoodOrDrink && context === "fast") {
-            logMessage(
-                "En pleine action rapide, tu n'as pas le temps de manger ou boire."
-            );
-            return;
-        }
-
-        if (isBandage) {
-            const applied = applyBandage(bandageQuality, targetWoundId);
-            if (!applied) return;
-        } else if (heal > 0 && !isFoodOrDrink) {
-            const before = hero.hp;
-            hero.hp = Math.min(hero.maxHp, hero.hp + heal);
-            const gained = hero.hp - before;
-            if (gained > 0) {
-                logMessage(`Tu utilises ${name} et regagnes ${gained} PV.`);
+        const applyEffects = () => {
+            if (isBandage) {
+                const applied = applyBandage(bandageQuality, targetWoundId);
+                if (!applied) return;
+            } else if (heal > 0 && !isFoodOrDrink) {
+                const before = hero.hp;
+                hero.hp = Math.min(hero.maxHp, hero.hp + heal);
+                const gained = hero.hp - before;
+                if (gained > 0) {
+                    logMessage(`Tu utilises ${name} et regagnes ${gained} PV.`);
+                }
             }
-        }
 
-        if (hungerRestore > 0) {
-            const before = hero.hunger;
-            hero.hunger = Math.max(0, hero.hunger - hungerRestore);
-            const diff = before - hero.hunger;
-            if (diff > 0) {
-                logMessage(`Ta faim diminue de ${diff}.`);
+            if (hungerRestore > 0) {
+                const before = hero.hunger;
+                hero.hunger = Math.max(0, hero.hunger - hungerRestore);
+                const diff = before - hero.hunger;
+                if (diff > 0) {
+                    logMessage(`Ta faim diminue de ${diff}.`);
+                }
             }
-        }
 
-        if (thirstRestore > 0) {
-            const before = hero.thirst;
-            hero.thirst = Math.max(0, hero.thirst - thirstRestore);
-            const diff = before - hero.thirst;
-            if (diff > 0) {
-                logMessage(`Ta soif diminue de ${diff}.`);
+            if (thirstRestore > 0) {
+                const before = hero.thirst;
+                hero.thirst = Math.max(0, hero.thirst - thirstRestore);
+                const diff = before - hero.thirst;
+                if (diff > 0) {
+                    logMessage(`Ta soif diminue de ${diff}.`);
+                }
             }
-        }
 
-        itemEl.remove();
-        updateStatsUI();
-        updateCapacityUI();
-        clearSelectedItem();
+            if (itemEl.isConnected) {
+                itemEl.remove();
+            }
+            updateStatsUI();
+            updateCapacityUI();
+            clearSelectedItem();
+        };
+
+        logMessage(`${overlayLabel} en cours...`);
+        startBlockingAction(overlayLabel, getUseDurationMs(templateId), { hideInventory: true })
+            .then(applyEffects);
     }
 
     /* --- Combat --- */
@@ -1673,6 +1918,85 @@
     function getLocationLabel(locationId = currentLocationId) {
         const location = locations[locationId] || {};
         return location.mapLabel || location.name || "Lieu inconnu";
+    }
+
+    function computeApproachDuration(distance) {
+        if (distance <= 0) return 0;
+        if (distance === 1) return 10000;
+        if (distance === 2) return 16000;
+        return 22000;
+    }
+
+    function buildApproachState(distance) {
+        const initial = Math.max(0, distance || 0);
+        const totalMs = computeApproachDuration(initial);
+        return {
+            initialDistance: initial,
+            totalMs,
+            remainingMs: totalMs,
+            contactTriggered: false
+        };
+    }
+
+    function computeApproachPercent() {
+        const approach = combatState.approach;
+        if (!approach || !approach.totalMs) return 100;
+        const percent = 100 * (1 - approach.remainingMs / approach.totalMs);
+        return Math.max(0, Math.min(100, percent));
+    }
+
+    function updateApproachMeterUI() {
+        const fill = choicesEl && choicesEl.querySelector(".approach-fill");
+        const label = choicesEl && choicesEl.querySelector(".approach-label");
+        if (fill) {
+            fill.style.height = `${computeApproachPercent()}%`;
+        }
+        if (label) {
+            label.textContent = `Rapprochement : ${describeDistance(combatState.distance)}`;
+        }
+    }
+
+    function syncCombatDistanceFromApproach() {
+        const approach = combatState.approach;
+        if (!approach || (!approach.totalMs && approach.initialDistance === 0)) return;
+        const ratio = approach.totalMs === 0 ? 0 : approach.remainingMs / approach.totalMs;
+        const nextDistance = Math.max(0, Math.ceil(approach.initialDistance * ratio));
+        if (nextDistance !== combatState.distance) {
+            combatState.distance = nextDistance;
+            const enemy = combatState.enemies && combatState.enemies[0];
+            if (enemy) {
+                logMessage(`${enemy.name} se rapproche (${describeDistance(nextDistance)}).`);
+            }
+        }
+
+        if (approach.remainingMs <= 0 && approach.initialDistance > 0 && !approach.contactTriggered) {
+            approach.contactTriggered = true;
+            enemyTurn();
+        }
+    }
+
+    function startCombatApproachTimer() {
+        stopCombatApproachTimer();
+        const approach = combatState.approach;
+        if (!combatState.active || !approach || approach.totalMs <= 0) return;
+        combatApproachTimer = setInterval(() => {
+            if (!combatState.active) {
+                stopCombatApproachTimer();
+                return;
+            }
+            if (!combatState.approach || combatState.approach.totalMs <= 0) {
+                updateApproachMeterUI();
+                return;
+            }
+            combatState.approach.remainingMs = Math.max(0, combatState.approach.remainingMs - 200);
+            syncCombatDistanceFromApproach();
+            updateApproachMeterUI();
+        }, 200);
+    }
+
+    function stopCombatApproachTimer() {
+        if (combatApproachTimer) clearInterval(combatApproachTimer);
+        combatApproachTimer = null;
     }
 
     function showCombatIntroModal(enemy, difficulty, startDistance) {
@@ -1768,6 +2092,10 @@
             fleeDifficulty: Math.max(8, difficulty)
         };
 
+        const startDistance = computeStartDistance(option);
+
+        stopCombatApproachTimer();
+
         combatState = {
             active: true,
             difficulty,
@@ -1777,7 +2105,9 @@
             victoryEffect: option.successEffect,
             defeatEffect: option.failEffect,
             previousTimeContext: currentTimeContext,
-            distance: computeStartDistance(option),
+            distance: startDistance,
+            attackCooldownEndsAt: 0,
+            approach: buildApproachState(startDistance),
             originCombatId:
                 typeof optionIndex === "number"
                     ? `${currentSceneId}:${optionIndex}`
@@ -1791,6 +2121,7 @@
         logMessage(`Le zombie est ${describeDistance(combatState.distance)}.`);
         showToast(`Combat contre ${enemy.name}`, "info");
         showCombatIntroModal(enemy, difficulty, combatState.distance);
+        startCombatApproachTimer();
     }
 
     function renderCombatUI() {
@@ -1809,6 +2140,20 @@
         distanceInfo.textContent = `Distance : ${describeDistance(combatState.distance)}`;
         choicesEl.appendChild(distanceInfo);
 
+        const approachWrapper = document.createElement("div");
+        approachWrapper.classList.add("combat-approach");
+        const track = document.createElement("div");
+        track.classList.add("approach-track");
+        const fill = document.createElement("div");
+        fill.classList.add("approach-fill");
+        track.appendChild(fill);
+        const approachLabel = document.createElement("div");
+        approachLabel.classList.add("approach-label");
+        approachLabel.textContent = `Rapprochement : ${describeDistance(combatState.distance)}`;
+        approachWrapper.appendChild(track);
+        approachWrapper.appendChild(approachLabel);
+        choicesEl.appendChild(approachWrapper);
+
         if (combatState.distance > 0) {
             const approachBtn = document.createElement("button");
             approachBtn.classList.add("choice-btn");
@@ -1817,10 +2162,16 @@
             choicesEl.appendChild(approachBtn);
         }
 
+        const now = performance.now();
+        const cooldownRemainingMs = Math.max(0, (combatState.attackCooldownEndsAt || 0) - now);
+        const meleeInCooldown = cooldownRemainingMs > 0;
+
         const attackBtn = document.createElement("button");
         attackBtn.classList.add("choice-btn");
-        attackBtn.textContent = "Attaque au corps à corps";
-        attackBtn.disabled = !combatState.enemies.length || !canUseMelee();
+        attackBtn.textContent = meleeInCooldown
+            ? `Attaque au corps à corps (${(cooldownRemainingMs / 1000).toFixed(1)}s)`
+            : "Attaque au corps à corps";
+        attackBtn.disabled = !combatState.enemies.length || !canUseMelee() || meleeInCooldown;
         attackBtn.addEventListener("click", performMeleeAttack);
         choicesEl.appendChild(attackBtn);
 
@@ -1838,7 +2189,7 @@
                 btn.classList.add("choice-btn");
                 const itemName = el.dataset.name || "objet";
                 btn.textContent = `Lancer ${itemName}`;
-                btn.disabled = !canUseRanged();
+                btn.disabled = meleeInCooldown || !canUseRanged();
                 btn.addEventListener("click", () => performRangedAttack(el));
                 throwContainer.appendChild(btn);
             });
@@ -1850,6 +2201,8 @@
         fleeBtn.textContent = "Fuir";
         fleeBtn.addEventListener("click", attemptFlee);
         choicesEl.appendChild(fleeBtn);
+
+        updateApproachMeterUI();
     }
 
     function computeHeroInitiativeChance() {
@@ -1879,9 +2232,12 @@
         }
 
         combatState.distance = Math.max(0, combatState.distance - 1);
+        combatState.approach = buildApproachState(combatState.distance);
         logMessage(
             `Tu te rapproches de ${enemy.name} (${describeDistance(combatState.distance)}).`
         );
+        updateApproachMeterUI();
+        startCombatApproachTimer();
 
         if (combatState.distance === 0) {
             if (heroWinsApproachInitiative()) {
@@ -1903,9 +2259,17 @@
 
     function performMeleeAttack() {
         if (!combatState.active) return;
+        syncCombatDistanceFromApproach();
         const enemy = combatState.enemies[0];
         if (!enemy) {
             endCombat(true);
+            return;
+        }
+
+        const now = performance.now();
+        if (now < (combatState.attackCooldownEndsAt || 0)) {
+            const remaining = Math.max(0, combatState.attackCooldownEndsAt - now);
+            logMessage(`Tu dois patienter encore ${(remaining / 1000).toFixed(1)}s avant de frapper.`);
             return;
         }
 
@@ -1922,6 +2286,11 @@
         );
         showToast(`Coup porté : ${damage} dégâts`, "success");
 
+        combatState.attackCooldownEndsAt = now + ATTACK_COOLDOWN_MS;
+        setTimeout(() => {
+            if (combatState.active) renderCombatUI();
+        }, ATTACK_COOLDOWN_MS);
+
         if (enemy.hp <= 0) {
             logMessage(`${enemy.name} s'effondre.`);
             combatState.enemies.shift();
@@ -1937,9 +2306,17 @@
 
     function performRangedAttack(throwable) {
         if (!combatState.active) return;
+        syncCombatDistanceFromApproach();
         const enemy = combatState.enemies[0];
         if (!enemy) {
             endCombat(true);
+            return;
+        }
+
+        const now = performance.now();
+        if (now < (combatState.attackCooldownEndsAt || 0)) {
+            const remaining = Math.max(0, combatState.attackCooldownEndsAt - now);
+            logMessage(`Ton attaque est en récupération pendant encore ${(remaining / 1000).toFixed(1)}s.`);
             return;
         }
 
@@ -1967,6 +2344,11 @@
             `Tu lances ${chosenThrowable.dataset.name} sur ${enemy.name}, infligeant ${damage} dégâts.`
         );
         showToast(`Lancer réussi : ${damage} dégâts`, "success");
+
+        combatState.attackCooldownEndsAt = now + ATTACK_COOLDOWN_MS;
+        setTimeout(() => {
+            if (combatState.active) renderCombatUI();
+        }, ATTACK_COOLDOWN_MS);
 
         dropItemToGround(chosenThrowable, { forced: true, silent: true });
         if (equippedWeaponTemplateId === chosenThrowable.dataset.templateId) {
@@ -2015,12 +2397,13 @@
         if (!combatState.active) return;
         const enemy = combatState.enemies[0];
         if (!enemy) return;
+        syncCombatDistanceFromApproach();
+        updateApproachMeterUI();
         if (combatState.distance > 0) {
-            combatState.distance = Math.max(0, combatState.distance - 1);
             logMessage(
-                `${enemy.name} se rapproche (${describeDistance(combatState.distance)}).`
+                `${enemy.name} continue de se rapprocher (${describeDistance(combatState.distance)}).`
             );
-            if (combatState.distance > 0) return;
+            return;
         }
         const roll = rollDice(6, 1);
         const damage = enemy.baseDamage + roll.sum;
@@ -2036,30 +2419,34 @@
 
     function endCombat(victory) {
         closeCombatIntroModal();
+        stopCombatApproachTimer();
+
+        const previousCombat = combatState;
         const nextSceneId = victory
-            ? combatState.victoryScene
-            : combatState.defeatScene;
+            ? previousCombat.victoryScene
+            : previousCombat.defeatScene;
         const effectToApply = victory
-            ? combatState.victoryEffect
-            : combatState.defeatEffect;
+            ? previousCombat.victoryEffect
+            : previousCombat.defeatEffect;
         if (victory) {
-            const difficulty = combatState.difficulty || 0;
+            const difficulty = previousCombat.difficulty || 0;
             const reward = computeExperienceRewardFromDifficulty(difficulty);
             grantExperience(reward, `Combat (difficulté ${difficulty})`);
         }
 
-        if (victory && combatState.originCombatId && combatState.originLocationId) {
-            const state = getLocationState(combatState.originLocationId);
+        if (victory && previousCombat.originCombatId && previousCombat.originLocationId) {
+            const state = getLocationState(previousCombat.originLocationId);
             if (state && state.defeatedCombats) {
-                state.defeatedCombats.add(combatState.originCombatId);
+                state.defeatedCombats.add(previousCombat.originCombatId);
             }
         }
         showToast(victory ? "Victoire" : "Défaite", victory ? "success" : "danger");
-        currentTimeContext = combatState.previousTimeContext || currentTimeContext;
+        currentTimeContext = previousCombat.previousTimeContext || currentTimeContext;
         combatState = { active: false };
         updateGroundPanelVisibility();
         if (choiceTitleEl) choiceTitleEl.textContent = "Que fais-tu ?";
         refreshCraftingUI();
+        addGameMinutes(10, { silent: false });
 
         if (effectToApply) {
             applyEffect(effectToApply);
@@ -2708,15 +3095,7 @@
             storyTextEl.textContent = `${scene.text}${suffix}`;
         }
 
-        if (timeContextEl) {
-            if (currentTimeContext === "fast") {
-                timeContextEl.textContent =
-                    "Contexte : action rapide (tu n'as pas le temps de manger ou boire).";
-            } else {
-                timeContextEl.textContent =
-                    "Contexte : temps long (chaque choix consomme du temps, la faim et la soif augmentent).";
-            }
-        }
+        updateGameClockUI();
 
         renderMap(scene);
 
@@ -2789,6 +3168,10 @@
             logMessage("Tu es déjà en plein combat, concentre-toi !");
             return;
         }
+        if (isActionInProgress()) {
+            showToast("Une action est en cours, patiente quelques secondes.", "info");
+            return;
+        }
         if (option.restart) {
             restartGame();
             return;
@@ -2829,19 +3212,6 @@
             showToast(`Il te manque ${requirementLabel} pour faire cela.`, "warning");
             return;
         }
-        if (
-            scene &&
-            scene.timeContext === "slow" &&
-            typeof option.timeCost === "number" &&
-            option.timeCost > 0
-        ) {
-            applyTimeCost(option.timeCost);
-            if (hero.hp <= 0) {
-                renderScene("gameOver");
-                return;
-            }
-        }
-
         if (option.diceTest) {
             if (option.diceTest.type === "combat") {
                 startCombat(option, optionIndex);
@@ -2852,7 +3222,14 @@
         }
 
         if (option.nextScene) {
-            renderScene(option.nextScene);
+            const targetScene = scenes[option.nextScene];
+            const destinationLabel = targetScene?.title || option.text || "nouveau lieu";
+            startBlockingAction(`Déplacement vers « ${destinationLabel} »`, MOVE_DURATION_MS, {
+                spinnerInChoices: true,
+                hideInventory: true
+            }).then(() => {
+                renderScene(option.nextScene);
+            });
         }
     }
 
