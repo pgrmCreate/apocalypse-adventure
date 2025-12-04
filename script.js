@@ -364,6 +364,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
     const PRELOAD_ASSETS = Array.from(new Set([...BASE_IMAGE_ASSETS, ...AUDIO_ASSETS].filter(Boolean)));
     let assetPreloadPromise = null;
     let assetsReady = false;
+    const soundEffectPool = new Map();
 
     let selectedItemNameEl;
     let selectedItemInfoEl;
@@ -481,8 +482,31 @@ import { GAME_CONSTANTS } from "./game-constants.js";
 
         resetGameClock();
         setupNewGameScreen();
-        showNewGameScreen();
+        bootstrapGameLoading();
     });
+
+    async function bootstrapGameLoading() {
+        const totalAssets = PRELOAD_ASSETS.length;
+        const shouldShowLoader = totalAssets > 0;
+
+        if (shouldShowLoader) {
+            showAssetLoader(totalAssets);
+        }
+
+        try {
+            await ensureAssetsLoaded((completed, total) => {
+                if (shouldShowLoader) {
+                    updateAssetLoaderProgress(completed, total);
+                }
+            });
+        } finally {
+            if (shouldShowLoader) {
+                hideAssetLoader();
+            }
+        }
+
+        showNewGameScreen();
+    }
 
     function setupTagNavigation() {
         const tags = [tagActionsBtn, tagInventoryBtn, tagStatsBtn, tagWoundsBtn].filter(Boolean);
@@ -1020,16 +1044,42 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         damageFlashEl.classList.add(effectClass, "is-active");
     }
 
-    function playSoundEffect(key) {
+    function getSoundEffectFromPool(key) {
+        const cached = soundEffectPool.get(key);
+        if (cached) return cached;
+
         const src = SOUND_EFFECTS?.[key];
-        if (!src) return;
+        if (!src) return null;
+
+        const createAudio = () => {
+            const audio = new Audio(src);
+            audio.preload = "auto";
+            audio.load();
+            return audio;
+        };
+
+        const pool = { audios: [createAudio(), createAudio()], index: 0 };
+        soundEffectPool.set(key, pool);
+        return pool;
+    }
+
+    function playSoundEffect(key) {
+        const pool = getSoundEffectFromPool(key);
+        if (!pool) return;
 
         ensureAudioUserGesture().then(() => {
-            const audio = new Audio(src);
-            audio.volume = 0.8;
-            audio.play().catch(err => {
-                console.warn("Impossible de jouer l'effet sonore", err);
-            });
+            const audio = pool.audios[pool.index];
+            pool.index = (pool.index + 1) % pool.audios.length;
+
+            try {
+                audio.currentTime = 0;
+                audio.volume = 0.8;
+                audio.play().catch(err => {
+                    console.warn("Impossible de jouer l'effet sonore", err);
+                });
+            } catch (err) {
+                console.warn("Impossible de déclencher l'effet sonore", err);
+            }
         });
     }
 
@@ -1068,8 +1118,8 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         if (amount <= 0) return 0;
         hero.hp = Math.max(0, hero.hp - amount);
         const damageType = opts.type || "normal";
-        triggerDamageEffect(damageType);
         playSoundEffect(damageType === "time" ? "lightDamage" : "hightDamage");
+        triggerDamageEffect(damageType);
         if (hero.hp <= 0) {
             const reason =
                 opts.reason ||
