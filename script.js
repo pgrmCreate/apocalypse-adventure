@@ -305,6 +305,9 @@
     let choiceTitleEl;
     let groundPanelEl;
     let takeAllBtn;
+    let newGameScreenEl;
+    let newGameFormEl;
+    let newGameNameInput;
 
     let hpEl;
     let forceEl;
@@ -463,6 +466,9 @@
         tagStatsBtn = document.getElementById("tag-stats");
         tagWoundsBtn = document.getElementById("tag-wounds");
         tagWoundCountEl = document.getElementById("tag-wound-count");
+        newGameScreenEl = document.getElementById("new-game-screen");
+        newGameFormEl = document.getElementById("new-game-form");
+        newGameNameInput = document.getElementById("new-game-name");
         setupTagNavigation();
 
         restartBtn = document.getElementById("restart-btn");
@@ -475,17 +481,8 @@
         }
 
         resetGameClock();
-        startGameClockLoop();
-
-        chooseHeroName();
-        initHero();
-        setupInitialInventory();
-        updateCapacityUI();
-
-        musicController.playCalm();
-
-        renderScene("intro");
-        logMessage("Bienvenue, survivant. Clique sur un objet pour le voir, l'équiper, le consommer ou le prendre.");
+        setupNewGameScreen();
+        showNewGameScreen();
     });
 
     function setupTagNavigation() {
@@ -507,14 +504,29 @@
 
     /* --- Héros & stats --- */
 
-    function chooseHeroName() {
-        const proposed = prompt(
-            "Choisis le nom de ton survivant avant de commencer :",
-            heroDefaults.name
-        );
-        if (typeof proposed === "string" && proposed.trim()) {
-            heroDefaults.name = proposed.trim();
+    function setupNewGameScreen() {
+        if (newGameFormEl) {
+            newGameFormEl.addEventListener("submit", event => {
+                event.preventDefault();
+                const value = (newGameNameInput?.value || "").trim();
+                startNewGame(value || heroDefaults.name);
+            });
         }
+    }
+
+    function showNewGameScreen() {
+        if (!newGameScreenEl) return;
+        document.body.classList.remove("has-game-overlay");
+        if (newGameNameInput) {
+            newGameNameInput.value = heroDefaults.name;
+            setTimeout(() => newGameNameInput?.focus(), 120);
+        }
+        newGameScreenEl.classList.remove("hidden");
+        musicController.playSad({ fadeOutMs: 600 });
+    }
+
+    function hideNewGameScreen() {
+        newGameScreenEl?.classList.add("hidden");
     }
 
     function initHero() {
@@ -540,12 +552,13 @@
         renderWounds();
     }
 
-    function restartGame() {
+    function resetGameStateForNewRun() {
         endBlockingAction();
         stopCombatApproachTimer();
         document.body.classList.remove("combat-active");
         defeatState = { active: false, message: "" };
         closeDefeatModal();
+
         if (inventoryEl) inventoryEl.innerHTML = "";
         if (lootEl) lootEl.innerHTML = "";
 
@@ -553,7 +566,6 @@
         if (selectedItemInfoEl) selectedItemInfoEl.textContent = "";
         if (selectedItemButtonsEl) selectedItemButtonsEl.innerHTML = "";
 
-        // reset lieux
         for (const key in locationsState) {
             if (Object.prototype.hasOwnProperty.call(locationsState, key)) {
                 delete locationsState[key];
@@ -564,20 +576,41 @@
         mapLayouts.clear();
         mapMetricsByFloor.clear();
 
-        resetGameClock();
+        currentLocationId = null;
+        currentSceneId = null;
+        currentTimeContext = "fast";
+        activePickupSequenceToken = null;
+        affameDamageMinuteBuffer = 0;
+        affameDamageRemainder = 0;
+        affameActive = false;
 
+        if (logEl) logEl.innerHTML = "";
+    }
+
+    function startNewGame(chosenName) {
+        const safeName = typeof chosenName === "string" && chosenName.trim()
+            ? chosenName.trim()
+            : heroDefaults.name;
+        heroDefaults.name = safeName;
+
+        resetGameStateForNewRun();
+        hideNewGameScreen();
+        document.body.classList.add("has-game-overlay");
+
+        resetGameClock();
+        startGameClockLoop();
         initHero();
         setupInitialInventory();
         updateCapacityUI();
 
-        musicController.playCalm({ fadeOutMs: 500 });
+        musicController.playCalm({ fadeOutMs: 600 });
 
-        if (logEl) logEl.innerHTML = "";
-
-        currentLocationId = null;
-        currentSceneId = null;
         renderScene("intro");
-        logMessage("Nouvelle partie lancée.");
+        logMessage("Bienvenue, survivant. Clique sur un objet pour le voir, l'équiper, le consommer ou le prendre.");
+    }
+
+    function restartGame() {
+        showNewGameScreen();
     }
 
     function resetGameClock() {

@@ -7,6 +7,31 @@
         <link rel="stylesheet" href="style.css">
     </head>
     <body>
+        <div id="new-game-screen" class="new-game-screen">
+            <div class="new-game-panel">
+                <p class="new-game-kicker">Nouvelle partie</p>
+                <h2 class="new-game-title">Prépare ton survivant</h2>
+                <p class="new-game-text">
+                    Avant de partir dans l'inconnu, choisis le nom de ton héros.
+                </p>
+                <form id="new-game-form" class="new-game-form">
+                    <label for="new-game-name" class="sr-only">Nom du survivant</label>
+                    <div class="new-game-input-row">
+                        <input
+                            id="new-game-name"
+                            name="hero-name"
+                            type="text"
+                            autocomplete="name"
+                            required
+                            minlength="2"
+                            maxlength="30"
+                            placeholder="Ton nom"
+                        />
+                        <button type="submit" class="choice-btn new-game-submit">Commencer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
         <div class="app">
             <header>
                 <h1>Apocalypse Zombie</h1>
