@@ -1231,12 +1231,18 @@ import { GAME_CONSTANTS } from "./game-constants.js";
     }
 
     function setTagButtonsDisabled(disabled) {
-        [tagActionsBtn, tagInventoryBtn, tagStatsBtn, tagWoundsBtn].forEach(btn => {
+        [tagActionsBtn, tagInventoryBtn, tagStatsBtn].forEach(btn => {
             if (btn) {
                 btn.disabled = disabled;
                 btn.setAttribute("aria-disabled", String(disabled));
             }
         });
+
+        if (tagWoundsBtn) {
+            const shouldDisableWounds = disabled && !combatState.active;
+            tagWoundsBtn.disabled = shouldDisableWounds;
+            tagWoundsBtn.setAttribute("aria-disabled", String(shouldDisableWounds));
+        }
     }
 
     function showChoiceSpinner(label) {
@@ -2174,6 +2180,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         }
 
         refreshWoundsIfRelevant();
+        refreshCurrentSceneOptionButtons();
         activePickupSequenceToken = null;
     }
 
@@ -2211,6 +2218,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         showToast(`Tu ramasses ${itemEl.dataset.name}.`, "success");
         clearSelectedItem();
         refreshWoundsIfRelevant();
+        refreshCurrentSceneOptionButtons();
         return true;
     }
 
@@ -3657,6 +3665,60 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         }
     }
 
+    function updateOptionButtonState(btn, option, index, scene, locationState, inventoryCounts) {
+        if (!btn || !option) return;
+
+        const counts = inventoryCounts || getInventoryTemplateCounts();
+        const missingRequiredItem = option.requiredItem && !hasItemInInventory(option.requiredItem, counts);
+        const requirementLabel = option.requiredItem
+            ? ITEM_TEMPLATES[option.requiredItem]?.name || option.requiredItem
+            : null;
+        const isCombatOption = option.diceTest && option.diceTest.type === "combat";
+        const combatOptionId = isCombatOption
+            ? `${scene?.id || currentSceneId}:${index}`
+            : null;
+        const alreadyDefeated =
+            isCombatOption &&
+            locationState?.defeatedCombats &&
+            locationState.defeatedCombats.has(combatOptionId);
+        const lockedByFlag = option.lockedByFlag && locationState?.flags?.has(option.lockedByFlag);
+
+        const labels = [];
+        if (missingRequiredItem && requirementLabel) {
+            labels.push(`besoin : ${requirementLabel}`);
+        }
+        if (alreadyDefeated) {
+            labels.push("ennemi vaincu");
+        }
+        if (lockedByFlag) {
+            labels.push(option.lockedLabel || "déjà effectué");
+        }
+
+        btn.textContent = labels.length > 0
+            ? `${option.text} (${labels.join(" ; ")})`
+            : option.text;
+
+        const shouldDisable = missingRequiredItem || alreadyDefeated || lockedByFlag;
+        btn.disabled = shouldDisable;
+        btn.setAttribute("aria-disabled", String(shouldDisable));
+    }
+
+    function refreshCurrentSceneOptionButtons() {
+        if (!choicesEl || combatState.active) return;
+        const scene = scenes[currentSceneId];
+        const locationState = getLocationState(currentLocationId);
+        if (!scene || !locationState || !Array.isArray(scene.options)) return;
+
+        const inventoryCounts = getInventoryTemplateCounts();
+        choicesEl.querySelectorAll(".choice-btn").forEach(btn => {
+            const optionIndex = parseInt(btn.dataset.optionIndex || "-1", 10);
+            if (!Number.isInteger(optionIndex) || optionIndex < 0) return;
+            const option = scene.options[optionIndex];
+            if (!option) return;
+            updateOptionButtonState(btn, option, optionIndex, scene, locationState, inventoryCounts);
+        });
+    }
+
     function renderScene(sceneId) {
         const scene = scenes[sceneId];
         if (!scene) {
@@ -3701,41 +3763,9 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             scene.options.forEach((option, index) => {
                 const btn = document.createElement("button");
                 btn.classList.add("choice-btn");
-                const missingRequiredItem =
-                    option.requiredItem &&
-                    !hasItemInInventory(option.requiredItem, inventoryCounts);
-                const labels = [];
-                const requirementLabel = missingRequiredItem
-                    ? ITEM_TEMPLATES[option.requiredItem]?.name || option.requiredItem
-                    : null;
-                const isCombatOption =
-                    option.diceTest && option.diceTest.type === "combat";
-                const combatOptionId = isCombatOption
-                    ? `${scene.id}:${index}`
-                    : null;
-                const alreadyDefeated =
-                    isCombatOption &&
-                    state.defeatedCombats &&
-                    state.defeatedCombats.has(combatOptionId);
-                const lockedByFlag =
-                    option.lockedByFlag && state.flags && state.flags.has(option.lockedByFlag);
-
-                if (missingRequiredItem && requirementLabel) {
-                    labels.push(`besoin : ${requirementLabel}`);
-                }
-                if (alreadyDefeated) {
-                    labels.push("ennemi vaincu");
-                }
-                if (lockedByFlag) {
-                    labels.push(option.lockedLabel || "déjà effectué");
-                }
-                btn.textContent =
-                    labels.length > 0
-                        ? `${option.text} (${labels.join(" ; ")})`
-                        : option.text;
-                if (missingRequiredItem || alreadyDefeated || lockedByFlag) {
-                    btn.disabled = true;
-                }
+                btn.dataset.optionIndex = `${index}`;
+                btn.dataset.sceneId = scene.id;
+                updateOptionButtonState(btn, option, index, scene, state, inventoryCounts);
                 btn.addEventListener("click", () => handleOption(option, index));
                 choicesEl.appendChild(btn);
             });
