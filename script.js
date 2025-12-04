@@ -1,4 +1,4 @@
-import { GAME_CONSTANTS } from "./game-constants.js";
+import { GAME_CONSTANTS } from "./game-constants.js?v=0.83.1";
 
 (async () => {
     "use strict";
