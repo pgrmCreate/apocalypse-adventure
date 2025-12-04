@@ -34,7 +34,7 @@
     const REAL_SECONDS_PER_GAME_HOUR = 30;
     const ACTION_TIME_ACCELERATION = 4;
     const GAME_MINUTES_PER_MS = 60 / (REAL_SECONDS_PER_GAME_HOUR * 1000);
-    const TIME_COST_STEP_HOURS = 0.5;
+    const TIME_COST_STEP_HOURS = 0.25;
     const MOVE_DURATION_MS = 3000;
     const DEFAULT_USE_DURATION_MS = 4000;
     const DEFAULT_CRAFT_DURATION_MS = 4000;
@@ -114,6 +114,9 @@
     let combatApproachTimer = null;
     let needHourBuffer = 0;
     let activePickupSequenceToken = null;
+    let affameDamageMinuteBuffer = 0;
+    let affameDamageRemainder = 0;
+    let affameActive = false;
 
     // DOM
     let storyTitleEl;
@@ -245,7 +248,7 @@
         if (combatModalConfirmBtn) {
             combatModalConfirmBtn.addEventListener("click", () => {
                 closeCombatIntroModal();
-                renderCombatUI();
+                activateCombatAfterIntro();
                 scrollToTarget("#story-title");
             });
         }
@@ -485,6 +488,16 @@
             thirstEl.textContent = `${thirstVal} / ${MAX_THIRST} (${needState.label})`;
         }
 
+        const nowAffame = needState.label === "affamé";
+        if (nowAffame && !affameActive) {
+            affameDamageMinuteBuffer = 0;
+            affameDamageRemainder = 0;
+        } else if (!nowAffame) {
+            affameDamageMinuteBuffer = 0;
+            affameDamageRemainder = 0;
+        }
+        affameActive = nowAffame;
+
         if (needState.label !== lastNeedStatus) {
             lastNeedStatus = needState.label;
             logMessage(`Ton état alimentaire passe à : ${needState.label}.`);
@@ -714,6 +727,8 @@
             existingOnPart.bandaged = false;
             existingOnPart.bandageQuality = 0;
             existingOnPart.bleeding = true;
+            existingOnPart.bleedMinutesBuffer = 0;
+            existingOnPart.bleedDamageRemainder = 0;
             logMessage(
                 `Le bandage sur ta blessure au ${part} se déchire sous le nouvel impact !`
             );
@@ -728,7 +743,9 @@
             bleeding: true,
             remainingTime: baseHeal,
             baseHealTime: baseHeal,
-            bleedRate
+            bleedRate,
+            bleedMinutesBuffer: 0,
+            bleedDamageRemainder: 0
         };
         wounds.push(wound);
         logMessage(
@@ -769,6 +786,8 @@
         target.bandaged = true;
         target.bleeding = false;
         target.bandageQuality = sanitizedQuality;
+        target.bleedMinutesBuffer = 0;
+        target.bleedDamageRemainder = 0;
         const bonusReduction = 1 + target.bandageQuality;
         target.remainingTime = Math.max(1, target.remainingTime - bonusReduction);
         renderWounds();
@@ -920,11 +939,21 @@
     function processWoundsOverTime(timeUnits, silent = false) {
         if (!timeUnits || timeUnits <= 0 || !wounds.length) return;
 
+        const elapsedMinutes = timeUnits * 60;
+
         let bleedDamage = 0;
         const needState = getNeedState();
         wounds.forEach(wound => {
             if (!wound.bandaged && wound.bleeding) {
-                bleedDamage += wound.bleedRate * timeUnits;
+                wound.bleedMinutesBuffer = (wound.bleedMinutesBuffer || 0) + elapsedMinutes;
+                while (wound.bleedMinutesBuffer >= 15) {
+                    const damageFloat =
+                        wound.bleedRate * (15 / 60) + (wound.bleedDamageRemainder || 0);
+                    const portion = Math.floor(damageFloat);
+                    wound.bleedDamageRemainder = damageFloat - portion;
+                    bleedDamage += portion;
+                    wound.bleedMinutesBuffer -= 15;
+                }
                 wound.remainingTime += timeUnits * 0.5;
             } else {
                 const healRate =
@@ -1020,6 +1049,15 @@
 
     function applyNeedBasedRecovery(timeUnits, silent = false) {
         const needState = getNeedState();
+        const nowAffame = needState.label === "affamé";
+        if (nowAffame && !affameActive) {
+            affameDamageMinuteBuffer = 0;
+            affameDamageRemainder = 0;
+        } else if (!nowAffame) {
+            affameDamageMinuteBuffer = 0;
+            affameDamageRemainder = 0;
+        }
+        affameActive = nowAffame;
         const regen = Math.max(0, Math.round(needState.regenPerUnit * timeUnits));
         if (regen > 0 && hero.hp > 0 && hero.hp < hero.maxHp) {
             const before = hero.hp;
@@ -1033,14 +1071,29 @@
         }
 
         if (needState.damagePerUnit > 0 && hero.hp > 0) {
-            const penalty = Math.ceil(needState.damagePerUnit * timeUnits);
-            if (penalty > 0) {
-                applyHeroDamage(penalty, { type: "time" });
-                if (!silent) {
-                    logMessage(
-                        `Tu t'affaiblis (${needState.label}) et perds ${penalty} PV en attendant.`
-                    );
+            const elapsedMinutes = timeUnits * 60;
+            if (affameActive) {
+                affameDamageMinuteBuffer += elapsedMinutes;
+                let totalPenalty = 0;
+                while (affameDamageMinuteBuffer >= 30) {
+                    const damageFloat =
+                        needState.damagePerUnit * (30 / 60) + affameDamageRemainder;
+                    const penalty = Math.floor(damageFloat);
+                    affameDamageRemainder = damageFloat - penalty;
+                    totalPenalty += penalty;
+                    affameDamageMinuteBuffer -= 30;
                 }
+                if (totalPenalty > 0) {
+                    applyHeroDamage(totalPenalty, { type: "time" });
+                    if (!silent) {
+                        logMessage(
+                            `Tu t'affaiblis (${needState.label}) et perds ${totalPenalty} PV en attendant.`
+                        );
+                    }
+                }
+            } else {
+                affameDamageMinuteBuffer = 0;
+                affameDamageRemainder = 0;
             }
         }
     }
@@ -2051,7 +2104,8 @@
     function startCombatApproachTimer() {
         stopCombatApproachTimer();
         const approach = combatState.approach;
-        if (!combatState.active || !approach || approach.totalMs <= 0) {
+        if (!combatState.active || combatState.awaitingIntroConfirm) return;
+        if (!approach || approach.totalMs <= 0) {
             if (combatState.active) {
                 combatApproachTimer = setInterval(() => {
                     if (!combatState.active) {
@@ -2086,6 +2140,7 @@
 
     function attemptEnemyAttack(opts = {}) {
         if (!combatState.active) return false;
+        if (combatState.awaitingIntroConfirm) return false;
         const enemy = combatState.enemies && combatState.enemies[0];
         if (!enemy) return false;
 
@@ -2122,10 +2177,18 @@
         return true;
     }
 
+    function activateCombatAfterIntro() {
+        if (!combatState.active) return;
+        combatState.awaitingIntroConfirm = false;
+        renderCombatUI();
+        startCombatApproachTimer();
+        attemptEnemyAttack();
+    }
+
     function showCombatIntroModal(enemy, difficulty, startDistance) {
         if (!combatModalEl) {
             renderCombatUI();
-            return;
+            return false;
         }
         const locationLabel = getLocationLabel(currentLocationId);
         const distanceLabel = describeDistance(startDistance);
@@ -2153,6 +2216,7 @@
         if (combatModalConfirmBtn) {
             combatModalConfirmBtn.focus();
         }
+        return true;
     }
 
     function closeCombatIntroModal() {
@@ -2232,6 +2296,7 @@
             attackCooldownEndsAt: 0,
             nextEnemyAttackAt: performance.now(),
             approach: buildApproachState(startDistance),
+            awaitingIntroConfirm: false,
             originCombatId:
                 typeof optionIndex === "number"
                     ? `${currentSceneId}:${optionIndex}`
@@ -2245,9 +2310,11 @@
         logMessage(`Un combat s'engage contre ${enemy.name}.`);
         logMessage(`Le zombie est ${describeDistance(combatState.distance)}.`);
         showToast(`Combat contre ${enemy.name}`, "info");
-        showCombatIntroModal(enemy, difficulty, combatState.distance);
-        startCombatApproachTimer();
-        attemptEnemyAttack();
+        const introShown = showCombatIntroModal(enemy, difficulty, combatState.distance);
+        combatState.awaitingIntroConfirm = introShown;
+        if (!introShown) {
+            activateCombatAfterIntro();
+        }
     }
 
     function renderCombatUI() {
