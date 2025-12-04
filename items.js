@@ -82,7 +82,7 @@ window.ITEM_TEMPLATES = {
         name: "Briquet",
         value: 1,
         type: "outil",
-        rarity: 1
+        rarity: 2
     },
 
     cigarette: {
@@ -115,7 +115,7 @@ window.ITEM_TEMPLATES = {
 
     hammer: {
         name: "Marteau",
-        value: 6,
+        value: 5,
         type: "outil",
         rarity: 1,
         weaponStats: {
@@ -165,7 +165,7 @@ window.ITEM_TEMPLATES = {
 
     cannedFood: {
         name: "Conserve de petits pois",
-        value: 4,
+        value: 3,
         type: "consommable",
         rarity: 2,
         hungerRestore: 3
