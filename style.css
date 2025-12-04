@@ -351,6 +351,20 @@ header h1 {
     border: 1px solid var(--border);
 }
 
+.wound-description {
+    margin-bottom: 6px;
+}
+
+.wound-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.wound-action-btn {
+    white-space: nowrap;
+}
+
 .wound-ok {
     color: var(--accent);
     font-weight: 600;
