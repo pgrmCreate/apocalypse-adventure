@@ -2621,6 +2621,8 @@
         if (!state || !key || state.lootApplied.has(key) || !lootEl) return;
 
         let added = false;
+        if (!state || !key || state.lootApplied.has(key)) return;
+        const fragment = document.createDocumentFragment();
         templates.forEach(templateId => {
             const item = createItemFromTemplate(templateId);
             if (!item) return;
@@ -2630,6 +2632,10 @@
         });
 
         if (added) {
+            fragment.appendChild(node);
+        });
+        if (fragment.childNodes.length > 0 && lootEl) {
+            lootEl.appendChild(fragment);
             state.lootApplied.add(key);
             saveLocationState(locationId);
             updateCapacityUI();
