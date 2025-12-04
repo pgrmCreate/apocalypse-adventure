@@ -847,12 +847,16 @@ footer {
     color: var(--text);
 }
 
-body.action-blocked .tag-btn,
 body.action-blocked .choice-btn,
 body.action-blocked .small-btn,
-body.action-blocked .secondary-btn {
+body.action-blocked .secondary-btn,
+body.action-blocked .tag-btn:disabled {
     pointer-events: none;
     opacity: 0.6;
+}
+
+body.action-blocked .tag-btn:not(:disabled) {
+    opacity: 1;
 }
 
 body.inventory-hidden #inventory-panel,
