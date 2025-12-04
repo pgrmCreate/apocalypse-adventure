@@ -371,6 +371,35 @@ header h1 {
 
 .wound-description {
     margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.wound-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    text-transform: uppercase;
+    border: 1px solid transparent;
+}
+
+.wound-badge-danger {
+    background: rgba(255, 69, 69, 0.15);
+    border-color: rgba(255, 69, 69, 0.5);
+    color: #ff6b6b;
+    box-shadow: 0 0 0 1px rgba(255, 69, 69, 0.15);
+}
+
+.wound-badge-success {
+    background: rgba(46, 204, 113, 0.12);
+    border-color: rgba(46, 204, 113, 0.6);
+    color: #2ecc71;
+    box-shadow: 0 0 0 1px rgba(46, 204, 113, 0.14);
 }
 
 .wound-actions {
@@ -820,6 +849,43 @@ body.combat-active .craft-panel {
 .action-overlay-label {
     font-weight: 700;
     letter-spacing: 0.04em;
+}
+
+.damage-flash {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1250;
+    opacity: 0;
+}
+
+.damage-flash-normal {
+    background: radial-gradient(circle at center, rgba(255, 0, 0, 0.18), rgba(255, 0, 0, 0.05));
+    box-shadow: inset 0 0 45px rgba(255, 0, 0, 0.35);
+}
+
+.damage-flash-time {
+    background: radial-gradient(circle at center, rgba(255, 138, 76, 0.16), rgba(255, 138, 76, 0.04));
+    box-shadow: inset 0 0 38px rgba(255, 138, 76, 0.3);
+}
+
+.damage-flash.is-active {
+    animation: damage-pulse 320ms ease;
+}
+
+@keyframes damage-pulse {
+    0% {
+        opacity: 0;
+    }
+    20% {
+        opacity: 0.9;
+    }
+    60% {
+        opacity: 0.4;
+    }
+    100% {
+        opacity: 0;
+    }
 }
 
 .combat-approach {

@@ -32,6 +32,7 @@
     };
 
     const REAL_SECONDS_PER_GAME_HOUR = 30;
+    const ACTION_TIME_ACCELERATION = 4;
     const GAME_MINUTES_PER_MS = 60 / (REAL_SECONDS_PER_GAME_HOUR * 1000);
     const TIME_COST_STEP_HOURS = 0.5;
     const MOVE_DURATION_MS = 3000;
@@ -160,6 +161,8 @@
     let actionOverlayTextEl;
     let actionProgressBarEl;
 
+    let damageFlashEl;
+
     let tagActionsBtn;
     let tagInventoryBtn;
     let tagStatsBtn;
@@ -259,6 +262,8 @@
         actionOverlayEl = document.getElementById("action-overlay");
         actionOverlayTextEl = document.getElementById("action-overlay-text");
         actionProgressBarEl = document.getElementById("action-progress-bar");
+
+        damageFlashEl = document.getElementById("damage-flash");
 
         tagActionsBtn = document.getElementById("tag-actions");
         tagInventoryBtn = document.getElementById("tag-inventory");
@@ -384,6 +389,11 @@
         updateGameClockUI();
     }
 
+    function getTimeFlowMultiplier() {
+        if (isTimeFrozen()) return 0;
+        return isActionInProgress() ? ACTION_TIME_ACCELERATION : 1;
+    }
+
     function startGameClockLoop() {
         if (gameClockInterval) return;
         lastRealTickMs = performance.now();
@@ -396,7 +406,7 @@
             const deltaMs = Math.max(0, now - lastRealTickMs);
             lastRealTickMs = now;
             if (isTimeFrozen()) return;
-            const gainedMinutes = deltaMs * GAME_MINUTES_PER_MS;
+            const gainedMinutes = deltaMs * GAME_MINUTES_PER_MS * getTimeFlowMultiplier();
             if (gainedMinutes > 0) {
                 addGameMinutes(gainedMinutes, { silent: true });
             }
@@ -581,6 +591,19 @@
             const turnsLeft = Math.max(1, Math.ceil(w.remainingTime));
             statusParts.push(`guérison estimée : ${turnsLeft} unité(s) de temps`);
             desc.textContent = `${w.type} au ${w.part} (${statusParts.join(", ")})`;
+
+            const statusBubble = document.createElement("span");
+            statusBubble.classList.add("wound-badge");
+            if (w.bleeding) {
+                statusBubble.classList.add("wound-badge-danger");
+                statusBubble.textContent = "Saigne";
+            } else if (w.bandaged) {
+                statusBubble.classList.add("wound-badge-success");
+                statusBubble.textContent = "Bandé";
+            }
+            if (statusBubble.textContent) {
+                desc.appendChild(statusBubble);
+            }
             row.appendChild(desc);
 
             const usableBandages = bandageItems.filter(itemEl => {
@@ -636,15 +659,31 @@
         }
     }
 
+    function triggerDamageEffect(type = "normal") {
+        if (!damageFlashEl) return;
+        const effectClass = type === "time" ? "damage-flash-time" : "damage-flash-normal";
+        damageFlashEl.classList.remove("damage-flash-normal", "damage-flash-time", "is-active");
+        void damageFlashEl.offsetWidth;
+        damageFlashEl.classList.add(effectClass, "is-active");
+    }
+
+    function applyHeroDamage(rawAmount, opts = {}) {
+        const amount = Math.max(0, rawAmount || 0);
+        if (amount <= 0) return 0;
+        hero.hp = Math.max(0, hero.hp - amount);
+        triggerDamageEffect(opts.type || "normal");
+        return amount;
+    }
+
     function applyEffect(effect) {
         if (!effect) return;
         if (typeof effect.hpChange === "number") {
-            hero.hp += effect.hpChange;
             if (effect.hpChange < 0) {
-                registerWound(Math.abs(effect.hpChange));
+                const inflicted = applyHeroDamage(-effect.hpChange, { type: effect.damageType || "normal" });
+                registerWound(Math.max(1, Math.round(inflicted)));
+            } else {
+                hero.hp = Math.min(hero.maxHp, hero.hp + effect.hpChange);
             }
-            if (hero.hp < 0) hero.hp = 0;
-            if (hero.hp > hero.maxHp) hero.hp = hero.maxHp;
         }
         if (typeof effect.forceChange === "number") {
             hero.force = Math.max(0, hero.force + effect.forceChange);
@@ -768,7 +807,10 @@
             gameClockEl.setAttribute("title", `Jour ${dayLabel} • ${timeLabel}`);
         }
         if (timeContextEl) {
-            timeContextEl.textContent = `Horloge : Jour ${dayLabel} ${timeLabel} (1h = ${REAL_SECONDS_PER_GAME_HOUR}s réelles)`;
+            const speedNote = ACTION_TIME_ACCELERATION > 1
+                ? ` (1h = ${REAL_SECONDS_PER_GAME_HOUR}s réelles, x${ACTION_TIME_ACCELERATION} pendant une action)`
+                : ` (1h = ${REAL_SECONDS_PER_GAME_HOUR}s réelles)`;
+            timeContextEl.textContent = `Horloge : Jour ${dayLabel} ${timeLabel}${speedNote}`;
         }
     }
 
@@ -897,7 +939,7 @@
         });
 
         if (bleedDamage > 0) {
-            hero.hp = Math.max(0, hero.hp - bleedDamage);
+            applyHeroDamage(bleedDamage, { type: "time" });
             if (!silent) {
                 logMessage(
                     `Une plaie saigne encore et te coûte ${bleedDamage} PV pendant le temps qui passe.`
@@ -955,8 +997,7 @@
         }
 
         if (damage > 0) {
-            hero.hp -= damage;
-            if (hero.hp < 0) hero.hp = 0;
+            applyHeroDamage(damage, { type: "time" });
             logMessage(`La faim et la soif t'épuisent : tu perds ${damage} PV.`);
         }
 
@@ -994,7 +1035,7 @@
         if (needState.damagePerUnit > 0 && hero.hp > 0) {
             const penalty = Math.ceil(needState.damagePerUnit * timeUnits);
             if (penalty > 0) {
-                hero.hp = Math.max(0, hero.hp - penalty);
+                applyHeroDamage(penalty, { type: "time" });
                 if (!silent) {
                     logMessage(
                         `Tu t'affaiblis (${needState.label}) et perds ${penalty} PV en attendant.`
@@ -2067,7 +2108,7 @@
 
         const roll = rollDice(6, 1);
         const damage = enemy.baseDamage + roll.sum;
-        hero.hp = Math.max(0, hero.hp - damage);
+        applyHeroDamage(damage, { type: "normal" });
         registerWound(Math.ceil(damage / 3));
         logMessage(`${enemy.name} riposte et inflige ${damage} dégâts.`);
         showToast(`Tu es blessé : -${damage} PV`, "danger");
