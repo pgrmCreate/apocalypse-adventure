@@ -7,6 +7,28 @@
     const BODY_PARTS = ["bras", "jambe", "torse", "tête", "main"];
     const WOUND_TYPES = ["morsure", "entaille", "griffure", "impact", "perforation"];
 
+    const MUSIC_SOURCES = {
+        calm: [
+            "assets/music/calm/empty-city.mp3",
+            "assets/music/calm/on-the-road.mp3",
+            "assets/music/calm/suspense-248067.mp3"
+        ],
+        actions: [
+            "assets/music/actions/action-cinematic-music-414074.mp3",
+            "assets/music/actions/dark-cinematic-action-music-412728.mp3",
+            "assets/music/actions/tense-action-music-414683.mp3"
+        ],
+        sad: ["assets/music/sad/suspence-calm.mp3"],
+        epic: ["assets/music/epic/action-440170.mp3"]
+    };
+
+    const MUSIC_VOLUMES = {
+        calm: 0.45,
+        actions: 0.8,
+        sad: 0.6,
+        epic: 0.7
+    };
+
     const ITEM_TEMPLATES = window.ITEM_TEMPLATES || {};
     const GAME_STORY = window.GAME_STORY || { scenes: {} };
     const scenes = GAME_STORY.scenes || {};
@@ -91,6 +113,158 @@
         return 1;
     }
 
+    function createMusicController() {
+        let currentAudio = null;
+        let currentContext = null;
+        let playlist = [];
+        let playlistIndex = 0;
+        let fadeTimer = null;
+
+        const userGesturePromise = new Promise(resolve => {
+            const unlock = () => {
+                document.removeEventListener("click", unlock);
+                document.removeEventListener("keydown", unlock);
+                resolve();
+            };
+
+            document.addEventListener("click", unlock, { once: true });
+            document.addEventListener("keydown", unlock, { once: true });
+        });
+
+        function ensureUserGesture() {
+            return userGesturePromise;
+        }
+
+        function shuffle(list) {
+            const copy = list.slice();
+            for (let i = copy.length - 1; i > 0; i -= 1) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [copy[i], copy[j]] = [copy[j], copy[i]];
+            }
+            return copy;
+        }
+
+        function cleanupAudioElement() {
+            if (fadeTimer) {
+                clearInterval(fadeTimer);
+                fadeTimer = null;
+            }
+
+            if (currentAudio) {
+                currentAudio.removeEventListener("ended", handleTrackEnded);
+                currentAudio.pause();
+                currentAudio.src = "";
+                currentAudio = null;
+            }
+        }
+
+        function setCurrentVolume(context) {
+            if (!currentAudio) return;
+            const target = typeof MUSIC_VOLUMES[context] === "number"
+                ? MUSIC_VOLUMES[context]
+                : 0.6;
+            currentAudio.volume = target;
+        }
+
+        function playTrack() {
+            if (!playlist.length) return;
+
+            cleanupAudioElement();
+            const src = playlist[playlistIndex];
+            currentAudio = new Audio(src);
+            currentAudio.loop = false;
+            setCurrentVolume(currentContext);
+            currentAudio.addEventListener("ended", handleTrackEnded);
+            currentAudio.play().catch(err => {
+                console.warn("Lecture audio impossible", err);
+            });
+        }
+
+        function handleTrackEnded() {
+            playlistIndex = (playlistIndex + 1) % playlist.length;
+            if (playlistIndex === 0) {
+                playlist = shuffle(playlist);
+            }
+            playTrack();
+        }
+
+        function fadeOutCurrent(durationMs, onComplete) {
+            if (!currentAudio || durationMs <= 0) {
+                cleanupAudioElement();
+                onComplete?.();
+                return;
+            }
+
+            const startVolume = currentAudio.volume;
+            const startTime = performance.now();
+
+            fadeTimer = setInterval(() => {
+                const elapsed = performance.now() - startTime;
+                const ratio = Math.max(0, 1 - elapsed / durationMs);
+                currentAudio.volume = Math.max(0, startVolume * ratio);
+
+                if (elapsed >= durationMs) {
+                    clearInterval(fadeTimer);
+                    fadeTimer = null;
+                    cleanupAudioElement();
+                    onComplete?.();
+                }
+            }, 50);
+        }
+
+        function startPlaylist(context) {
+            const sources = MUSIC_SOURCES[context] || [];
+            if (sources.length === 0) return;
+
+            playlist = shuffle(sources);
+            playlistIndex = 0;
+            currentContext = context;
+            playTrack();
+        }
+
+        function playContext(context, { fadeOutMs = 0 } = {}) {
+            const sources = MUSIC_SOURCES[context] || [];
+            if (!sources.length) return;
+
+            ensureUserGesture().then(() => {
+                if (currentContext === context && currentAudio) {
+                    setCurrentVolume(context);
+                    return;
+                }
+
+                const begin = () => startPlaylist(context);
+
+                if (fadeOutMs > 0 && currentAudio) {
+                    fadeOutCurrent(fadeOutMs, begin);
+                    return;
+                }
+
+                cleanupAudioElement();
+                begin();
+            });
+        }
+
+        function stopAll() {
+            cleanupAudioElement();
+            currentContext = null;
+            playlist = [];
+            playlistIndex = 0;
+        }
+
+        return {
+            playCalm(opts = {}) {
+                playContext("calm", opts);
+            },
+            playActions(opts = {}) {
+                playContext("actions", opts);
+            },
+            playSad(opts = {}) {
+                playContext("sad", opts);
+            },
+            stopAll
+        };
+    }
+
     // État des lieux (pour conserver le loot)
     const locationsState = {}; // { [locationId]: { lootNodes: HTMLElement[], lootGenerated: boolean, defeatedCombats: Set<string>, flags: Set<string>, lootApplied: Set<string>, statusMessages: Record<string, string> } }
 
@@ -118,6 +292,7 @@
     let affameDamageRemainder = 0;
     let affameActive = false;
     let defeatState = { active: false, message: "" };
+    const musicController = createMusicController();
 
     // DOM
     let storyTitleEl;
@@ -307,6 +482,8 @@
         setupInitialInventory();
         updateCapacityUI();
 
+        musicController.playCalm();
+
         renderScene("intro");
         logMessage("Bienvenue, survivant. Clique sur un objet pour le voir, l'équiper, le consommer ou le prendre.");
     });
@@ -392,6 +569,8 @@
         initHero();
         setupInitialInventory();
         updateCapacityUI();
+
+        musicController.playCalm({ fadeOutMs: 500 });
 
         if (logEl) logEl.innerHTML = "";
 
@@ -720,6 +899,7 @@
 
         const message = reason || "Tu succombes à tes blessures.";
         defeatState = { active: true, message };
+        musicController.playSad();
         endBlockingAction();
         stopCombatApproachTimer();
         renderScene("gameOver");
@@ -2362,6 +2542,7 @@
         currentTimeContext = "fast";
         document.body.classList.add("combat-active");
         updateGroundPanelVisibility();
+        musicController.playActions();
         renderCombatUI();
         logMessage(`Un combat s'engage contre ${enemy.name}.`);
         logMessage(`Le zombie est ${describeDistance(combatState.distance)}.`);
@@ -2655,6 +2836,7 @@
     function endCombat(victory) {
         closeCombatIntroModal();
         stopCombatApproachTimer();
+        musicController.playCalm({ fadeOutMs: 1500 });
 
         const previousCombat = combatState;
         const nextSceneId = victory
