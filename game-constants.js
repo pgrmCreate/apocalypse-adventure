@@ -24,6 +24,10 @@ export const GAME_CONSTANTS = {
         sad: 0.6,
         epic: 0.7
     },
+    SOUND_EFFECTS: {
+        lightDamage: "assets/Sound/light-damage.m4a",
+        hightDamage: "assets/Sound/hight-damage.m4a"
+    },
     DEFAULT_RARITY_CHANCES: {
         1: 0.75,
         2: 0.2,
