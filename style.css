@@ -296,7 +296,6 @@ header h1 {
         radial-gradient(circle at 80% 35%, rgba(255, 255, 255, 0.04), transparent 40%),
         linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
     border-radius: 8px;
-    border: 1px solid #22304a;
 }
 .choice-btn {
     padding: 8px 10px;
