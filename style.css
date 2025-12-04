@@ -17,9 +17,25 @@
 body {
     margin: 0;
     font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    background: radial-gradient(circle at top, #1d2433 0, #05060a 50%, #000 100%);
+    background: #0b0c10 url("assets/images/new-game.jpg") center center / cover fixed no-repeat;
+    position: relative;
+    min-height: 100vh;
     color: var(--text);
     overflow-x: hidden;
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: rgba(11, 12, 16, 0);
+    transition: background 300ms ease;
+    pointer-events: none;
+    z-index: 0;
+}
+
+body.has-game-overlay::before {
+    background: rgba(11, 12, 16, 0.9);
 }
 
 .sr-only {
@@ -36,6 +52,84 @@ body {
 
 .hidden {
     display: none !important;
+}
+
+.new-game-screen {
+    position: fixed;
+    inset: 0;
+    background: #0b0c10 url("assets/images/new-game.jpg") center center / cover fixed no-repeat;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    z-index: 1800;
+}
+
+.new-game-screen::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(11, 12, 16, 0.8);
+}
+
+.new-game-panel {
+    position: relative;
+    z-index: 1;
+    width: min(540px, 94vw);
+    background: rgba(15, 20, 34, 0.85);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 22px 24px 24px;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6), inset 0 0 16px rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(3px);
+}
+
+.new-game-kicker {
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin: 0 0 6px;
+}
+
+.new-game-title {
+    margin: 0 0 6px;
+    font-size: 1.6rem;
+}
+
+.new-game-text {
+    margin: 0 0 16px;
+    color: var(--muted);
+}
+
+.new-game-form {
+    margin: 0;
+}
+
+.new-game-input-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.new-game-input-row input {
+    flex: 1;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: #0d111a;
+    color: var(--text);
+    font-size: 1rem;
+}
+
+.new-game-input-row input:focus-visible {
+    outline: 2px solid var(--info);
+    border-color: var(--info);
+}
+
+.new-game-submit {
+    min-width: 140px;
+    font-size: 1rem;
 }
 
 .toast-container {
@@ -191,6 +285,8 @@ body {
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
+    position: relative;
+    z-index: 1;
 }
 
 header {
