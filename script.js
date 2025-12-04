@@ -80,7 +80,7 @@
     }
 
     // État des lieux (pour conserver le loot)
-    const locationsState = {}; // { [locationId]: { lootNodes: HTMLElement[], lootGenerated: boolean, defeatedCombats: Set<string> } }
+    const locationsState = {}; // { [locationId]: { lootNodes: HTMLElement[], lootGenerated: boolean, defeatedCombats: Set<string>, flags: Set<string>, lootApplied: Set<string>, statusMessages: Record<string, string> } }
 
     let itemCounter = 0;
     let currentSceneId = null;
@@ -127,6 +127,12 @@
     let combatModalDifficultyEl;
     let combatModalDescriptionEl;
     let combatModalConfirmBtn;
+
+    let outcomeModalEl;
+    let outcomeModalTitleEl;
+    let outcomeModalDescriptionEl;
+    let outcomeModalEffectEl;
+    let outcomeModalConfirmBtn;
 
     let tagActionsBtn;
     let tagInventoryBtn;
@@ -212,6 +218,15 @@
                 renderCombatUI();
                 scrollToTarget("#story-title");
             });
+        }
+
+        outcomeModalEl = document.getElementById("outcome-modal");
+        outcomeModalTitleEl = document.getElementById("outcome-modal-title");
+        outcomeModalDescriptionEl = document.getElementById("outcome-modal-description");
+        outcomeModalEffectEl = document.getElementById("outcome-modal-effect");
+        outcomeModalConfirmBtn = document.getElementById("outcome-modal-confirm");
+        if (outcomeModalConfirmBtn) {
+            outcomeModalConfirmBtn.addEventListener("click", closeOutcomeModal);
         }
 
         tagActionsBtn = document.getElementById("tag-actions");
@@ -1699,6 +1714,22 @@
         combatModalEl.classList.add("hidden");
     }
 
+    function showOutcomeModal(title, description, effectText) {
+        if (!outcomeModalEl) return;
+        if (outcomeModalTitleEl) outcomeModalTitleEl.textContent = title;
+        if (outcomeModalDescriptionEl) outcomeModalDescriptionEl.textContent = description;
+        if (outcomeModalEffectEl) outcomeModalEffectEl.textContent = effectText;
+        outcomeModalEl.classList.remove("hidden");
+        outcomeModalEl.classList.add("open");
+        if (outcomeModalConfirmBtn) outcomeModalConfirmBtn.focus();
+    }
+
+    function closeOutcomeModal() {
+        if (!outcomeModalEl) return;
+        outcomeModalEl.classList.remove("open");
+        outcomeModalEl.classList.add("hidden");
+    }
+
     function canUseMelee() {
         const hasMeleeWeapon = Boolean(getEquippedWeaponTemplate());
         if (!hasMeleeWeapon) {
@@ -2516,12 +2547,24 @@
             state = {
                 lootNodes: [],
                 lootGenerated: false,
-                defeatedCombats: new Set()
+                defeatedCombats: new Set(),
+                flags: new Set(),
+                lootApplied: new Set(),
+                statusMessages: {}
             };
             locationsState[locationId] = state;
         }
         if (!state.defeatedCombats) {
             state.defeatedCombats = new Set();
+        }
+        if (!state.flags) {
+            state.flags = new Set();
+        }
+        if (!state.lootApplied) {
+            state.lootApplied = new Set();
+        }
+        if (!state.statusMessages) {
+            state.statusMessages = {};
         }
         return state;
     }
@@ -2549,6 +2592,85 @@
 
     }
 
+    function addLocationFlag(locationId, flag) {
+        const state = getLocationState(locationId);
+        if (!state || !flag) return;
+        state.flags.add(flag);
+    }
+
+    function hasLocationFlag(locationId, flag) {
+        const state = getLocationState(locationId);
+        if (!state || !flag) return false;
+        return state.flags.has(flag);
+    }
+
+    function addLocationStatus(locationId, key, text) {
+        const state = getLocationState(locationId);
+        if (!state || !key || !text) return;
+        state.statusMessages[key] = text;
+    }
+
+    function getLocationStatuses(locationId) {
+        const state = getLocationState(locationId);
+        if (!state) return [];
+        return Object.values(state.statusMessages).filter(Boolean);
+    }
+
+    function applyOutcomeLootOnce(locationId, key, templates = []) {
+        const state = getLocationState(locationId);
+        if (!state || !key || state.lootApplied.has(key) || !lootEl) return;
+
+        let added = false;
+        templates.forEach(templateId => {
+            const item = createItemFromTemplate(templateId);
+            if (!item) return;
+            const node = createItemElement(item);
+            appendItemToZone(node, lootEl);
+            added = true;
+        });
+
+        if (added) {
+            state.lootApplied.add(key);
+            saveLocationState(locationId);
+            updateCapacityUI();
+        }
+    }
+
+    function handleLocationOutcome(option, success) {
+        const locationId = currentLocationId;
+        if (!locationId) return;
+
+        if (option.stateFlagOnAttempt) {
+            addLocationFlag(locationId, option.stateFlagOnAttempt);
+        }
+        if (success && option.stateFlagOnSuccess) {
+            addLocationFlag(locationId, option.stateFlagOnSuccess);
+        }
+        if (!success && option.stateFlagOnFail) {
+            addLocationFlag(locationId, option.stateFlagOnFail);
+        }
+
+        const outcomeDetails = option.outcomeDetails || {};
+        const lootKey =
+            outcomeDetails.lootKey ||
+            option.stateFlagOnAttempt ||
+            option.stateFlagOnSuccess ||
+            option.lockedByFlag;
+        const lootTemplates = success
+            ? outcomeDetails.lootOnSuccess
+            : outcomeDetails.lootOnFail;
+        if (Array.isArray(lootTemplates) && lootTemplates.length > 0) {
+            applyOutcomeLootOnce(locationId, lootKey || `${currentSceneId}:${option.text}:loot`, lootTemplates);
+        }
+
+        if (success && outcomeDetails.statusOnSuccess) {
+            addLocationStatus(locationId, `${option.text}-success`, outcomeDetails.statusOnSuccess);
+        }
+        if (!success && outcomeDetails.statusOnFail) {
+            addLocationStatus(locationId, `${option.text}-fail`, outcomeDetails.statusOnFail);
+        }
+    }
+
     function renderScene(sceneId) {
         const scene = scenes[sceneId];
         if (!scene) {
@@ -2573,7 +2695,11 @@
         visitedLocations.add(currentLocationId);
 
         if (storyTitleEl) storyTitleEl.textContent = scene.title;
-        if (storyTextEl) storyTextEl.textContent = scene.text;
+        if (storyTextEl) {
+            const statusTexts = getLocationStatuses(currentLocationId);
+            const suffix = statusTexts.length > 0 ? ` ${statusTexts.join(" ")}` : "";
+            storyTextEl.textContent = `${scene.text}${suffix}`;
+        }
 
         if (timeContextEl) {
             if (currentTimeContext === "fast") {
@@ -2612,17 +2738,23 @@
                     isCombatOption &&
                     state.defeatedCombats &&
                     state.defeatedCombats.has(combatOptionId);
+                const lockedByFlag =
+                    option.lockedByFlag && state.flags && state.flags.has(option.lockedByFlag);
+
                 if (missingRequiredItem && requirementLabel) {
                     labels.push(`besoin : ${requirementLabel}`);
                 }
                 if (alreadyDefeated) {
                     labels.push("ennemi vaincu");
                 }
+                if (lockedByFlag) {
+                    labels.push(option.lockedLabel || "déjà effectué");
+                }
                 btn.textContent =
                     labels.length > 0
                         ? `${option.text} (${labels.join(" ; ")})`
                         : option.text;
-                if (missingRequiredItem || alreadyDefeated) {
+                if (missingRequiredItem || alreadyDefeated || lockedByFlag) {
                     btn.disabled = true;
                 }
                 btn.addEventListener("click", () => handleOption(option, index));
@@ -2669,6 +2801,11 @@
         const combatOptionId = isCombatOption
             ? `${currentSceneId}:${optionIndex}`
             : null;
+
+        if (option.lockedByFlag && locationState?.flags?.has(option.lockedByFlag)) {
+            showToast("Cette action a déjà été tentée ici.", "info");
+            return;
+        }
 
         if (
             isCombatOption &&
@@ -2752,9 +2889,24 @@
             applyEffect(option.failEffect);
         }
 
+        if (option.outcomeDetails || option.stateFlagOnAttempt || option.stateFlagOnSuccess) {
+            handleLocationOutcome(option, success);
+        }
+
         if (hero.hp <= 0) {
             renderScene("gameOver");
             return;
+        }
+
+        if (option.outcomeModal) {
+            const modal = option.outcomeModal;
+            const description = success
+                ? modal.successDescription || modal.description || "Action réussie."
+                : modal.failDescription || modal.description || "Action échouée.";
+            const effectText = success
+                ? modal.successEffect || "L'effet positif s'applique."
+                : modal.failEffect || "Tu subis les conséquences.";
+            showOutcomeModal(modal.title || option.text, description, effectText);
         }
 
         const nextSceneId = success
