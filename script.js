@@ -38,6 +38,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         WOUND_TYPES,
         MUSIC_SOURCES,
         MUSIC_VOLUMES,
+        SOUND_EFFECTS,
         DEFAULT_RARITY_CHANCES,
         RARITY_LABELS,
         RARITY_NAMES_TO_LEVEL,
@@ -76,6 +77,21 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         nextStatThreshold: heroDefaults.nextStatThreshold
     };
 
+    const audioUserGesturePromise = new Promise(resolve => {
+        const unlock = () => {
+            document.removeEventListener("click", unlock);
+            document.removeEventListener("keydown", unlock);
+            resolve();
+        };
+
+        document.addEventListener("click", unlock, { once: true });
+        document.addEventListener("keydown", unlock, { once: true });
+    });
+
+    function ensureAudioUserGesture() {
+        return audioUserGesturePromise;
+    }
+
     function normalizeRarity(rawRarity) {
         if (typeof rawRarity === "number" && Number.isFinite(rawRarity)) {
             return Math.max(1, Math.round(rawRarity));
@@ -102,19 +118,8 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         let playlistIndex = 0;
         let fadeTimer = null;
 
-        const userGesturePromise = new Promise(resolve => {
-            const unlock = () => {
-                document.removeEventListener("click", unlock);
-                document.removeEventListener("keydown", unlock);
-                resolve();
-            };
-
-            document.addEventListener("click", unlock, { once: true });
-            document.addEventListener("keydown", unlock, { once: true });
-        });
-
         function ensureUserGesture() {
-            return userGesturePromise;
+            return ensureAudioUserGesture();
         }
 
         function shuffle(list) {
@@ -354,7 +359,8 @@ import { GAME_CONSTANTS } from "./game-constants.js";
     let stairIconPromise = null;
 
     const BASE_IMAGE_ASSETS = ["assets/images/new-game.jpg", STAIR_ICON_SRC];
-    const AUDIO_ASSETS = Object.values(MUSIC_SOURCES || {}).flat();
+    const SOUND_EFFECT_SOURCES = Object.values(SOUND_EFFECTS || {});
+    const AUDIO_ASSETS = [...Object.values(MUSIC_SOURCES || {}).flat(), ...SOUND_EFFECT_SOURCES];
     const PRELOAD_ASSETS = Array.from(new Set([...BASE_IMAGE_ASSETS, ...AUDIO_ASSETS].filter(Boolean)));
     let assetPreloadPromise = null;
     let assetsReady = false;
@@ -548,7 +554,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
 
     function preloadAsset(src) {
         if (!src) return Promise.resolve();
-        if (/\.mp3(\?.*)?$/i.test(src)) {
+        if (/(\.mp3|\.m4a)(\?.*)?$/i.test(src)) {
             return preloadAudio(src);
         }
 
@@ -1014,6 +1020,19 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         damageFlashEl.classList.add(effectClass, "is-active");
     }
 
+    function playSoundEffect(key) {
+        const src = SOUND_EFFECTS?.[key];
+        if (!src) return;
+
+        ensureAudioUserGesture().then(() => {
+            const audio = new Audio(src);
+            audio.volume = 0.8;
+            audio.play().catch(err => {
+                console.warn("Impossible de jouer l'effet sonore", err);
+            });
+        });
+    }
+
     function showDefeatModal(message) {
         if (!defeatModalEl) return;
         if (defeatModalMessageEl) {
@@ -1048,11 +1067,13 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         const amount = Math.max(0, rawAmount || 0);
         if (amount <= 0) return 0;
         hero.hp = Math.max(0, hero.hp - amount);
-        triggerDamageEffect(opts.type || "normal");
+        const damageType = opts.type || "normal";
+        triggerDamageEffect(damageType);
+        playSoundEffect(damageType === "time" ? "lightDamage" : "hightDamage");
         if (hero.hp <= 0) {
             const reason =
                 opts.reason ||
-                (opts.type === "time"
+                (damageType === "time"
                     ? "Le temps et tes blessures t'ont achevé."
                     : "Tu es mortellement blessé.");
             handleHeroDefeat(reason);
