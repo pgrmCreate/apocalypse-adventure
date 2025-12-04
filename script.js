@@ -1,85 +1,146 @@
-(() => {
+(async () => {
     "use strict";
 
-    const BASE_CAPACITY = 15;
-    const MAX_HUNGER = 50;
-    const MAX_THIRST = 50;
-    const BODY_PARTS = ["bras", "jambe", "torse", "tête", "main"];
-    const WOUND_TYPES = ["morsure", "entaille", "griffure", "impact", "perforation"];
-
-    const MUSIC_SOURCES = {
-        calm: [
-            "assets/music/calm/empty-city.mp3",
-            "assets/music/calm/on-the-road.mp3",
-            "assets/music/calm/suspense-248067.mp3"
-        ],
-        actions: [
-            "assets/music/actions/action-cinematic-music-414074.mp3",
-            "assets/music/actions/dark-cinematic-action-music-412728.mp3",
-            "assets/music/actions/tense-action-music-414683.mp3"
-        ],
-        sad: ["assets/music/sad/suspence-calm.mp3"],
-        epic: ["assets/music/epic/action-440170.mp3"]
+    const DEFAULT_CONSTANTS = {
+        BASE_CAPACITY: 15,
+        MAX_HUNGER: 50,
+        MAX_THIRST: 50,
+        BODY_PARTS: ["bras", "jambe", "torse", "tête", "main"],
+        WOUND_TYPES: ["morsure", "entaille", "griffure", "impact", "perforation"],
+        MUSIC_SOURCES: {
+            calm: [
+                "assets/music/calm/empty-city.mp3",
+                "assets/music/calm/on-the-road.mp3",
+                "assets/music/calm/suspense-248067.mp3"
+            ],
+            actions: [
+                "assets/music/actions/action-cinematic-music-414074.mp3",
+                "assets/music/actions/dark-cinematic-action-music-412728.mp3",
+                "assets/music/actions/tense-action-music-414683.mp3"
+            ],
+            sad: ["assets/music/sad/suspence-calm.mp3"],
+            epic: ["assets/music/epic/action-440170.mp3"]
+        },
+        MUSIC_VOLUMES: {
+            calm: 0.45,
+            actions: 0.8,
+            sad: 0.6,
+            epic: 0.7
+        },
+        DEFAULT_RARITY_CHANCES: {
+            1: 0.75,
+            2: 0.2,
+            3: 0.05
+        },
+        RARITY_LABELS: {
+            1: "Très peu rare",
+            2: "Peu rare",
+            3: "Rare"
+        },
+        RARITY_NAMES_TO_LEVEL: {
+            common: 1,
+            "peu courant": 2,
+            uncommon: 2,
+            rare: 3
+        },
+        REAL_SECONDS_PER_GAME_HOUR: 30,
+        ACTION_TIME_ACCELERATION: 4,
+        TIME_COST_STEP_HOURS: 0.25,
+        MOVE_DURATION_MS: 3000,
+        DEFAULT_USE_DURATION_MS: 4000,
+        DEFAULT_CRAFT_DURATION_MS: 4000,
+        ATTACK_COOLDOWN_MS: 2000,
+        ENEMY_ATTACK_COOLDOWN_MS: 3000,
+        LOOT_PICKUP_DURATION_MS: 500,
+        DEFAULT_START_HOUR: 8,
+        XP_INITIAL_THRESHOLD: 15,
+        XP_THRESHOLD_GROWTH: 1.35,
+        heroDefaults: {
+            name: "Alex",
+            hp: 30,
+            maxHp: 30,
+            force: 2,
+            finesse: 2,
+            audace: 2,
+            hunger: 0,
+            thirst: 0,
+            experience: 0,
+            nextStatThreshold: 15
+        }
     };
 
-    const MUSIC_VOLUMES = {
-        calm: 0.45,
-        actions: 0.8,
-        sad: 0.6,
-        epic: 0.7
-    };
+    function mergeConstants(defaults, overrides) {
+        if (Array.isArray(defaults)) {
+            return Array.isArray(overrides) ? overrides.slice() : defaults.slice();
+        }
+
+        const result = { ...(defaults || {}) };
+        if (!overrides || typeof overrides !== "object") {
+            return result;
+        }
+
+        Object.keys(overrides).forEach(key => {
+            const overrideVal = overrides[key];
+            const defaultVal = defaults ? defaults[key] : undefined;
+
+            if (Array.isArray(overrideVal)) {
+                result[key] = overrideVal.slice();
+            } else if (overrideVal && typeof overrideVal === "object") {
+                result[key] = mergeConstants(defaultVal || {}, overrideVal);
+            } else {
+                result[key] = overrideVal;
+            }
+        });
+
+        return result;
+    }
+
+    async function loadGameConstants() {
+        try {
+            const response = await fetch("game-constants.json", { cache: "no-cache" });
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            return await response.json();
+        } catch (err) {
+            console.error("Impossible de charger les constantes du jeu, utilisation des valeurs par défaut.", err);
+            return {};
+        }
+    }
+
+    const resolvedConstants = mergeConstants(DEFAULT_CONSTANTS, await loadGameConstants());
+    const {
+        BASE_CAPACITY,
+        MAX_HUNGER,
+        MAX_THIRST,
+        BODY_PARTS,
+        WOUND_TYPES,
+        MUSIC_SOURCES,
+        MUSIC_VOLUMES,
+        DEFAULT_RARITY_CHANCES,
+        RARITY_LABELS,
+        RARITY_NAMES_TO_LEVEL,
+        REAL_SECONDS_PER_GAME_HOUR,
+        ACTION_TIME_ACCELERATION,
+        TIME_COST_STEP_HOURS,
+        MOVE_DURATION_MS,
+        DEFAULT_USE_DURATION_MS,
+        DEFAULT_CRAFT_DURATION_MS,
+        ATTACK_COOLDOWN_MS,
+        ENEMY_ATTACK_COOLDOWN_MS,
+        LOOT_PICKUP_DURATION_MS,
+        DEFAULT_START_HOUR,
+        XP_INITIAL_THRESHOLD,
+        XP_THRESHOLD_GROWTH,
+        heroDefaults
+    } = resolvedConstants;
 
     const ITEM_TEMPLATES = window.ITEM_TEMPLATES || {};
     const GAME_STORY = window.GAME_STORY || { scenes: {} };
     const scenes = GAME_STORY.scenes || {};
     const locations = GAME_STORY.locations || {};
 
-    const DEFAULT_RARITY_CHANCES = {
-        1: 0.75,
-        2: 0.2,
-        3: 0.05
-    };
-
-    const RARITY_LABELS = {
-        1: "Très peu rare",
-        2: "Peu rare",
-        3: "Rare"
-    };
-
-    const RARITY_NAMES_TO_LEVEL = {
-        common: 1,
-        "peu courant": 2,
-        uncommon: 2,
-        rare: 3
-    };
-
-    const REAL_SECONDS_PER_GAME_HOUR = 30;
-    const ACTION_TIME_ACCELERATION = 4;
     const GAME_MINUTES_PER_MS = 60 / (REAL_SECONDS_PER_GAME_HOUR * 1000);
-    const TIME_COST_STEP_HOURS = 0.25;
-    const MOVE_DURATION_MS = 3000;
-    const DEFAULT_USE_DURATION_MS = 4000;
-    const DEFAULT_CRAFT_DURATION_MS = 4000;
-    const ATTACK_COOLDOWN_MS = 2000;
-    const ENEMY_ATTACK_COOLDOWN_MS = 3000;
-    const LOOT_PICKUP_DURATION_MS = 500;
-    const DEFAULT_START_HOUR = 8;
-
-    const XP_INITIAL_THRESHOLD = 15;
-    const XP_THRESHOLD_GROWTH = 1.35;
-
-    const heroDefaults = {
-        name: "Alex",
-        hp: 30,
-        maxHp: 30,
-        force: 2,
-        finesse: 2,
-        audace: 2,
-        hunger: 0,
-        thirst: 0,
-        experience: 0,
-        nextStatThreshold: XP_INITIAL_THRESHOLD
-    };
 
     const hero = {
         name: heroDefaults.name,
@@ -1841,6 +1902,7 @@
                   parseInt(itemEl.dataset.thirstRestore || "0", 10) || 0;
         const bandageQuality =
                   parseInt(itemEl.dataset.bandageQuality || "0", 10) || 0;
+        const templateId = itemEl.dataset.templateId || "";
         const capacity =
                   parseInt(itemEl.dataset.capacity || "0", 10) || 0;
         const weight = itemEl.dataset.value || "?";
@@ -1881,26 +1943,42 @@
 
         const inInventory = originZoneType === "inventory";
         const onGround = originZoneType === "loot";
+        const alreadyEquippedAsWeapon = templateId && templateId === equippedWeaponTemplateId;
+        const alreadyEquippedAsBag = templateId && templateId === equippedBagTemplateId;
 
         // Équipement : seulement si dans l'inventaire
         if (inInventory && hasWeapon) {
-            const equipBtn = document.createElement("button");
-            equipBtn.classList.add("small-btn");
-            equipBtn.textContent = "Équiper comme arme";
-            equipBtn.addEventListener("click", () => {
-                equipWeaponFromElement(itemEl);
-            });
-            selectedItemButtonsEl.appendChild(equipBtn);
+            if (alreadyEquippedAsWeapon) {
+                const info = document.createElement("div");
+                info.textContent = "Déjà équipé comme arme.";
+                info.classList.add("selected-info");
+                selectedItemButtonsEl.appendChild(info);
+            } else {
+                const equipBtn = document.createElement("button");
+                equipBtn.classList.add("small-btn");
+                equipBtn.textContent = "Équiper comme arme";
+                equipBtn.addEventListener("click", () => {
+                    equipWeaponFromElement(itemEl);
+                });
+                selectedItemButtonsEl.appendChild(equipBtn);
+            }
         }
 
         if (inInventory && hasBag) {
-            const bagBtn = document.createElement("button");
-            bagBtn.classList.add("small-btn");
-            bagBtn.textContent = "Équiper comme sac";
-            bagBtn.addEventListener("click", () => {
-                equipBagFromElement(itemEl);
-            });
-            selectedItemButtonsEl.appendChild(bagBtn);
+            if (alreadyEquippedAsBag) {
+                const info = document.createElement("div");
+                info.textContent = "Déjà équipé comme sac.";
+                info.classList.add("selected-info");
+                selectedItemButtonsEl.appendChild(info);
+            } else {
+                const bagBtn = document.createElement("button");
+                bagBtn.classList.add("small-btn");
+                bagBtn.textContent = "Équiper comme sac";
+                bagBtn.addEventListener("click", () => {
+                    equipBagFromElement(itemEl);
+                });
+                selectedItemButtonsEl.appendChild(bagBtn);
+            }
         }
 
         if (inInventory) {
