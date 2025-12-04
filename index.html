@@ -23,6 +23,15 @@
                     <button id="combat-modal-confirm" class="choice-btn modal-confirm">OK</button>
                 </div>
             </div>
+
+            <div id="outcome-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="outcome-modal-title">
+                <div class="modal-content">
+                    <h2 id="outcome-modal-title">Action résolue</h2>
+                    <p id="outcome-modal-description" class="modal-meta"></p>
+                    <p id="outcome-modal-effect"></p>
+                    <button id="outcome-modal-confirm" class="choice-btn modal-confirm">Continuer</button>
+                </div>
+            </div>
             <div class="floating-tags" aria-label="Raccourcis fixes">
                 <button class="tag-btn" id="tag-actions" data-target="#story-title" title="Aller aux actions">
                     <svg
