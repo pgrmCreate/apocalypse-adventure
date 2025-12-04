@@ -770,6 +770,7 @@
         if (!item || !inventoryEl) return;
         const el = createItemElement(item);
         appendItemToZone(el, inventoryEl);
+        refreshWoundsIfRelevant();
     }
 
     function createItemFromTemplate(templateId) {
@@ -1394,6 +1395,8 @@
                 `Charge limite atteinte, tu laisses : ${skipped.join(", ")}.`
             );
         }
+
+        refreshWoundsIfRelevant();
     }
 
     function takeItemToInventory(itemEl) {
@@ -1426,6 +1429,7 @@
         logMessage(`Tu prends ${itemEl.dataset.name} avec toi.`);
         showToast(`Tu ramasses ${itemEl.dataset.name}.`, "success");
         clearSelectedItem();
+        refreshWoundsIfRelevant();
     }
 
     function canDropItems() {
@@ -1460,6 +1464,8 @@
             logMessage(`Tu poses ${name} au sol.`);
             showToast(`${name} est laissé au sol.`, "info");
         }
+
+        refreshWoundsIfRelevant();
 
         return true;
     }
