@@ -2530,6 +2530,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             if (itemEl.isConnected) {
                 itemEl.remove();
             }
+            refreshWoundsIfRelevant();
             updateStatsUI();
             updateCapacityUI();
             clearSelectedItem();
