@@ -51,6 +51,8 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         ATTACK_COOLDOWN_MS,
         ENEMY_ATTACK_COOLDOWN_MS,
         LOOT_PICKUP_DURATION_MS,
+        BLEED_DAMAGE_INTERVAL_MINUTES,
+        HUNGER_DAMAGE_INTERVAL_MINUTES,
         DEFAULT_START_HOUR,
         XP_INITIAL_THRESHOLD,
         XP_THRESHOLD_GROWTH,
@@ -1429,13 +1431,14 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         wounds.forEach(wound => {
             if (!wound.bandaged && wound.bleeding) {
                 wound.bleedMinutesBuffer = (wound.bleedMinutesBuffer || 0) + elapsedMinutes;
-                while (wound.bleedMinutesBuffer >= 15) {
+                while (wound.bleedMinutesBuffer >= BLEED_DAMAGE_INTERVAL_MINUTES) {
                     const damageFloat =
-                        wound.bleedRate * (15 / 60) + (wound.bleedDamageRemainder || 0);
+                        wound.bleedRate * (BLEED_DAMAGE_INTERVAL_MINUTES / 60) +
+                        (wound.bleedDamageRemainder || 0);
                     const portion = Math.floor(damageFloat);
                     wound.bleedDamageRemainder = damageFloat - portion;
                     bleedDamage += portion;
-                    wound.bleedMinutesBuffer -= 15;
+                    wound.bleedMinutesBuffer -= BLEED_DAMAGE_INTERVAL_MINUTES;
                 }
                 wound.remainingTime += timeUnits * 0.5;
             } else {
@@ -1558,13 +1561,14 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             if (affameActive) {
                 affameDamageMinuteBuffer += elapsedMinutes;
                 let totalPenalty = 0;
-                while (affameDamageMinuteBuffer >= 30) {
+                while (affameDamageMinuteBuffer >= HUNGER_DAMAGE_INTERVAL_MINUTES) {
                     const damageFloat =
-                        needState.damagePerUnit * (30 / 60) + affameDamageRemainder;
+                        needState.damagePerUnit * (HUNGER_DAMAGE_INTERVAL_MINUTES / 60) +
+                        affameDamageRemainder;
                     const penalty = Math.floor(damageFloat);
                     affameDamageRemainder = damageFloat - penalty;
                     totalPenalty += penalty;
-                    affameDamageMinuteBuffer -= 30;
+                    affameDamageMinuteBuffer -= HUNGER_DAMAGE_INTERVAL_MINUTES;
                 }
                 if (totalPenalty > 0) {
                     applyHeroDamage(totalPenalty, {
