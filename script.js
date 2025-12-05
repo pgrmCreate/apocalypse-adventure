@@ -2718,7 +2718,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         const difficultyLabel = describeCombatDifficulty(difficulty);
 
         if (combatModalTitleEl) {
-            combatModalTitleEl.textContent = `Nouveau combat : ${enemy.name}`;
+            combatModalTitleEl.textContent = "Un combat commence";
         }
         if (combatModalLocationEl) {
             combatModalLocationEl.textContent = `Lieu : ${locationLabel}`;
