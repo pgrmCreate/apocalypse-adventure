@@ -57,6 +57,29 @@ export const GAME_CONSTANTS = {
     LOOT_PICKUP_DURATION_MS: 500,
     BLEED_DAMAGE_INTERVAL_MINUTES: 15,
     HUNGER_DAMAGE_INTERVAL_MINUTES: 30,
+    WOUND_HEALING: {
+        BASE_PROGRESS_PER_CYCLE: 0.8,
+        HP_PER_HEAL_PROGRESS: 0.2,
+        UNBANDAGED_HEALING_FACTOR: 0.6,
+        WOUND_COUNT_PENALTY: 0.15,
+        SEVERITY_GRADIENT: 0.15,
+        MAX_SEVERITY_FACTOR: 2.2,
+        BLEED_DAMAGE_RANGE: { min: 0.1, max: 0.8 },
+        TYPE_FACTORS: {
+            morsure: 1.2,
+            entaille: 1,
+            griffure: 0.8,
+            impact: 0.7,
+            perforation: 1.4
+        },
+        BANDAGE_QUALITY_EFFECTS: {
+            0: { bleedMultiplier: 1, healPerCycle: 0 },
+            1: { bleedMultiplier: 0.5, healPerCycle: 0 },
+            2: { bleedMultiplier: 0, healPerCycle: 0 },
+            3: { bleedMultiplier: 0, healPerCycle: 0.7 },
+            4: { bleedMultiplier: 0, healPerCycle: 1 }
+        }
+    },
     DEFAULT_START_HOUR: 8,
     XP_INITIAL_THRESHOLD: 15,
     XP_THRESHOLD_GROWTH: 1.35,
