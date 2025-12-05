@@ -265,7 +265,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
     }
 
     // État des lieux (pour conserver le loot)
-    const locationsState = {}; // { [locationId]: { lootNodes: HTMLElement[], lootGenerated: boolean, defeatedCombats: Set<string>, flags: Set<string>, lootApplied: Set<string>, statusMessages: Record<string, string> } }
+    const locationsState = {}; // { [locationId]: { lootNodes: HTMLElement[], lootGenerated: boolean, defeatedCombats: Set<string>, flags: Set<string>, lootApplied: Set<string>, statusMessages: Record<string, string>, lostThrowables: LostThrowableEntry[] } }
 
     let itemCounter = 0;
     let currentSceneId = null;
@@ -288,6 +288,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
     let needHourBuffer = 0;
     let activePickupSequenceToken = null;
     let affameDamageMinuteBuffer = 0;
+    let activeLostThrowableSearch = null;
     let affameDamageRemainder = 0;
     let affameActive = false;
     let defeatState = { active: false, message: "" };
@@ -323,6 +324,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
     let bagNameEl;
     let inventoryEl;
     let lootEl;
+    let lostThrowableActionsEl;
 
     let toastContainerEl;
     let combatModalEl;
@@ -349,6 +351,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
     let actionOverlayEl;
     let actionOverlayTextEl;
     let actionProgressBarEl;
+    let actionOverlayCancelBtn;
 
     let damageFlashEl;
     let assetLoaderEl;
@@ -421,6 +424,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         bagNameEl = document.getElementById("bag-name");
         inventoryEl = document.getElementById("inventory-zone");
         lootEl = document.getElementById("loot-zone");
+        lostThrowableActionsEl = document.getElementById("lost-throwable-actions");
 
         equippedWeaponNameEl = document.getElementById("equipped-weapon-name");
         attackPreviewEl = document.getElementById("attack-preview");
@@ -485,6 +489,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         actionOverlayEl = document.getElementById("action-overlay");
         actionOverlayTextEl = document.getElementById("action-overlay-text");
         actionProgressBarEl = document.getElementById("action-progress-bar");
+        actionOverlayCancelBtn = document.getElementById("action-overlay-cancel");
 
         damageFlashEl = document.getElementById("damage-flash");
         assetLoaderEl = document.getElementById("asset-loader");
@@ -1394,6 +1399,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
 
     function startBlockingAction(label, durationMs, opts = {}) {
         const safeDuration = Math.max(300, durationMs || 0);
+        const indeterminate = opts.indeterminate === true;
         endBlockingAction();
         actionInProgress = true;
         document.body.classList.add("action-blocked");
@@ -1405,25 +1411,64 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         }
         setTagButtonsDisabled(true);
 
-        if (actionOverlayEl && opts.useOverlay !== false) {
+        const overlayProgressEl = actionProgressBarEl?.parentElement;
+        const showOverlay = actionOverlayEl && opts.useOverlay !== false;
+
+        if (showOverlay) {
             actionOverlayEl.classList.remove("hidden");
             if (actionOverlayTextEl) actionOverlayTextEl.textContent = label || "Action en cours";
-            if (actionProgressBarEl) actionProgressBarEl.style.width = "0%";
+            if (actionProgressBarEl) {
+                actionProgressBarEl.style.width = indeterminate ? "100%" : "0%";
+                actionProgressBarEl.classList.toggle("indeterminate", indeterminate);
+            }
+            if (overlayProgressEl) {
+                overlayProgressEl.classList.toggle("indeterminate", indeterminate);
+            }
+            if (actionOverlayCancelBtn) {
+                const showCancel = typeof opts.onCancel === "function";
+                actionOverlayCancelBtn.classList.toggle("hidden", !showCancel);
+                if (showCancel) {
+                    actionOverlayCancelBtn.textContent = opts.cancelLabel || "Annuler";
+                } else {
+                    actionOverlayCancelBtn.textContent = "";
+                }
+            }
         }
 
-        const start = performance.now();
-        actionProgressInterval = setInterval(() => {
-            if (!actionProgressBarEl) return;
-            const elapsed = performance.now() - start;
-            const percent = Math.min(100, Math.round((elapsed / safeDuration) * 100));
-            actionProgressBarEl.style.width = `${percent}%`;
-        }, 120);
+        if (!indeterminate) {
+            const start = performance.now();
+            actionProgressInterval = setInterval(() => {
+                if (!actionProgressBarEl) return;
+                const elapsed = performance.now() - start;
+                const percent = Math.min(100, Math.round((elapsed / safeDuration) * 100));
+                actionProgressBarEl.style.width = `${percent}%`;
+            }, 120);
+        }
 
         return new Promise(resolve => {
-            actionTimeout = setTimeout(() => {
+            let resolved = false;
+            const resolvePromise = value => {
+                if (resolved) return;
+                resolved = true;
+                resolve(value || { cancelled: false });
+            };
+
+            const finalize = () => {
                 endBlockingAction();
-                resolve();
-            }, safeDuration);
+                resolvePromise({ cancelled: false });
+            };
+
+            actionTimeout = setTimeout(finalize, safeDuration);
+
+            if (actionOverlayCancelBtn && typeof opts.onCancel === "function") {
+                actionOverlayCancelBtn.onclick = () => {
+                    if (actionTimeout) clearTimeout(actionTimeout);
+                    actionTimeout = null;
+                    opts.onCancel();
+                    endBlockingAction();
+                    resolvePromise({ cancelled: true });
+                };
+            }
         });
     }
 
@@ -1433,7 +1478,19 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         actionTimeout = null;
         actionProgressInterval = null;
         if (actionOverlayEl) actionOverlayEl.classList.add("hidden");
-        if (actionProgressBarEl) actionProgressBarEl.style.width = "0%";
+        if (actionProgressBarEl) {
+            actionProgressBarEl.style.width = "0%";
+            actionProgressBarEl.classList.remove("indeterminate");
+            const overlayProgressEl = actionProgressBarEl.parentElement;
+            if (overlayProgressEl) {
+                overlayProgressEl.classList.remove("indeterminate");
+            }
+        }
+        if (actionOverlayCancelBtn) {
+            actionOverlayCancelBtn.classList.add("hidden");
+            actionOverlayCancelBtn.textContent = "";
+            actionOverlayCancelBtn.onclick = null;
+        }
         actionInProgress = false;
         document.body.classList.remove("action-blocked");
         document.body.classList.remove("inventory-hidden");
@@ -2420,6 +2477,126 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         return true;
     }
 
+    function createLostThrowableEntryFromElement(itemEl) {
+        if (!itemEl) return null;
+        return {
+            id: `lost-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+            templateId: itemEl.dataset.templateId || "",
+            name: itemEl.dataset.name || "arme de jet",
+            rarity: parseInt(itemEl.dataset.rarity || "1", 10) || 1
+        };
+    }
+
+    function registerLostThrowable(itemEl) {
+        const state = getLocationState(currentLocationId);
+        if (!state || !itemEl) return;
+        const entry = createLostThrowableEntryFromElement(itemEl);
+        if (!entry) return;
+
+        state.lostThrowables = state.lostThrowables || [];
+        state.lostThrowables.push(entry);
+        itemEl.remove();
+        logMessage(`${entry.name} est quelque part au sol, à toi de le retrouver.`);
+        refreshLostThrowableActions();
+        updateCapacityUI();
+        clearSelectedItem();
+    }
+
+    function refreshLostThrowableActions() {
+        if (!lostThrowableActionsEl) return;
+        const state = getLocationState(currentLocationId);
+        const lost = state?.lostThrowables || [];
+        lostThrowableActionsEl.innerHTML = "";
+
+        if (!lost.length) {
+            lostThrowableActionsEl.classList.add("hidden");
+            return;
+        }
+
+        lostThrowableActionsEl.classList.remove("hidden");
+        lost.forEach(entry => {
+            const row = document.createElement("div");
+            row.classList.add("lost-throwable-row");
+
+            const label = document.createElement("div");
+            label.classList.add("label");
+            label.textContent = `Objet égaré : ${entry.name}`;
+
+            const btn = document.createElement("button");
+            btn.classList.add("secondary-btn", "inline-btn");
+            btn.textContent = `Rechercher ${entry.name}`;
+            btn.addEventListener("click", () => searchForLostThrowable(entry.id));
+
+            row.appendChild(label);
+            row.appendChild(btn);
+            lostThrowableActionsEl.appendChild(row);
+        });
+    }
+
+    function computeRealMsFromGameSeconds(gameSeconds) {
+        const minutes = Math.max(0, gameSeconds) / 60;
+        return Math.max(500, Math.round(minutes / GAME_MINUTES_PER_MS));
+    }
+
+    async function searchForLostThrowable(entryId) {
+        if (!entryId) return;
+        if (isActionInProgress()) {
+            showToast("Une action est déjà en cours.", "info");
+            return;
+        }
+        if (activeLostThrowableSearch) {
+            showToast("Tu recherches déjà une arme de jet.", "info");
+            return;
+        }
+
+        const state = getLocationState(currentLocationId);
+        if (!state || !Array.isArray(state.lostThrowables)) return;
+        const entry = state.lostThrowables.find(e => e.id === entryId);
+        if (!entry) return;
+
+        const gameSeconds = Math.round(Math.random() * 30);
+        const durationMs = computeRealMsFromGameSeconds(gameSeconds);
+        const gameMinutesCost = gameSeconds / 60;
+        const label = `Recherche de ${entry.name}`;
+        activeLostThrowableSearch = entryId;
+
+        const result = await startBlockingAction(label, durationMs, {
+            hideInventory: true,
+            spinnerInChoices: true,
+            indeterminate: true,
+            cancelLabel: "Arrêter la recherche",
+            onCancel: () => {
+                activeLostThrowableSearch = null;
+                logMessage("Tu abandonnes la recherche pour l'instant.");
+                showToast("Recherche interrompue", "info");
+            }
+        });
+
+        if (result && result.cancelled) {
+            return;
+        }
+
+        activeLostThrowableSearch = null;
+        if (gameMinutesCost > 0) {
+            addGameMinutes(gameMinutesCost, { silent: false });
+        }
+
+        const item = createItemFromTemplate(entry.templateId);
+        if (item && lootEl) {
+            const node = createItemElement(item);
+            appendItemToZone(node, lootEl);
+            logMessage(`Tu remets la main sur ${entry.name}.`);
+            showToast(`${entry.name} retrouvé`, "success");
+        } else {
+            logMessage("Impossible de remettre la main sur cette arme de jet.");
+            showToast("L'arme de jet reste introuvable.", "warning");
+        }
+
+        state.lostThrowables = state.lostThrowables.filter(e => e.id !== entryId);
+        refreshLostThrowableActions();
+        updateCapacityUI();
+    }
+
     function equipWeaponFromElement(itemEl) {
         const hasWeapon = itemEl.dataset.hasWeapon === "true";
         if (!hasWeapon) return;
@@ -3001,6 +3178,13 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         return Math.min(0.9, baseChance + finesseBonus);
     }
 
+    function computeThrowableHitChance(distance) {
+        const finesse = Math.max(0, hero.finesse || 0);
+        const base = 0.5 + Math.min(0.35, finesse * 0.06);
+        const penalty = Math.max(0, distance) * 0.08;
+        return Math.max(0.25, Math.min(0.95, base - penalty));
+    }
+
     function heroWinsApproachInitiative() {
         const chance = computeHeroInitiativeChance();
         const roll = Math.random();
@@ -3127,26 +3311,36 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         const base = parseFloat(chosenThrowable.dataset.baseDamage || "0") || 0;
         const finesseBonus = hero.finesse * 0.8;
         const damage = Math.max(1, Math.round(base + finesseBonus));
-        enemy.hp = Math.max(0, enemy.hp - damage);
+        const hitChance = computeThrowableHitChance(combatState.distance);
+        const didHit = Math.random() < hitChance;
+        const targetName = chosenThrowable.dataset.name || "arme";
 
-        logMessage(
-            `Tu lances ${chosenThrowable.dataset.name} sur ${enemy.name}, infligeant ${damage} dégâts.`
-        );
-        showToast(`Lancer réussi : ${damage} dégâts`, "success");
+        if (didHit) {
+            enemy.hp = Math.max(0, enemy.hp - damage);
+            logMessage(
+                `Tu lances ${targetName} sur ${enemy.name}, infligeant ${damage} dégâts.`
+            );
+            showToast(`Lancer réussi (${Math.round(hitChance * 100)}%) : ${damage} dégâts`, "success");
+        } else {
+            logMessage(
+                `Tu lances ${targetName}, mais ${enemy.name} échappe au projectile (chance ${(hitChance * 100).toFixed(0)}%).`
+            );
+            showToast("Lancer manqué", "warning");
+        }
 
         combatState.attackCooldownEndsAt = now + ATTACK_COOLDOWN_MS;
         setTimeout(() => {
             if (combatState.active) renderCombatUI();
         }, ATTACK_COOLDOWN_MS);
 
-        dropItemToGround(chosenThrowable, { forced: true, silent: true });
+        registerLostThrowable(chosenThrowable);
         if (equippedWeaponTemplateId === chosenThrowable.dataset.templateId) {
             equippedWeaponTemplateId = null;
         }
         updateEquippedWeaponUI();
         updateCapacityUI();
 
-        if (enemy.hp <= 0) {
+        if (didHit && enemy.hp <= 0) {
             logMessage(`${enemy.name} est neutralisé par ton lancer.`);
             combatState.enemies.shift();
             if (!combatState.enemies.length) {
@@ -3714,7 +3908,8 @@ import { GAME_CONSTANTS } from "./game-constants.js";
                 defeatedCombats: new Set(),
                 flags: new Set(),
                 lootApplied: new Set(),
-                statusMessages: {}
+                statusMessages: {},
+                lostThrowables: []
             };
             locationsState[locationId] = state;
         }
@@ -3729,6 +3924,9 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         }
         if (!state.statusMessages) {
             state.statusMessages = {};
+        }
+        if (!state.lostThrowables) {
+            state.lostThrowables = [];
         }
         return state;
     }
@@ -3961,6 +4159,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
 
         updateCapacityUI();
         refreshWoundsIfRelevant();
+        refreshLostThrowableActions();
     }
 
     function handleOption(option, optionIndex = 0) {

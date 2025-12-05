@@ -686,6 +686,32 @@ header {
     background: rgba(255, 255, 255, 0.03);
 }
 
+.lost-throwable-actions {
+    margin: 6px 0;
+    padding: 6px;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.02);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.lost-throwable-actions .lost-throwable-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.lost-throwable-actions .lost-throwable-row .label {
+    flex: 1;
+    font-size: 0.85rem;
+}
+
+.lost-throwable-actions .inline-btn {
+    margin-left: auto;
+}
+
 .item {
     background: #222739;
     border-radius: 6px;
@@ -997,6 +1023,29 @@ body.combat-active .craft-panel {
     transition: width 0.1s linear;
 }
 
+.action-overlay-progress.indeterminate .action-overlay-bar {
+    width: 100%;
+    animation: bar-pulse 1.8s ease-in-out infinite;
+}
+
+.action-overlay-cancel {
+    width: 100%;
+    margin: 6px 0 4px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.03);
+    color: #fff;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.action-overlay-cancel:hover,
+.action-overlay-cancel:focus {
+    background: rgba(255, 255, 255, 0.07);
+    transform: translateY(-1px);
+}
+
 .action-overlay-label {
     font-weight: 700;
     letter-spacing: 0.04em;
@@ -1133,6 +1182,18 @@ body.combat-active .craft-panel {
     }
     to {
         transform: rotate(360deg);
+    }
+}
+
+@keyframes bar-pulse {
+    0% {
+        opacity: 0.75;
+    }
+    50% {
+        opacity: 0.35;
+    }
+    100% {
+        opacity: 0.75;
     }
 }
 
