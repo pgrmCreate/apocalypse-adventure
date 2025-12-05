@@ -58,6 +58,14 @@
                 </div>
             </div>
 
+            <div id="quest-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="quest-modal-title">
+                <div class="modal-content">
+                    <h2 id="quest-modal-title">Quête actuelle</h2>
+                    <p id="quest-modal-description" class="modal-meta"></p>
+                    <button id="quest-modal-close" class="choice-btn modal-confirm">Compris</button>
+                </div>
+            </div>
+
             <div
                 id="defeat-modal"
                 class="modal hidden"
@@ -72,6 +80,20 @@
                 </div>
             </div>
             <div class="floating-tags" aria-label="Raccourcis fixes">
+                <button class="tag-btn tag-quest" id="tag-quest" type="button" title="Voir la quête actuelle">
+                    <svg
+                        class="tag-icon"
+                        aria-hidden="true"
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            fill="currentColor"
+                            d="M11 3.055A7.002 7.002 0 0 0 5 10h2a5 5 0 0 1 5.92-4.9a5 5 0 0 1 3.985 4.99C16.736 12.826 15 15.327 15 18v1h-2v-1c0-2.557 1.736-5.058 1.996-7.91A3 3 0 0 0 7 10H5a5.002 5.002 0 0 1 6-4.9V3.055ZM13 22h-2v-2h2z"
+                        />
+                    </svg>
+                    <span class="sr-only">Quête</span>
+                </button>
                 <button class="tag-btn" id="tag-actions" data-target="#story-title" title="Aller aux actions">
                     <svg
                         class="tag-icon"
