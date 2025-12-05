@@ -34,6 +34,9 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
     });
+    const hpStatFormatter = new Intl.NumberFormat("fr-FR", {
+        maximumFractionDigits: 0
+    });
     const {
         BASE_CAPACITY,
         MAX_HUNGER,
@@ -830,8 +833,14 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         return hpFormatter.format(numeric);
     }
 
+    function formatHpStat(value) {
+        const numeric = typeof value === "number" ? value : Number(value);
+        if (!Number.isFinite(numeric)) return hpStatFormatter.format(0);
+        return hpStatFormatter.format(Math.round(numeric));
+    }
+
     function updateStatsUI() {
-        if (hpEl) hpEl.textContent = `${formatHp(hero.hp)} / ${formatHp(hero.maxHp)}`;
+        if (hpEl) hpEl.textContent = `${formatHpStat(hero.hp)} / ${formatHpStat(hero.maxHp)}`;
         if (forceEl) forceEl.textContent = String(hero.force);
         if (finesseEl) finesseEl.textContent = String(hero.finesse);
         if (audaceEl) audaceEl.textContent = String(hero.audace);
