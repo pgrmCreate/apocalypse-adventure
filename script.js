@@ -1287,9 +1287,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         }
 
         target.bandaged = true;
-        if (sanitizedQuality >= 2) {
-            target.bleeding = false;
-        }
+        target.bleeding = false;
         target.bandageQuality = sanitizedQuality;
         target.bleedMinutesBuffer = 0;
         target.bleedDamageRemainder = 0;
