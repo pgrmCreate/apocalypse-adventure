@@ -46,7 +46,7 @@ export const GAME_CONSTANTS = {
         uncommon: 2,
         rare: 3
     },
-    REAL_SECONDS_PER_GAME_HOUR: 90,
+    REAL_SECONDS_PER_GAME_HOUR: 120,
     ACTION_TIME_ACCELERATION: 6,
     TIME_COST_STEP_HOURS: 0.25,
     MOVE_DURATION_MS: 3000,
