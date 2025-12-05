@@ -318,18 +318,43 @@ body.has-game-overlay::before {
 
 header {
     margin-bottom: 16px;
+    text-align: center;
 }
 
-header h1 {
-    margin: 0 0 4px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-}
-
-.subtitle {
+.app-title {
     margin: 0;
-    font-size: 0.9rem;
-    color: var(--muted);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    font-weight: 800;
+    font-size: clamp(1.6rem, 4.5vw, 2.8rem);
+    color: #ff4545;
+    background: linear-gradient(120deg, #ff8585, #ff2d2d 35%, #f10f0f 65%, #ff6d6d);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 6px rgba(255, 69, 69, 0.65), 0 0 18px rgba(190, 0, 0, 0.6),
+        0 0 32px rgba(120, 0, 0, 0.75);
+    filter: drop-shadow(0 0 6px rgba(255, 0, 0, 0.55));
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    position: relative;
+    animation: blood-glow 2.8s ease-in-out infinite alternate;
+}
+
+.app-title::after {
+    content: "";
+    position: absolute;
+    inset: 4px;
+    border-radius: 10px;
+    background: radial-gradient(circle at 50% 20%, rgba(255, 255, 255, 0.08), transparent 50%),
+        radial-gradient(circle at 30% 80%, rgba(255, 45, 45, 0.12), transparent 45%),
+        radial-gradient(circle at 70% 60%, rgba(255, 90, 90, 0.16), transparent 45%);
+    filter: blur(1px);
+    opacity: 0.9;
+    pointer-events: none;
+    z-index: -1;
 }
 
 .layout {
@@ -1108,6 +1133,19 @@ body.combat-active .craft-panel {
     }
     to {
         transform: rotate(360deg);
+    }
+}
+
+@keyframes blood-glow {
+    0% {
+        text-shadow: 0 0 4px rgba(255, 69, 69, 0.5), 0 0 14px rgba(190, 0, 0, 0.55),
+            0 0 24px rgba(120, 0, 0, 0.65);
+        filter: drop-shadow(0 0 4px rgba(255, 0, 0, 0.45));
+    }
+    100% {
+        text-shadow: 0 0 8px rgba(255, 120, 120, 0.85), 0 0 22px rgba(255, 30, 30, 0.75),
+            0 0 36px rgba(180, 0, 0, 0.85);
+        filter: drop-shadow(0 0 10px rgba(255, 0, 0, 0.7));
     }
 }
 
