@@ -58,6 +58,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         ATTACK_COOLDOWN_MS,
         ENEMY_ATTACK_COOLDOWN_MS,
         LOOT_PICKUP_DURATION_MS,
+        LOST_THROWABLE_SEARCH_SECONDS,
         BLEED_DAMAGE_INTERVAL_MINUTES,
         HUNGER_DAMAGE_INTERVAL_MINUTES,
         WOUND_HEALING,
@@ -2554,47 +2555,57 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         const entry = state.lostThrowables.find(e => e.id === entryId);
         if (!entry) return;
 
-        const gameSeconds = Math.round(Math.random() * 30);
+        const minSeconds = Math.max(0, LOST_THROWABLE_SEARCH_SECONDS?.min ?? 0);
+        const maxSeconds = Math.max(minSeconds, LOST_THROWABLE_SEARCH_SECONDS?.max ?? minSeconds);
+        const span = Math.max(0, maxSeconds - minSeconds);
+        const gameSeconds = Math.round(minSeconds + Math.random() * span);
         const durationMs = computeRealMsFromGameSeconds(gameSeconds);
         const gameMinutesCost = gameSeconds / 60;
         const label = `Recherche de ${entry.name}`;
         activeLostThrowableSearch = entryId;
 
-        const result = await startBlockingAction(label, durationMs, {
-            hideInventory: true,
-            spinnerInChoices: true,
-            indeterminate: true,
-            cancelLabel: "Arrêter la recherche",
-            onCancel: () => {
-                activeLostThrowableSearch = null;
-                logMessage("Tu abandonnes la recherche pour l'instant.");
-                showToast("Recherche interrompue", "info");
+        let wasCancelled = false;
+
+        try {
+            const result = await startBlockingAction(label, durationMs, {
+                hideInventory: true,
+                spinnerInChoices: true,
+                indeterminate: true,
+                cancelLabel: "Arrêter la recherche",
+                onCancel: () => {
+                    wasCancelled = true;
+                    activeLostThrowableSearch = null;
+                    logMessage("Tu abandonnes la recherche pour l'instant.");
+                    showToast("Recherche interrompue", "info");
+                }
+            });
+
+            if (result && result.cancelled) {
+                return;
             }
-        });
 
-        if (result && result.cancelled) {
-            return;
+            if (gameMinutesCost > 0) {
+                addGameMinutes(gameMinutesCost, { silent: false });
+            }
+
+            const item = createItemFromTemplate(entry.templateId);
+            if (item && lootEl) {
+                const node = createItemElement(item);
+                appendItemToZone(node, lootEl);
+                logMessage(`Tu remets la main sur ${entry.name}.`);
+                showToast(`${entry.name} retrouvé`, "success");
+            } else {
+                logMessage("Impossible de remettre la main sur cette arme de jet.");
+                showToast("L'arme de jet reste introuvable.", "warning");
+            }
+
+            state.lostThrowables = state.lostThrowables.filter(e => e.id !== entryId);
+            updateCapacityUI();
+        } finally {
+            activeLostThrowableSearch = null;
+            refreshLostThrowableActions();
+            refreshCurrentSceneOptionButtons();
         }
-
-        activeLostThrowableSearch = null;
-        if (gameMinutesCost > 0) {
-            addGameMinutes(gameMinutesCost, { silent: false });
-        }
-
-        const item = createItemFromTemplate(entry.templateId);
-        if (item && lootEl) {
-            const node = createItemElement(item);
-            appendItemToZone(node, lootEl);
-            logMessage(`Tu remets la main sur ${entry.name}.`);
-            showToast(`${entry.name} retrouvé`, "success");
-        } else {
-            logMessage("Impossible de remettre la main sur cette arme de jet.");
-            showToast("L'arme de jet reste introuvable.", "warning");
-        }
-
-        state.lostThrowables = state.lostThrowables.filter(e => e.id !== entryId);
-        refreshLostThrowableActions();
-        updateCapacityUI();
     }
 
     function equipWeaponFromElement(itemEl) {
