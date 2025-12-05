@@ -381,7 +381,12 @@ import { GAME_CONSTANTS } from "./game-constants.js";
     let craftInfoEl;
     let craftListEl;
 
-    document.addEventListener("DOMContentLoaded", () => {
+    let hasInitialized = false;
+
+    function initGame() {
+        if (hasInitialized) return;
+        hasInitialized = true;
+
         storyTitleEl = document.getElementById("story-title");
         storyTextEl = document.getElementById("story-text");
         choicesEl = document.getElementById("choices");
@@ -499,7 +504,13 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         setupQuestShortcut();
         setupNewGameScreen();
         bootstrapGameLoading();
-    });
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initGame);
+    } else {
+        initGame();
+    }
 
     async function bootstrapGameLoading() {
         const totalAssets = PRELOAD_ASSETS.length;
