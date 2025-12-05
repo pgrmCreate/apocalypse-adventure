@@ -1,5 +1,5 @@
 export const GAME_CONSTANTS = {
-    CACHE_BUSTER: "0.9.35",
+    CACHE_BUSTER: "0.9.36",
     BASE_CAPACITY: 15,
     MAX_HUNGER: 50,
     MAX_THIRST: 50,
