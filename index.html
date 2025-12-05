@@ -4,7 +4,7 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
         <title>Apocalypse Zombie - v0.83</title>
-        <link rel="stylesheet" href="style.css?v=0.83.1">
+        <link id="main-stylesheet" rel="stylesheet" href="style.css">
     </head>
     <body>
         <div id="new-game-screen" class="new-game-screen hidden">
@@ -274,12 +274,29 @@
             </footer>
         </div>
 
-        <!-- Objets -->
-        <script src="items.js?v=0.83.1"></script>
-        <!-- Histoire (scènes, lieux, loot) -->
-        <script src="game-story.js?v=0.83.1"></script>
-        <!-- Mécaniques de jeu -->
-        <script type="module" src="script.js?v=0.83.1"></script>
+        <script type="module">
+            import { GAME_CONSTANTS } from "./game-constants.js";
+
+            const cacheBust = `?v=${GAME_CONSTANTS.CACHE_BUSTER}`;
+            const stylesheet = document.getElementById("main-stylesheet");
+            if (stylesheet) {
+                stylesheet.href += cacheBust;
+            }
+
+            const loadScript = (src, isModule = false) =>
+                new Promise((resolve, reject) => {
+                    const script = document.createElement("script");
+                    script.src = `${src}${cacheBust}`;
+                    script.type = isModule ? "module" : "text/javascript";
+                    script.onload = resolve;
+                    script.onerror = reject;
+                    document.body.appendChild(script);
+                });
+
+            await loadScript("./items.js");
+            await loadScript("./game-story.js");
+            await loadScript("./script.js", true);
+        </script>
 
         <div id="damage-flash" class="damage-flash" aria-hidden="true"></div>
 
