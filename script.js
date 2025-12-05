@@ -1,4 +1,4 @@
-import { GAME_CONSTANTS } from "./game-constants.js?v=0.83.1";
+import { GAME_CONSTANTS } from "./game-constants.js?v=0.9";
 
 (async () => {
     "use strict";
@@ -76,6 +76,8 @@ import { GAME_CONSTANTS } from "./game-constants.js?v=0.83.1";
         experience: heroDefaults.experience,
         nextStatThreshold: heroDefaults.nextStatThreshold
     };
+
+    const currentQuest = "Trouver un moyen de sortir du bâtiment";
 
     const audioUserGesturePromise = new Promise(resolve => {
         const unlock = () => {
@@ -326,6 +328,10 @@ import { GAME_CONSTANTS } from "./game-constants.js?v=0.83.1";
     let outcomeModalEffectEl;
     let outcomeModalConfirmBtn;
 
+    let questModalEl;
+    let questModalDescriptionEl;
+    let questModalCloseBtn;
+
     let defeatModalEl;
     let defeatModalMessageEl;
     let defeatModalRestartBtn;
@@ -338,6 +344,7 @@ import { GAME_CONSTANTS } from "./game-constants.js?v=0.83.1";
     let assetLoaderEl;
     let assetLoaderProgressEl;
 
+    let tagQuestBtn;
     let tagActionsBtn;
     let tagInventoryBtn;
     let tagStatsBtn;
@@ -443,6 +450,13 @@ import { GAME_CONSTANTS } from "./game-constants.js?v=0.83.1";
             outcomeModalConfirmBtn.addEventListener("click", closeOutcomeModal);
         }
 
+        questModalEl = document.getElementById("quest-modal");
+        questModalDescriptionEl = document.getElementById("quest-modal-description");
+        questModalCloseBtn = document.getElementById("quest-modal-close");
+        if (questModalCloseBtn) {
+            questModalCloseBtn.addEventListener("click", closeQuestModal);
+        }
+
         defeatModalEl = document.getElementById("defeat-modal");
         defeatModalMessageEl = document.getElementById("defeat-modal-message");
         defeatModalRestartBtn = document.getElementById("defeat-modal-restart");
@@ -461,6 +475,7 @@ import { GAME_CONSTANTS } from "./game-constants.js?v=0.83.1";
         assetLoaderEl = document.getElementById("asset-loader");
         assetLoaderProgressEl = document.getElementById("asset-loader-progress");
 
+        tagQuestBtn = document.getElementById("tag-quest");
         tagActionsBtn = document.getElementById("tag-actions");
         tagInventoryBtn = document.getElementById("tag-inventory");
         tagStatsBtn = document.getElementById("tag-stats");
@@ -481,6 +496,7 @@ import { GAME_CONSTANTS } from "./game-constants.js?v=0.83.1";
         }
 
         resetGameClock();
+        setupQuestShortcut();
         setupNewGameScreen();
         bootstrapGameLoading();
     });
@@ -517,6 +533,16 @@ import { GAME_CONSTANTS } from "./game-constants.js?v=0.83.1";
                 scrollToTarget(targetSelector);
             });
         });
+    }
+
+    function setupQuestShortcut() {
+        if (questModalDescriptionEl) {
+            questModalDescriptionEl.textContent = currentQuest;
+        }
+
+        if (tagQuestBtn) {
+            tagQuestBtn.addEventListener("click", showQuestModal);
+        }
     }
 
     function scrollToTarget(selector) {
@@ -2728,6 +2754,22 @@ import { GAME_CONSTANTS } from "./game-constants.js?v=0.83.1";
         if (!outcomeModalEl) return;
         outcomeModalEl.classList.remove("open");
         outcomeModalEl.classList.add("hidden");
+    }
+
+    function showQuestModal() {
+        if (!questModalEl) return;
+        if (questModalDescriptionEl) {
+            questModalDescriptionEl.textContent = currentQuest;
+        }
+        questModalEl.classList.remove("hidden");
+        questModalEl.classList.add("open");
+        questModalCloseBtn?.focus();
+    }
+
+    function closeQuestModal() {
+        if (!questModalEl) return;
+        questModalEl.classList.remove("open");
+        questModalEl.classList.add("hidden");
     }
 
     function canUseMelee() {
