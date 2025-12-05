@@ -821,7 +821,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
     }
 
     function updateStatsUI() {
-        if (hpEl) hpEl.textContent = `${hero.hp} / ${hero.maxHp}`;
+        if (hpEl) hpEl.textContent = `${hero.hp.toFixed(2)} / ${hero.maxHp.toFixed(2)}`;
         if (forceEl) forceEl.textContent = String(hero.force);
         if (finesseEl) finesseEl.textContent = String(hero.finesse);
         if (audaceEl) audaceEl.textContent = String(hero.audace);
