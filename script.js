@@ -1110,7 +1110,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
 
             try {
                 audio.currentTime = 0;
-                audio.volume = 0.8;
+                audio.volume = SOUND_EFFECTS.GLOBAL_VOLUME;
                 audio.play().catch(err => {
                     console.warn("Impossible de jouer l'effet sonore", err);
                 });

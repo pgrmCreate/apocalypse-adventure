@@ -26,6 +26,7 @@ export const GAME_CONSTANTS = {
         epic: 0.7
     },
     SOUND_EFFECTS: {
+        GLOBAL_VOLUME: 1,
         lightDamage: "assets/Sound/light-damage.m4a",
         hightDamage: "assets/Sound/hight-damage.m4a"
     },
