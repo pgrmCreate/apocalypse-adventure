@@ -22,7 +22,7 @@ export const GAME_CONSTANTS = {
     MUSIC_VOLUMES: {
         calm: 0.45,
         actions: 0.8,
-        sad: 0.6,
+        sad: 0.7,
         epic: 0.7
     },
     SOUND_EFFECTS: {
