@@ -1306,10 +1306,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             gameClockEl.setAttribute("title", `Jour ${dayLabel} • ${timeLabel}`);
         }
         if (timeContextEl) {
-            const speedNote = ACTION_TIME_ACCELERATION > 1
-                ? ` (1h = ${REAL_SECONDS_PER_GAME_HOUR}s réelles, x${ACTION_TIME_ACCELERATION} pendant une action)`
-                : ` (1h = ${REAL_SECONDS_PER_GAME_HOUR}s réelles)`;
-            timeContextEl.textContent = `Horloge : Jour ${dayLabel} ${timeLabel}${speedNote}`;
+            timeContextEl.textContent = "";
         }
     }
 
