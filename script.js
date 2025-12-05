@@ -2603,7 +2603,8 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             updateCapacityUI();
         } finally {
             activeLostThrowableSearch = null;
-            renderScene(currentSceneId);
+            refreshLostThrowableActions();
+            refreshCurrentSceneOptionButtons();
         }
     }
 
