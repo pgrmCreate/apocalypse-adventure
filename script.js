@@ -53,6 +53,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         LOOT_PICKUP_DURATION_MS,
         BLEED_DAMAGE_INTERVAL_MINUTES,
         HUNGER_DAMAGE_INTERVAL_MINUTES,
+        WOUND_HEALING,
         DEFAULT_START_HOUR,
         XP_INITIAL_THRESHOLD,
         XP_THRESHOLD_GROWTH,
@@ -987,7 +988,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         if (!wounds.length) {
             const ok = document.createElement("div");
             ok.classList.add("wound-ok");
-            ok.textContent = "Aucune blessure en cours. Tes PV remonteront à fond.";
+            ok.textContent = "Aucune blessure en cours. Tes PV remonteront progressivement.";
             woundsEl.appendChild(ok);
             updateWoundTagUI();
             return;
@@ -1225,6 +1226,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             bleeding: true,
             remainingTime: baseHeal,
             baseHealTime: baseHeal,
+            severity,
             bleedRate,
             bleedMinutesBuffer: 0,
             bleedDamageRemainder: 0
@@ -1266,7 +1268,9 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         }
 
         target.bandaged = true;
-        target.bleeding = false;
+        if (sanitizedQuality >= 2) {
+            target.bleeding = false;
+        }
         target.bandageQuality = sanitizedQuality;
         target.bleedMinutesBuffer = 0;
         target.bleedDamageRemainder = 0;
@@ -1278,9 +1282,11 @@ import { GAME_CONSTANTS } from "./game-constants.js";
                 `Tu améliores le bandage sur ta ${target.part} (${target.type}) avec une meilleure qualité.`
             );
         } else {
-            logMessage(
-                `Tu poses un bandage sur ta ${target.type} au ${target.part}. La plaie est stabilisée.`
-            );
+            const stillBleeding = target.bleeding && sanitizedQuality < 2;
+            const statusLabel = stillBleeding
+                ? "Le bandage de fortune ralentit l'hémorragie."
+                : "La plaie est stabilisée.";
+            logMessage(`Tu poses un bandage sur ta ${target.type} au ${target.part}. ${statusLabel}`);
         }
         return true;
     }
@@ -1427,29 +1433,52 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         const elapsedMinutes = timeUnits * 60;
 
         let bleedDamage = 0;
+        let totalRegen = 0;
         const needState = getNeedState();
+        const bandageProfiles = (WOUND_HEALING && WOUND_HEALING.BANDAGE_QUALITY_EFFECTS) || {};
+        const defaultBandageProfile = bandageProfiles[0] || { bleedMultiplier: 1, healPerCycle: 0 };
+        const bleedRange = (WOUND_HEALING && WOUND_HEALING.BLEED_DAMAGE_RANGE) || {
+            min: 0.1,
+            max: 0.8
+        };
+
+        const woundLoadPenalty = Math.max(
+            1,
+            1 + (wounds.length - 1) * (WOUND_HEALING?.WOUND_COUNT_PENALTY || 0)
+        );
+
         wounds.forEach(wound => {
-            if (!wound.bandaged && wound.bleeding) {
-                wound.bleedMinutesBuffer = (wound.bleedMinutesBuffer || 0) + elapsedMinutes;
-                while (wound.bleedMinutesBuffer >= BLEED_DAMAGE_INTERVAL_MINUTES) {
-                    const damageFloat =
-                        wound.bleedRate * (BLEED_DAMAGE_INTERVAL_MINUTES / 60) +
-                        (wound.bleedDamageRemainder || 0);
-                    const portion = Math.floor(damageFloat);
-                    wound.bleedDamageRemainder = damageFloat - portion;
-                    bleedDamage += portion;
-                    wound.bleedMinutesBuffer -= BLEED_DAMAGE_INTERVAL_MINUTES;
+            const bandageProfile = bandageProfiles[wound.bandageQuality] || defaultBandageProfile;
+            const typeFactor = (WOUND_HEALING?.TYPE_FACTORS && WOUND_HEALING.TYPE_FACTORS[wound.type]) || 1;
+            const severityFactor = Math.min(
+                WOUND_HEALING?.MAX_SEVERITY_FACTOR || 1,
+                1 + (Math.max(1, wound.severity) - 1) * (WOUND_HEALING?.SEVERITY_GRADIENT || 0)
+            );
+
+            wound.bleedMinutesBuffer = (wound.bleedMinutesBuffer || 0) + elapsedMinutes;
+            while (wound.bleedMinutesBuffer >= BLEED_DAMAGE_INTERVAL_MINUTES) {
+                wound.bleedMinutesBuffer -= BLEED_DAMAGE_INTERVAL_MINUTES;
+
+                const bleedBase = Math.min(
+                    bleedRange.max,
+                    bleedRange.min + (wound.severity - 1) * (bleedRange.max - bleedRange.min)
+                );
+                if (wound.bleeding) {
+                    const damageThisCycle = bleedBase * bandageProfile.bleedMultiplier * typeFactor;
+                    bleedDamage += damageThisCycle;
                 }
-                wound.remainingTime += timeUnits * 0.5;
-            } else {
-                const healRate =
-                    (1 + (wound.bandageQuality ? wound.bandageQuality * 0.6 : 0.4)) *
-                    needState.healModifier;
-                wound.remainingTime -= timeUnits * healRate;
-                const regain = Math.max(0, Math.round(timeUnits * healRate * 0.3));
-                if (regain > 0) {
-                    hero.hp = Math.min(hero.maxHp, hero.hp + regain);
-                }
+
+                const healSpeed =
+                    (WOUND_HEALING?.BASE_PROGRESS_PER_CYCLE || 0.5) *
+                    (wound.bandaged ? 1 : WOUND_HEALING?.UNBANDAGED_HEALING_FACTOR || 1) *
+                    needState.healModifier *
+                    severityFactor;
+                const healProgress = healSpeed / woundLoadPenalty;
+                wound.remainingTime -= healProgress;
+
+                const naturalRegen = healProgress * (WOUND_HEALING?.HP_PER_HEAL_PROGRESS || 0);
+                const bandageRegen = (bandageProfile.healPerCycle || 0) * needState.healModifier;
+                totalRegen += naturalRegen + bandageRegen;
             }
         });
 
@@ -1457,7 +1486,18 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             applyHeroDamage(bleedDamage, { type: "time", reason: "Tu te vides de ton sang." });
             if (!silent) {
                 logMessage(
-                    `Une plaie saigne encore et te coûte ${bleedDamage} PV pendant le temps qui passe.`
+                    `Une plaie saigne encore et te coûte ${bleedDamage.toFixed(1)} PV pendant le temps qui passe.`
+                );
+            }
+        }
+
+        if (totalRegen > 0 && hero.hp > 0) {
+            const before = hero.hp;
+            hero.hp = Math.min(hero.maxHp, hero.hp + totalRegen);
+            const gained = hero.hp - before;
+            if (gained > 0 && !silent) {
+                logMessage(
+                    `Tes soins et ton état (${needState.label}) te rendent ${gained.toFixed(1)} PV pendant la convalescence.`
                 );
             }
         }
@@ -1466,12 +1506,6 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         wounds = wounds.filter(w => w.remainingTime > 0 && hero.hp > 0);
         if (beforeCount !== wounds.length && !silent) {
             logMessage("Certaines blessures se referment enfin.");
-        }
-        if (wounds.length === 0 && hero.hp > 0) {
-            hero.hp = hero.maxHp;
-            if (!silent) {
-                logMessage("Tu n'as plus de plaies ouvertes : tes forces reviennent au maximum.");
-            }
         }
 
         renderWounds();
