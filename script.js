@@ -1653,7 +1653,11 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             affameDamageRemainder = 0;
         }
         affameActive = nowAffame;
-        const regen = Math.max(0, Math.round(needState.regenPerUnit * timeUnits));
+        const canRecoverNaturally =
+            wounds.length === 0 && (needState.label === "bien nourri" || needState.label === "nourri");
+        const regen = canRecoverNaturally
+            ? Math.max(0, Math.round(needState.regenPerUnit * timeUnits))
+            : 0;
         if (regen > 0 && hero.hp > 0 && hero.hp < hero.maxHp) {
             const before = hero.hp;
             hero.hp = Math.min(hero.maxHp, hero.hp + regen);
