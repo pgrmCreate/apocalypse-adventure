@@ -2577,9 +2577,6 @@ import { GAME_CONSTANTS } from "./game-constants.js";
                 cancelLabel: "Arrêter la recherche",
                 onCancel: () => {
                     activeLostThrowableSearch = null;
-                    removeLostThrowableEntry(state, entryId);
-                    refreshLostThrowableActions();
-                    refreshCurrentSceneOptionButtons();
                     logMessage("Tu abandonnes la recherche pour l'instant.");
                     showToast("Recherche interrompue", "info");
                 }
@@ -2608,8 +2605,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             updateCapacityUI();
         } finally {
             activeLostThrowableSearch = null;
-            refreshLostThrowableActions();
-            refreshCurrentSceneOptionButtons();
+            renderScene(currentSceneId);
         }
     }
 
