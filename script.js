@@ -2503,6 +2503,11 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         clearSelectedItem();
     }
 
+    function removeLostThrowableEntry(state, entryId) {
+        if (!state?.lostThrowables) return;
+        state.lostThrowables = state.lostThrowables.filter(e => e.id !== entryId);
+    }
+
     function refreshLostThrowableActions() {
         if (!lostThrowableActionsEl) return;
         const state = getLocationState(currentLocationId);
@@ -2564,8 +2569,6 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         const label = `Recherche de ${entry.name}`;
         activeLostThrowableSearch = entryId;
 
-        let wasCancelled = false;
-
         try {
             const result = await startBlockingAction(label, durationMs, {
                 hideInventory: true,
@@ -2573,8 +2576,10 @@ import { GAME_CONSTANTS } from "./game-constants.js";
                 indeterminate: true,
                 cancelLabel: "Arrêter la recherche",
                 onCancel: () => {
-                    wasCancelled = true;
                     activeLostThrowableSearch = null;
+                    removeLostThrowableEntry(state, entryId);
+                    refreshLostThrowableActions();
+                    refreshCurrentSceneOptionButtons();
                     logMessage("Tu abandonnes la recherche pour l'instant.");
                     showToast("Recherche interrompue", "info");
                 }
@@ -2599,7 +2604,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
                 showToast("L'arme de jet reste introuvable.", "warning");
             }
 
-            state.lostThrowables = state.lostThrowables.filter(e => e.id !== entryId);
+            removeLostThrowableEntry(state, entryId);
             updateCapacityUI();
         } finally {
             activeLostThrowableSearch = null;
