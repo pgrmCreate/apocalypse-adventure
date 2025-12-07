@@ -18,7 +18,8 @@ window.ITEM_TEMPLATES = {
             baseDamage: 2,
             forceMultiplier: 0.5,
             finesseMultiplier: 1.0,
-            throwable: true
+            throwable: true,
+            range: 1
         }
     },
 
@@ -30,7 +31,8 @@ window.ITEM_TEMPLATES = {
         weaponStats: {
             baseDamage: 3,
             forceMultiplier: 1.0,
-            finesseMultiplier: 0.5
+            finesseMultiplier: 0.5,
+            range: 1
         }
     },
 
@@ -42,7 +44,8 @@ window.ITEM_TEMPLATES = {
         weaponStats: {
             baseDamage: 4,
             forceMultiplier: 1.1,
-            finesseMultiplier: 0.4
+            finesseMultiplier: 0.4,
+            range: 1
         }
     },
 
@@ -54,7 +57,8 @@ window.ITEM_TEMPLATES = {
         weaponStats: {
             baseDamage: 4,
             forceMultiplier: 1.4,
-            finesseMultiplier: 0.2
+            finesseMultiplier: 0.2,
+            range: 1
         }
     },
 
@@ -67,7 +71,8 @@ window.ITEM_TEMPLATES = {
             baseDamage: 2,
             forceMultiplier: 0.8,
             finesseMultiplier: 0.3,
-            throwable: true
+            throwable: true,
+            range: 1
         }
     },
 
@@ -123,7 +128,8 @@ window.ITEM_TEMPLATES = {
             baseDamage: 2,
             forceMultiplier: 0.9,
             finesseMultiplier: 0.4,
-            throwable: true
+            throwable: true,
+            range: 1
         }
     },
 
@@ -270,7 +276,8 @@ window.ITEM_TEMPLATES = {
             baseDamage: 3,
             forceMultiplier: 0.9,
             finesseMultiplier: 0.8,
-            throwable: true
+            throwable: true,
+            range: 2
         },
         craftDurationSec: 7,
         // Recette de craft pour fabriquer une lance
@@ -290,7 +297,8 @@ window.ITEM_TEMPLATES = {
         weaponStats: {
             baseDamage: 5,
             forceMultiplier: 0.7,
-            finesseMultiplier: 0.8
+            finesseMultiplier: 0.8,
+            range: 1
         },
         craftDurationSec: 8,
         canCraft: {
@@ -306,7 +314,8 @@ window.ITEM_TEMPLATES = {
         weaponStats: {
             baseDamage: 7,
             forceMultiplier: 1,
-            finesseMultiplier: 1
+            finesseMultiplier: 1,
+            range: 1
         },
         craftDurationSec: 6,
         canCraft: {

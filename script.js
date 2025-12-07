@@ -1799,10 +1799,15 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             div.dataset.baseDamage = String(item.weaponStats.baseDamage || 0);
             div.dataset.forceMult = String(item.weaponStats.forceMultiplier || 0);
             div.dataset.finesseMult = String(item.weaponStats.finesseMultiplier || 0);
+            const range = Number.isFinite(item.weaponStats.range)
+                ? Math.max(0, item.weaponStats.range)
+                : 1;
+            div.dataset.range = String(range);
         } else {
             div.dataset.baseDamage = "0";
             div.dataset.forceMult = "0";
             div.dataset.finesseMult = "0";
+            div.dataset.range = "0";
         }
 
         if (hasBag) {
@@ -2543,9 +2548,8 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         });
     }
 
-    function computeRealMsFromGameSeconds(gameSeconds) {
-        const minutes = Math.max(0, gameSeconds) / 60;
-        return Math.max(500, Math.round(minutes / GAME_MINUTES_PER_MS));
+    function computeRealMsFromSeconds(seconds) {
+        return Math.max(0, Math.round(Math.max(0, seconds) * 1000));
     }
 
     async function searchForLostThrowable(entryId) {
@@ -2567,9 +2571,9 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         const minSeconds = Math.max(0, LOST_THROWABLE_SEARCH_SECONDS?.min ?? 0);
         const maxSeconds = Math.max(minSeconds, LOST_THROWABLE_SEARCH_SECONDS?.max ?? minSeconds);
         const span = Math.max(0, maxSeconds - minSeconds);
-        const gameSeconds = Math.round(minSeconds + Math.random() * span);
-        const durationMs = computeRealMsFromGameSeconds(gameSeconds);
-        const gameMinutesCost = gameSeconds / 60;
+        const searchSeconds = Math.round(minSeconds + Math.random() * span);
+        const durationMs = computeRealMsFromSeconds(searchSeconds);
+        const gameMinutesCost = searchSeconds / 60;
         const label = `Recherche de ${entry.name}`;
         activeLostThrowableSearch = entryId;
 
@@ -3029,12 +3033,18 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         questModalEl.classList.add("hidden");
     }
 
+    function getEquippedWeaponRange() {
+        const tpl = getEquippedWeaponTemplate();
+        if (!tpl) return 0;
+        const reach = tpl.weaponStats?.range;
+        if (Number.isFinite(reach)) return Math.max(0, reach);
+        return 1;
+    }
+
     function canUseMelee() {
-        const hasMeleeWeapon = Boolean(getEquippedWeaponTemplate());
-        if (!hasMeleeWeapon) {
-            return combatState.distance === 0;
-        }
-        return combatState.distance <= 1;
+        if (!combatState?.active) return false;
+        const reach = getEquippedWeaponRange();
+        return combatState.distance <= reach;
     }
 
     function canUseRanged() {
@@ -3147,15 +3157,23 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         const now = performance.now();
         const cooldownRemainingMs = Math.max(0, (combatState.attackCooldownEndsAt || 0) - now);
         const meleeInCooldown = cooldownRemainingMs > 0;
+        const inMeleeRange = canUseMelee();
 
-        const attackBtn = document.createElement("button");
-        attackBtn.classList.add("choice-btn");
-        attackBtn.textContent = meleeInCooldown
-            ? `Attaque au corps à corps (${(cooldownRemainingMs / 1000).toFixed(1)}s)`
-            : "Attaque au corps à corps";
-        attackBtn.disabled = !combatState.enemies.length || !canUseMelee() || meleeInCooldown;
-        attackBtn.addEventListener("click", performMeleeAttack);
-        choicesEl.appendChild(attackBtn);
+        if (inMeleeRange) {
+            const attackBtn = document.createElement("button");
+            attackBtn.classList.add("choice-btn");
+            attackBtn.textContent = meleeInCooldown
+                ? `Attaque au corps à corps (${(cooldownRemainingMs / 1000).toFixed(1)}s)`
+                : "Attaque au corps à corps";
+            attackBtn.disabled = !combatState.enemies.length || meleeInCooldown;
+            attackBtn.addEventListener("click", performMeleeAttack);
+            choicesEl.appendChild(attackBtn);
+        } else if (combatState.enemies.length) {
+            const info = document.createElement("div");
+            info.classList.add("combat-distance");
+            info.textContent = "L'adversaire est hors de portée pour une attaque au corps à corps.";
+            choicesEl.appendChild(info);
+        }
 
         const throwableElements = getThrowableWeaponElements();
         if (throwableElements.length === 0) {
