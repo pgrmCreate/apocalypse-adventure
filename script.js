@@ -3037,7 +3037,10 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         const tpl = getEquippedWeaponTemplate();
         if (!tpl) return 0;
         const reach = tpl.weaponStats?.range;
-        if (Number.isFinite(reach)) return Math.max(0, reach);
+        if (Number.isFinite(reach)) {
+            // Toute arme devrait offrir au moins une étape d'engagement avant le contact.
+            return Math.max(1, reach);
+        }
         return 1;
     }
 
@@ -3171,7 +3174,12 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         } else if (combatState.enemies.length) {
             const info = document.createElement("div");
             info.classList.add("combat-distance");
-            info.textContent = "L'adversaire est hors de portée pour une attaque au corps à corps.";
+            const reach = getEquippedWeaponRange();
+            info.textContent =
+                "L'adversaire est hors de portée pour une attaque au corps à corps." +
+                (reach > 0
+                    ? ` (portée actuelle de l'arme : ${reach})`
+                    : " (tu combats à mains nues)");
             choicesEl.appendChild(info);
         }
 
