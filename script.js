@@ -275,7 +275,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
     let equippedWeaponTemplateId = null;
     let equippedBagTemplateId = null;
     let wounds = [];
-    let combatState = { active: false };
+    let combatState = { active: false, enemies: [] };
     let lastNeedStatus = null;
     const visitedLocations = new Set();
     let gameTimeMinutes = DEFAULT_START_HOUR * 60;
@@ -3238,7 +3238,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
 
     function approachEnemy() {
         if (!combatState.active) return;
-        const enemy = combatState.enemies[0];
+        const enemy = combatState.enemies?.[0];
         if (!enemy) {
             endCombat(true);
             return;
@@ -3278,7 +3278,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
     function performMeleeAttack() {
         if (!combatState.active) return;
         syncCombatDistanceFromApproach();
-        const enemy = combatState.enemies[0];
+        const enemy = combatState.enemies?.[0];
         if (!enemy) {
             endCombat(true);
             return;
@@ -3325,7 +3325,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
     function performRangedAttack(throwable) {
         if (!combatState.active) return;
         syncCombatDistanceFromApproach();
-        const enemy = combatState.enemies[0];
+        const enemy = combatState.enemies?.[0];
         if (!enemy) {
             endCombat(true);
             return;
@@ -3401,7 +3401,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
     function attemptFlee() {
         if (!combatState.active) return;
         const roll = rollDice(6, 2);
-        const difficulty = combatState.enemies[0]
+        const difficulty = combatState.enemies?.[0]
             ? combatState.enemies[0].fleeDifficulty
             : 10;
         const total = roll.sum + hero.audace;
@@ -3457,7 +3457,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         }
         showToast(victory ? "Victoire" : "Défaite", victory ? "success" : "danger");
         currentTimeContext = previousCombat.previousTimeContext || currentTimeContext;
-        combatState = { active: false };
+        combatState = { active: false, enemies: [] };
         document.body.classList.remove("combat-active");
         updateGroundPanelVisibility();
         if (choiceTitleEl) choiceTitleEl.textContent = "Que fais-tu ?";
