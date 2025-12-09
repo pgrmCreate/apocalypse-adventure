@@ -2631,6 +2631,9 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         itemEl.classList.add("equipped-weapon");
 
         updateEquippedWeaponUI();
+        if (combatState?.active) {
+            renderCombatUI();
+        }
         logMessage(`Tu équipes : ${itemEl.dataset.name} comme arme.`);
         showToast(`${itemEl.dataset.name} équipé(e) comme arme.`, "info");
     }
