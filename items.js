@@ -49,6 +49,32 @@ window.ITEM_TEMPLATES = {
         }
     },
 
+    rustyPipe: {
+        name: "Tuyau rouille",
+        value: 6,
+        type: "arme",
+        rarity: 2,
+        weaponStats: {
+            baseDamage: 3,
+            forceMultiplier: 0.9,
+            finesseMultiplier: 0.4,
+            range: 1
+        }
+    },
+
+    kitchenPan: {
+        name: "Poele cabossee",
+        value: 5,
+        type: "arme",
+        rarity: 1,
+        weaponStats: {
+            baseDamage: 2,
+            forceMultiplier: 0.8,
+            finesseMultiplier: 0.3,
+            range: 1
+        }
+    },
+
     anvil: {
         name: "Enclume",
         value: 50,
@@ -86,6 +112,13 @@ window.ITEM_TEMPLATES = {
     lighter: {
         name: "Briquet",
         value: 1,
+        type: "outil",
+        rarity: 2
+    },
+
+    flare: {
+        name: "Fusee eclairante",
+        value: 2,
         type: "outil",
         rarity: 2
     },
@@ -212,6 +245,16 @@ window.ITEM_TEMPLATES = {
         useDurationSec: 6
     },
 
+    energyBar: {
+        name: "Barre energetique",
+        value: 2,
+        type: "consommable",
+        rarity: 2,
+        hungerRestore: 4,
+        thirstRestore: 1,
+        useDurationSec: 4
+    },
+
     waterBottle: {
         name: "Bouteille d'eau",
         value: 3,
@@ -226,6 +269,15 @@ window.ITEM_TEMPLATES = {
         type: "consommable",
         rarity: 3,
         heal: 5
+    },
+
+    antisepticSpray: {
+        name: "Spray antiseptique",
+        value: 3,
+        type: "consommable",
+        rarity: 3,
+        heal: 2,
+        useDurationSec: 3
     },
 
     satchel: {
