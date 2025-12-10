@@ -2846,6 +2846,12 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         return Math.max(0, Math.min(100, percent));
     }
 
+    function markContactWindow() {
+        if (!combatState.active) return;
+        combatState.preContactStrikeReady = true;
+        logMessage("Tu as une fenÇùtre pour frapper avant le contact direct.");
+    }
+
     function updateApproachMeterUI() {
         const fill = choicesEl && choicesEl.querySelector(".approach-fill");
         const label = choicesEl && choicesEl.querySelector(".approach-label");
@@ -2877,6 +2883,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         }
 
         if (previousDistance !== combatState.distance && combatState.distance === 0 && combatState.active) {
+            markContactWindow();
             renderCombatUI();
         }
     }
@@ -2918,6 +2925,42 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         combatApproachTimer = null;
     }
 
+    function canDoPreContactStrike() {
+        if (!combatState.active) return false;
+        if (combatState.distance > 0) return false;
+        if (!combatState.preContactStrikeReady) return false;
+        if (!canUseMelee()) return false;
+        const now = performance.now();
+        return now >= (combatState.attackCooldownEndsAt || 0);
+    }
+
+    function heroPreContactStrike() {
+        if (!canDoPreContactStrike()) return false;
+        const enemy = combatState.enemies?.[0];
+        if (!enemy) return false;
+
+        const roll = rollDice(6, 1);
+        const damage = computeBaseAttackPower() + roll.sum;
+        enemy.hp = Math.max(0, enemy.hp - damage);
+        logMessage(
+            `Tu frappes avant l'impact et infliges ${damage} dÇ¸gÇ½ts (jet ${roll.rolls.join(", ")}).`
+        );
+        showToast("Coup d'arrÛt portÇ¸", "success");
+
+        combatState.attackCooldownEndsAt = performance.now() + ATTACK_COOLDOWN_MS;
+        combatState.preContactStrikeReady = false;
+
+        if (enemy.hp <= 0) {
+            logMessage(`${enemy.name} s'effondre avant de t'atteindre.`);
+            combatState.enemies.shift();
+            if (!combatState.enemies.length) {
+                endCombat(true);
+                return true;
+            }
+        }
+        return true;
+    }
+
     function attemptEnemyAttack(opts = {}) {
         if (!combatState.active) return false;
         if (combatState.awaitingIntroConfirm) return false;
@@ -2926,6 +2969,15 @@ import { GAME_CONSTANTS } from "./game-constants.js";
 
         syncCombatDistanceFromApproach();
         updateApproachMeterUI();
+
+        if (canDoPreContactStrike()) {
+            const struck = heroPreContactStrike();
+            if (!combatState.active) return true;
+            if (struck) {
+                combatState.nextEnemyAttackAt = performance.now() + ENEMY_ATTACK_COOLDOWN_MS;
+                return true;
+            }
+        }
 
         if (combatState.distance > 0 && !opts.ignoreDistance) {
             if (opts.logApproach) {
@@ -3100,6 +3152,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             attackCooldownEndsAt: 0,
             nextEnemyAttackAt: performance.now(),
             approach: buildApproachState(startDistance),
+            preContactStrikeReady: false,
             awaitingIntroConfirm: false,
             originCombatId:
                 typeof optionIndex === "number"
