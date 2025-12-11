@@ -13,6 +13,8 @@ window.GAME_STORY = {
             timeContext: "slow",
             minLoot: [],
             randomLoot: [],
+            randomLootRarity: { 1: 0.7, 2: 0.2, 3: 0.1 },
+            randomLootQuantity: 3,
           options: [
               {
                   text: "Retirer la barricade et rejoindre le salon",
@@ -46,6 +48,7 @@ window.GAME_STORY = {
             minLoot: [],
             randomLoot: ["waterBottle", "paper", "energyBar"],
             randomLootRarity: { 1: 0.8, 2: 0.18, 3: 0.02 },
+            randomLootQuantity: 2,
             options: [
                 {
                     text: "Retourner dans la chambre",
@@ -75,6 +78,7 @@ window.GAME_STORY = {
             minLoot: ["cannedFood", "waterBottle"],
             randomLoot: ["knife", "matches", "energyBar", "flare"],
             randomLootRarity: { 1: 0.75, 2: 0.2, 3: 0.05 },
+            randomLootQuantity: 3,
             options: [
                 {
                     text: "Ouvrir le placard renverse (risque de morsure)",
