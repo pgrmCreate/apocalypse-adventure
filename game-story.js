@@ -17,7 +17,7 @@ window.GAME_STORY = {
               {
                   text: "Retirer la barricade et rejoindre le salon",
                   nextScene: "aptLiving",
-                  timeCost: 1,
+                  timeCost: 1.1,
                   setFlagOnAttempt: "barricade_removed",
                   setFlagOnSuccess: "barricade_removed",
                   hideIfFlag: "barricade_removed"
@@ -25,13 +25,13 @@ window.GAME_STORY = {
               {
                   text: "Rejoindre le salon",
                     nextScene: "aptLiving",
-                    timeCost: 1,
+                    timeCost: 0.6,
                     showIfFlag: "barricade_removed"
                 },
                 {
                     text: "Respirer et maintenir le calme avant de bouger",
                     nextScene: "intro",
-                    timeCost: 0
+                    timeCost: 1
                 }
             ]
         },
@@ -50,17 +50,17 @@ window.GAME_STORY = {
                 {
                     text: "Retourner dans la chambre",
                     nextScene: "intro",
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Aller a la cuisine",
                     nextScene: "aptKitchen",
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Sortir dans le couloir",
                     nextScene: "aptHallway",
-                    timeCost: 1
+                    timeCost: 0.6
                 }
             ]
         },
@@ -95,7 +95,7 @@ window.GAME_STORY = {
                 {
                     text: "Retourner au salon",
                     nextScene: "aptLiving",
-                    timeCost: 1
+                    timeCost: 0.6
                 }
             ]
         },
@@ -114,17 +114,17 @@ window.GAME_STORY = {
                 {
                     text: "Observer l'appartement 3B",
                     nextScene: "neighbor3Door",
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Descendre vers la cage d'escalier",
                     nextScene: "stairs3Encounter",
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Revenir au salon",
                     nextScene: "aptLiving",
-                    timeCost: 1
+                    timeCost: 0.6
                 }
             ]
         },
@@ -142,12 +142,12 @@ window.GAME_STORY = {
                 {
                     text: "Entrer prudemment",
                     nextScene: "neighbor3Inside",
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Revenir dans le couloir",
                     nextScene: "aptHallway",
-                    timeCost: 0
+                    timeCost: 0.6
                 }
             ]
         },
@@ -166,7 +166,7 @@ window.GAME_STORY = {
                 {
                     text: "Revenir dans le couloir",
                     nextScene: "aptHallway",
-                    timeCost: 1
+                    timeCost: 0.6
                 }
             ]
         },
@@ -217,7 +217,7 @@ window.GAME_STORY = {
                 {
                     text: "Revenir au couloir",
                     nextScene: "aptHallway",
-                    timeCost: 0
+                    timeCost: 0.6
                 }
             ]
         },
@@ -236,12 +236,12 @@ window.GAME_STORY = {
                 {
                     text: "Descendre au 2e etage",
                     nextScene: "landing2",
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Remonter vers ton etage",
                     nextScene: "aptHallway",
-                    timeCost: 1
+                    timeCost: 0.6
                 }
             ]
         },
@@ -262,17 +262,17 @@ window.GAME_STORY = {
                 {
                     text: "Entrer dans l'appartement 2A",
                     nextScene: "apt2",
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Descendre au 1er etage",
                     nextScene: "landing1",
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Remonter vers le 3e",
                     nextScene: "stairs3Clear",
-                    timeCost: 1
+                    timeCost: 0.6
                 }
             ]
         },
@@ -306,7 +306,7 @@ window.GAME_STORY = {
                 {
                     text: "Revenir sur le palier",
                     nextScene: "landing2",
-                    timeCost: 1
+                    timeCost: 0.6
                 }
             ]
         },
@@ -327,17 +327,17 @@ window.GAME_STORY = {
                 {
                     text: "Entrer dans l'appartement 1A",
                     nextScene: "apt1",
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Descendre vers le hall d'entree",
                     nextScene: "groundHall",
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Remonter au 2e",
                     nextScene: "landing2",
-                    timeCost: 1
+                    timeCost: 0.6
                 }
             ]
         },
@@ -371,7 +371,7 @@ window.GAME_STORY = {
                 {
                     text: "Revenir sur le palier",
                     nextScene: "landing1",
-                    timeCost: 1
+                    timeCost: 0.6
                 }
             ]
         },
@@ -391,17 +391,17 @@ window.GAME_STORY = {
                 {
                     text: "Examiner la porte principale",
                     nextScene: "mainDoorWork",
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Chercher l'acces au garage",
                     nextScene: "garageEntrance",
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Remonter au 1er etage",
                     nextScene: "landing1",
-                    timeCost: 1
+                    timeCost: 0.6
                 }
             ]
         },
@@ -420,7 +420,7 @@ window.GAME_STORY = {
                     text: "Utiliser un pied-de-biche pour degager les planches",
                     requiredItem: "crowbar",
                     nextScene: "streetIntro",
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Degonder patiemment a mains nues",
@@ -462,7 +462,7 @@ window.GAME_STORY = {
                     text: "Utiliser la cle du garage",
                     requiredItem: "garageKey",
                     nextScene: "garageShadow",
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Forcer la serrure avec finesse",
@@ -482,7 +482,7 @@ window.GAME_STORY = {
                 {
                     text: "Revenir dans le hall",
                     nextScene: "groundHall",
-                    timeCost: 1
+                    timeCost: 0.6
                 }
             ]
         },
@@ -522,7 +522,7 @@ window.GAME_STORY = {
                 {
                     text: "Remonter vers le hall",
                     nextScene: "groundHall",
-                    timeCost: 1
+                    timeCost: 0.6
                 }
             ]
         },
@@ -540,12 +540,12 @@ window.GAME_STORY = {
                 {
                     text: "Aller vers la ruelle principale",
                     nextScene: "streetIntro",
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Revenir dans le garage",
                     nextScene: "garageShadow",
-                    timeCost: 1
+                    timeCost: 0.6
                 }
             ]
         },
@@ -566,27 +566,27 @@ window.GAME_STORY = {
                 {
                     text: "Traverser vers la pharmacie",
                     nextScene: "pharmacyFront",
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Couper par le square",
                     nextScene: "parkSquare",
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Prendre le passage vers le quai de livraison",
                     nextScene: "deliveryYard",
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Descendre vers l'entree de metro",
                     nextScene: "subwayEntrance",
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Retourner vers la rampe du garage",
                     nextScene: "outsideRamp",
-                    timeCost: 1
+                    timeCost: 0.6
                 }
             ]
         },
@@ -604,12 +604,12 @@ window.GAME_STORY = {
                 {
                     text: "Entrer dans la pharmacie",
                     nextScene: "pharmacyInside",
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Revenir dans la ruelle",
                     nextScene: "streetIntro",
-                    timeCost: 1
+                    timeCost: 0.6
                 }
             ]
         },
@@ -643,7 +643,7 @@ window.GAME_STORY = {
                 {
                     text: "Sortir vers la ruelle",
                     nextScene: "streetIntro",
-                    timeCost: 1
+                    timeCost: 0.6
                 }
             ]
         },
@@ -664,32 +664,32 @@ window.GAME_STORY = {
                 {
                     text: "Approcher du bassin asseche",
                     nextScene: "parkFountain",
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Aller vers le kiosque effondre",
                     nextScene: "parkKiosk",
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Rejoindre le campement a l'est",
                     nextScene: "survivorCamp",
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Descendre vers la bouche de metro",
                     nextScene: "subwayEntrance",
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Retourner vers la ruelle",
                     nextScene: "streetIntro",
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Gravir l'escalier de secours",
                     nextScene: "fireEscapeLanding",
-                    timeCost: 1
+                    timeCost: 0.6
                 }
             ]
         },
@@ -719,22 +719,22 @@ window.GAME_STORY = {
                     failScene: "parkFountain",
                     successEffect: { audaceChange: 1 },
                     failEffect: { hpChange: -1 },
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Revenir au centre du square",
                     nextScene: "parkSquare",
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Suivre le chemin vers la bouche de metro",
                     nextScene: "subwayEntrance",
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Remonter vers le kiosque",
                     nextScene: "parkKiosk",
-                    timeCost: 1
+                    timeCost: 0.6
                 }
             ]
         },
@@ -753,17 +753,17 @@ window.GAME_STORY = {
                 {
                     text: "Soulever les caisses et recuperer ce qui reste",
                     nextScene: "parkKiosk",
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Retourner vers le square",
                     nextScene: "parkSquare",
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Rejoindre la ruelle par le nord-est",
                     nextScene: "streetIntro",
-                    timeCost: 1
+                    timeCost: 0.6
                 }
             ]
         },
@@ -811,7 +811,7 @@ window.GAME_STORY = {
                 {
                     text: "Quitter le campement",
                     nextScene: "parkSquare",
-                    timeCost: 1
+                    timeCost: 0.6
                 }
             ]
         },
@@ -840,17 +840,17 @@ window.GAME_STORY = {
                     failScene: "subwayEntrance",
                     successEffect: { audaceChange: 1 },
                     failEffect: { hpChange: -1 },
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Remonter vers le square",
                     nextScene: "parkSquare",
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Revenir vers la ruelle",
                     nextScene: "streetIntro",
-                    timeCost: 1
+                    timeCost: 0.6
                 }
             ]
         },
@@ -886,12 +886,12 @@ window.GAME_STORY = {
                 {
                     text: "Retourner vers la ruelle",
                     nextScene: "streetIntro",
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Gravir l'escalier de secours voisin",
                     nextScene: "fireEscapeLanding",
-                    timeCost: 1
+                    timeCost: 0.6
                 }
             ]
         },
@@ -921,17 +921,17 @@ window.GAME_STORY = {
                     failScene: "fireEscapeLanding",
                     successEffect: { audaceChange: 1 },
                     failEffect: { hpChange: -1 },
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Redescendre vers le quai de livraison",
                     nextScene: "deliveryYard",
-                    timeCost: 1
+                    timeCost: 0.6
                 },
                 {
                     text: "Descendre l'echelle vers le square",
                     nextScene: "parkSquare",
-                    timeCost: 1
+                    timeCost: 0.6
                 }
             ]
         },
