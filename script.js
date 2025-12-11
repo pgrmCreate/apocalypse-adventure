@@ -359,7 +359,6 @@ import { GAME_CONSTANTS } from "./game-constants.js";
     let assetLoaderProgressEl;
 
     let tagQuestBtn;
-    let tagActionsBtn;
     let tagInventoryBtn;
     let tagStatsBtn;
     let tagWoundsBtn;
@@ -527,7 +526,6 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         assetLoaderProgressEl = document.getElementById("asset-loader-progress");
 
         tagQuestBtn = document.getElementById("tag-quest");
-        tagActionsBtn = document.getElementById("tag-actions");
         tagInventoryBtn = document.getElementById("tag-inventory");
         tagStatsBtn = document.getElementById("tag-stats");
         tagWoundsBtn = document.getElementById("tag-wounds");
@@ -583,9 +581,6 @@ import { GAME_CONSTANTS } from "./game-constants.js";
     }
 
     function setupTagNavigation() {
-        if (tagActionsBtn) {
-            tagActionsBtn.addEventListener("click", () => scrollToTarget("#story-title"));
-        }
         if (tagInventoryBtn) {
             tagInventoryBtn.addEventListener("click", openInventoryModal);
         }
@@ -1407,7 +1402,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
     }
 
     function setTagButtonsDisabled(disabled) {
-        [tagActionsBtn, tagInventoryBtn, tagStatsBtn].forEach(btn => {
+        [tagInventoryBtn, tagStatsBtn].forEach(btn => {
             if (btn) {
                 btn.disabled = disabled;
                 btn.setAttribute("aria-disabled", String(disabled));
