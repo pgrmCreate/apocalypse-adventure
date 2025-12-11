@@ -364,6 +364,13 @@ import { GAME_CONSTANTS } from "./game-constants.js";
     let tagStatsBtn;
     let tagWoundsBtn;
     let tagWoundCountEl;
+    let tagInventoryCapacityEl;
+
+    let inventoryModalEl;
+    let inventoryModalCloseBtn;
+    let inventoryModalCapacityEl;
+    let statusModalEl;
+    let statusModalCloseBtn;
 
     let restartBtn;
     let equippedWeaponNameEl;
@@ -396,6 +403,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
     let craftListEl;
 
     let hasInitialized = false;
+    const storyFlags = new Set();
 
     function initGame() {
         if (hasInitialized) return;
@@ -487,6 +495,28 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             });
         }
 
+        inventoryModalEl = document.getElementById("inventory-modal");
+        inventoryModalCloseBtn = document.getElementById("inventory-modal-close");
+        inventoryModalCapacityEl = document.getElementById("inventory-modal-capacity");
+        statusModalEl = document.getElementById("status-modal");
+        statusModalCloseBtn = document.getElementById("status-modal-close");
+        if (inventoryModalCloseBtn) {
+            inventoryModalCloseBtn.addEventListener("click", closeInventoryModal);
+        }
+        if (statusModalCloseBtn) {
+            statusModalCloseBtn.addEventListener("click", closeStatusModal);
+        }
+        if (inventoryModalEl) {
+            inventoryModalEl.addEventListener("click", evt => {
+                if (evt.target === inventoryModalEl) closeInventoryModal();
+            });
+        }
+        if (statusModalEl) {
+            statusModalEl.addEventListener("click", evt => {
+                if (evt.target === statusModalEl) closeStatusModal();
+            });
+        }
+
         actionOverlayEl = document.getElementById("action-overlay");
         actionOverlayTextEl = document.getElementById("action-overlay-text");
         actionProgressBarEl = document.getElementById("action-progress-bar");
@@ -502,6 +532,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         tagStatsBtn = document.getElementById("tag-stats");
         tagWoundsBtn = document.getElementById("tag-wounds");
         tagWoundCountEl = document.getElementById("tag-wound-count");
+        tagInventoryCapacityEl = document.getElementById("tag-inventory-capacity");
         newGameScreenEl = document.getElementById("new-game-screen");
         newGameFormEl = document.getElementById("new-game-form");
         newGameNameInput = document.getElementById("new-game-name");
@@ -552,14 +583,18 @@ import { GAME_CONSTANTS } from "./game-constants.js";
     }
 
     function setupTagNavigation() {
-        const tags = [tagActionsBtn, tagInventoryBtn, tagStatsBtn, tagWoundsBtn].filter(Boolean);
-        tags.forEach(tag => {
-            tag.addEventListener("click", () => {
-                const targetSelector = tag.dataset.target;
-                if (!targetSelector) return;
-                scrollToTarget(targetSelector);
-            });
-        });
+        if (tagActionsBtn) {
+            tagActionsBtn.addEventListener("click", () => scrollToTarget("#story-title"));
+        }
+        if (tagInventoryBtn) {
+            tagInventoryBtn.addEventListener("click", openInventoryModal);
+        }
+        if (tagStatsBtn) {
+            tagStatsBtn.addEventListener("click", openStatusModal);
+        }
+        if (tagWoundsBtn) {
+            tagWoundsBtn.addEventListener("click", openStatusModal);
+        }
     }
 
     function setupQuestShortcut() {
@@ -726,6 +761,8 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         document.body.classList.remove("combat-active");
         defeatState = { active: false, message: "" };
         closeDefeatModal();
+        closeInventoryModal();
+        closeStatusModal();
 
         if (inventoryEl) inventoryEl.innerHTML = "";
         if (lootEl) lootEl.innerHTML = "";
@@ -740,6 +777,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
                 delete locationsState[key];
             }
         }
+        storyFlags.clear();
 
         visitedLocations.clear();
         mapLayouts.clear();
@@ -1172,6 +1210,8 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         const message = reason || "Tu succombes à tes blessures.";
         defeatState = { active: true, message };
         musicController.playSad();
+        closeInventoryModal();
+        closeStatusModal();
         endBlockingAction();
         stopCombatApproachTimer();
         renderScene("gameOver");
@@ -1910,6 +1950,12 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             } else {
                 capacityEl.classList.remove("over-limit");
             }
+        }
+        if (inventoryModalCapacityEl) {
+            inventoryModalCapacityEl.textContent = `Charge : ${current} / ${maxCap}`;
+        }
+        if (tagInventoryCapacityEl) {
+            tagInventoryCapacityEl.textContent = `${current}/${maxCap}`;
         }
 
         if (bagNameEl) {
@@ -3088,6 +3134,47 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         questModalEl.classList.add("hidden");
     }
 
+    function updateModalOverlayState() {
+        const hasSideModalOpen =
+            (inventoryModalEl && inventoryModalEl.classList.contains("open")) ||
+            (statusModalEl && statusModalEl.classList.contains("open"));
+        document.body.classList.toggle("has-side-modal", hasSideModalOpen);
+    }
+
+    function closeInventoryModal() {
+        if (!inventoryModalEl) return;
+        inventoryModalEl.classList.remove("open");
+        inventoryModalEl.classList.add("hidden");
+        updateModalOverlayState();
+    }
+
+    function openInventoryModal() {
+        if (!inventoryModalEl) return;
+        closeStatusModal();
+        inventoryModalEl.classList.remove("hidden");
+        inventoryModalEl.classList.add("open");
+        updateCapacityUI();
+        refreshSelectedItemUI();
+        updateModalOverlayState();
+    }
+
+    function closeStatusModal() {
+        if (!statusModalEl) return;
+        statusModalEl.classList.remove("open");
+        statusModalEl.classList.add("hidden");
+        updateModalOverlayState();
+    }
+
+    function openStatusModal() {
+        if (!statusModalEl) return;
+        closeInventoryModal();
+        statusModalEl.classList.remove("hidden");
+        statusModalEl.classList.add("open");
+        updateStatsUI();
+        renderWounds();
+        updateModalOverlayState();
+    }
+
     function getEquippedWeaponRange() {
         const tpl = getEquippedWeaponTemplate();
         if (!tpl) return 0;
@@ -3137,6 +3224,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
 
         const startDistance = computeStartDistance(option);
 
+        endBlockingAction();
         stopCombatApproachTimer();
 
         combatState = {
@@ -3330,6 +3418,10 @@ import { GAME_CONSTANTS } from "./game-constants.js";
 
     function performMeleeAttack() {
         if (!combatState.active) return;
+        if (combatState.awaitingIntroConfirm) {
+            closeCombatIntroModal();
+            activateCombatAfterIntro();
+        }
         syncCombatDistanceFromApproach();
         const enemy = combatState.enemies?.[0];
         if (!enemy) {
@@ -4070,6 +4162,16 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         state.statusMessages[key] = text;
     }
 
+    function addStoryFlag(flag) {
+        if (!flag) return;
+        storyFlags.add(flag);
+    }
+
+    function hasStoryFlag(flag) {
+        if (!flag) return false;
+        return storyFlags.has(flag);
+    }
+
     function getLocationStatuses(locationId) {
         const state = getLocationState(locationId);
         if (!state) return [];
@@ -4100,6 +4202,19 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             state.lootApplied.add(key);
             saveLocationState(locationId);
             updateCapacityUI();
+        }
+    }
+
+    function applyStoryFlagsForOption(option, { success = true, attempt = false } = {}) {
+        if (!option) return;
+        if (attempt && option.setFlagOnAttempt) {
+            addStoryFlag(option.setFlagOnAttempt);
+        }
+        if (success && option.setFlagOnSuccess) {
+            addStoryFlag(option.setFlagOnSuccess);
+        }
+        if (!success && option.setFlagOnFail) {
+            addStoryFlag(option.setFlagOnFail);
         }
     }
 
@@ -4176,6 +4291,13 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         btn.setAttribute("aria-disabled", String(shouldDisable));
     }
 
+    function isOptionVisible(option) {
+        if (!option) return false;
+        if (option.hideIfFlag && hasStoryFlag(option.hideIfFlag)) return false;
+        if (option.showIfFlag && !hasStoryFlag(option.showIfFlag)) return false;
+        return true;
+    }
+
     function refreshCurrentSceneOptionButtons() {
         if (!choicesEl || combatState.active) return;
         const scene = scenes[currentSceneId];
@@ -4234,6 +4356,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             choicesEl.innerHTML = "";
             const inventoryCounts = getInventoryTemplateCounts();
             scene.options.forEach((option, index) => {
+                if (!isOptionVisible(option)) return;
                 const btn = document.createElement("button");
                 btn.classList.add("choice-btn");
                 btn.dataset.optionIndex = `${index}`;
@@ -4294,6 +4417,8 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             return;
         }
 
+        applyStoryFlagsForOption(option, { attempt: true, success: false });
+
         if (
             isCombatOption &&
             locationState &&
@@ -4319,6 +4444,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         }
 
         if (option.nextScene) {
+            applyStoryFlagsForOption(option, { success: true });
             const targetScene = scenes[option.nextScene];
             const destinationLabel = targetScene?.title || option.text || "nouveau lieu";
             startBlockingAction(`Déplacement vers « ${destinationLabel} »`, MOVE_DURATION_MS, {
@@ -4362,6 +4488,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             success ? "Jet réussi" : "Jet raté",
             success ? "success" : "warning"
         );
+        applyStoryFlagsForOption(option, { success });
 
         if (success && option.successEffect) {
             applyEffect(option.successEffect);

@@ -17,7 +17,15 @@ window.GAME_STORY = {
                 {
                     text: "Retirer la barricade et rejoindre le salon",
                     nextScene: "aptLiving",
-                    timeCost: 1
+                    timeCost: 1,
+                    setFlagOnSuccess: "barricade_removed",
+                    hideIfFlag: "barricade_removed"
+                },
+                {
+                    text: "Rejoindre le salon",
+                    nextScene: "aptLiving",
+                    timeCost: 1,
+                    showIfFlag: "barricade_removed"
                 },
                 {
                     text: "Respirer et maintenir le calme avant de bouger",
@@ -39,7 +47,7 @@ window.GAME_STORY = {
             randomLootRarity: { 1: 0.8, 2: 0.18, 3: 0.02 },
             options: [
                 {
-                    text: "Revenir dans la chambre pour verifier la barricade",
+                    text: "Retourner dans la chambre",
                     nextScene: "intro",
                     timeCost: 1
                 },
