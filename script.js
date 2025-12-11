@@ -2927,6 +2927,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         if (previousDistance !== combatState.distance && combatState.distance === 0 && combatState.active) {
             markContactWindow();
             renderCombatUI();
+            stopCombatApproachTimer();
         }
 
         return { reachedContact };
@@ -2936,6 +2937,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         stopCombatApproachTimer();
         const approach = combatState.approach;
         if (!combatState.active || combatState.awaitingIntroConfirm) return;
+        if (combatState.distance <= 0) return;
         if (!approach || approach.totalMs <= 0) {
             if (combatState.active) {
                 combatApproachTimer = setInterval(() => {
