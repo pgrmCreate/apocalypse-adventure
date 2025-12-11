@@ -2910,6 +2910,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         const ratio = approach.totalMs === 0 ? 0 : approach.remainingMs / approach.totalMs;
         const nextDistance = Math.max(0, Math.ceil(approach.initialDistance * ratio));
         const previousDistance = combatState.distance;
+        let reachedContact = false;
         if (nextDistance !== combatState.distance) {
             combatState.distance = nextDistance;
             const enemy = combatState.enemies && combatState.enemies[0];
@@ -2920,13 +2921,15 @@ import { GAME_CONSTANTS } from "./game-constants.js";
 
         if (approach.remainingMs <= 0 && approach.initialDistance > 0 && !approach.contactTriggered) {
             approach.contactTriggered = true;
-            attemptEnemyAttack();
+            reachedContact = true;
         }
 
         if (previousDistance !== combatState.distance && combatState.distance === 0 && combatState.active) {
             markContactWindow();
             renderCombatUI();
         }
+
+        return { reachedContact };
     }
 
     function startCombatApproachTimer() {
@@ -3008,8 +3011,9 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         const enemy = combatState.enemies && combatState.enemies[0];
         if (!enemy) return false;
 
-        syncCombatDistanceFromApproach();
+        const syncResult = syncCombatDistanceFromApproach();
         updateApproachMeterUI();
+        const reachedContact = syncResult && syncResult.reachedContact;
 
         if (canDoPreContactStrike()) {
             const struck = heroPreContactStrike();

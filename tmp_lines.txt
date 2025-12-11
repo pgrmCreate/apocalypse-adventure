@@ -1,0 +1,17 @@
+1: \ufeff<!DOCTYPE html>
+13:                 <h2 class="new-game-title">Pr\xe9pare ton survivant</h2>
+15:                     Avant de partir dans l'inconnu, choisis le nom de ton h\xe9ros.
+53:                     <h2 id="outcome-modal-title">Action r\xe9solue</h2>
+62:                     <h2 id="quest-modal-title">Qu\xeate actuelle</h2>
+64:                         Tu te r\xe9veilles, une autre journ\xe9e commence et les secours ne viendront pas. Les r\xe9serves se vident... 
+107:                             <h2>Inventaire du h\xe9ros</h2>
+114:                                 <h3>Objet s\xe9lectionn\xe9</h3>
+138:                                 Astuce : clique sur un objet pour voir ses stats, l'\xe9quiper, le consommer
+140:                                 Certains objets peuvent aussi \xeatre <strong>craft\xe9s</strong> \xe0 partir d'autres
+166:                             <p class="modal-kicker">\xc9tat du survivant</p>
+177:                             <h2>H\xe9ros</h2>
+251:                 <button class="tag-btn tag-quest tag-quest-left" id="tag-quest" type="button" title="Voir la qu\xeate actuelle">
+263:                     <span class="sr-only">Qu\xeate</span>
+279:                         <canvas id="map-canvas" aria-label="Carte des d\xe9placements"></canvas>
+288:                                 <h3>Objets trouv\xe9s / au sol</h3>
+344:                     Pr\xe9paration des ressources

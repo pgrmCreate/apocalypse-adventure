@@ -13,16 +13,17 @@ window.GAME_STORY = {
             timeContext: "slow",
             minLoot: [],
             randomLoot: [],
-            options: [
-                {
-                    text: "Retirer la barricade et rejoindre le salon",
-                    nextScene: "aptLiving",
-                    timeCost: 1,
-                    setFlagOnSuccess: "barricade_removed",
-                    hideIfFlag: "barricade_removed"
-                },
-                {
-                    text: "Rejoindre le salon",
+          options: [
+              {
+                  text: "Retirer la barricade et rejoindre le salon",
+                  nextScene: "aptLiving",
+                  timeCost: 1,
+                  setFlagOnAttempt: "barricade_removed",
+                  setFlagOnSuccess: "barricade_removed",
+                  hideIfFlag: "barricade_removed"
+              },
+              {
+                  text: "Rejoindre le salon",
                     nextScene: "aptLiving",
                     timeCost: 1,
                     showIfFlag: "barricade_removed"
