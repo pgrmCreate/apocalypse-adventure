@@ -57,6 +57,31 @@
                 </div>
             </div>
 
+            <div id="search-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="search-modal-title">
+                <div class="modal-content search-modal">
+                    <div class="modal-header">
+                        <div class="modal-heading">
+                            <p class="modal-kicker">Fouille</p>
+                            <h2 id="search-modal-title">Fouille du lieu</h2>
+                        </div>
+                        <p id="search-modal-location" class="modal-meta"></p>
+                    </div>
+                    <div class="search-progress">
+                        <div class="search-progress-track">
+                            <div id="search-progress-bar" class="search-progress-bar"></div>
+                        </div>
+                        <div id="search-progress-label" class="modal-meta"></div>
+                    </div>
+                    <div class="search-found">
+                        <h3>Objets trouvés</h3>
+                        <ul id="search-found-list" class="search-found-list"></ul>
+                    </div>
+                    <div class="modal-actions">
+                        <button id="search-stop-btn" class="secondary-btn modal-close" type="button">Arrêter</button>
+                    </div>
+                </div>
+            </div>
+
             <div id="quest-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="quest-modal-title">
                 <div class="modal-content">
                     <h2 id="quest-modal-title">Quête actuelle</h2>
@@ -289,6 +314,10 @@
                                 <button id="take-all-btn" class="secondary-btn inline-btn">
                                     Tout prendre
                                 </button>
+                                <div class="search-controls">
+                                    <button id="search-btn" class="secondary-btn inline-btn">Fouiller</button>
+                                    <div id="search-status" class="search-status" aria-live="polite"></div>
+                                </div>
                                 <div id="lost-throwable-actions" class="lost-throwable-actions"></div>
                                 <div id="loot-zone" class="drop-zone" data-zone="loot">
                                     <!-- loot du lieu -->

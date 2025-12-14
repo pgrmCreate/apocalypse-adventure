@@ -55,9 +55,17 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         MOVE_DURATION_MS,
         DEFAULT_USE_DURATION_MS,
         DEFAULT_CRAFT_DURATION_MS,
+        DEFAULT_PRECONTACT_WINDOW_MS,
+        KNIFE_PRECONTACT_WINDOW_MS,
+        LONG_WEAPON_PRECONTACT_WINDOW_MS,
+        PUSH_FAIL_DAMAGE_RANGE,
+        BASE_DODGE_WINDOW_MS,
+        DODGE_DIFFICULTY_PENALTY_MS,
+        DODGE_FITNESS_PENALTY_MS,
         ATTACK_COOLDOWN_MS,
         ENEMY_ATTACK_COOLDOWN_MS,
         LOOT_PICKUP_DURATION_MS,
+        DEFAULT_SEARCH_SECONDS_RANGE,
         LOST_THROWABLE_SEARCH_SECONDS,
         BLEED_DAMAGE_INTERVAL_MINUTES,
         HUNGER_DAMAGE_INTERVAL_MINUTES,
@@ -266,7 +274,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
     }
 
     // État des lieux (pour conserver le loot)
-    const locationsState = {}; // { [locationId]: { lootNodes: HTMLElement[], lootGenerated: boolean, defeatedCombats: Set<string>, flags: Set<string>, lootApplied: Set<string>, statusMessages: Record<string, string>, lostThrowables: LostThrowableEntry[] } }
+    const locationsState = {}; // { [locationId]: { lootNodes: HTMLElement[], lootGenerated: boolean, defeatedCombats: Set<string>, flags: Set<string>, lootApplied: Set<string>, statusMessages: Record<string, string>, lostThrowables: LostThrowableEntry[], searchState: SearchState | null, minLootGrantedScenes: Set<string> } }
 
     let itemCounter = 0;
     let currentSceneId = null;
@@ -290,6 +298,8 @@ import { GAME_CONSTANTS } from "./game-constants.js";
     let activePickupSequenceToken = null;
     let affameDamageMinuteBuffer = 0;
     let activeLostThrowableSearch = null;
+    let activeSearchInterval = null;
+    let activeSearchToken = null;
     let affameDamageRemainder = 0;
     let affameActive = false;
     let defeatState = { active: false, message: "" };
@@ -306,6 +316,8 @@ import { GAME_CONSTANTS } from "./game-constants.js";
     let choiceTitleEl;
     let groundPanelEl;
     let takeAllBtn;
+    let searchBtn;
+    let searchStatusEl;
     let newGameScreenEl;
     let newGameFormEl;
     let newGameNameInput;
@@ -340,6 +352,13 @@ import { GAME_CONSTANTS } from "./game-constants.js";
     let outcomeModalDescriptionEl;
     let outcomeModalEffectEl;
     let outcomeModalConfirmBtn;
+
+    let searchModalEl;
+    let searchModalLocationEl;
+    let searchModalProgressEl;
+    let searchModalProgressLabelEl;
+    let searchModalFoundListEl;
+    let searchModalStopBtn;
 
     let questModalEl;
     let questModalDescriptionEl;
@@ -451,6 +470,8 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         craftListEl = document.getElementById("craft-list");
         groundPanelEl = document.getElementById("ground-panel");
         takeAllBtn = document.getElementById("take-all-btn");
+        searchBtn = document.getElementById("search-btn");
+        searchStatusEl = document.getElementById("search-status");
 
         toastContainerEl = document.getElementById("toast-container");
 
@@ -491,6 +512,23 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             defeatModalRestartBtn.addEventListener("click", () => {
                 closeDefeatModal();
                 restartGame();
+            });
+        }
+
+        searchModalEl = document.getElementById("search-modal");
+        searchModalLocationEl = document.getElementById("search-modal-location");
+        searchModalProgressEl = document.getElementById("search-progress-bar");
+        searchModalProgressLabelEl = document.getElementById("search-progress-label");
+        searchModalFoundListEl = document.getElementById("search-found-list");
+        searchModalStopBtn = document.getElementById("search-stop-btn");
+        if (searchModalStopBtn) {
+            searchModalStopBtn.addEventListener("click", () => stopSearch("manual"));
+        }
+        if (searchModalEl) {
+            searchModalEl.addEventListener("click", evt => {
+                if (evt.target === searchModalEl) {
+                    stopSearch("manual");
+                }
             });
         }
 
@@ -543,6 +581,9 @@ import { GAME_CONSTANTS } from "./game-constants.js";
 
         if (takeAllBtn) {
             takeAllBtn.addEventListener("click", takeAllLoot);
+        }
+        if (searchBtn) {
+            searchBtn.addEventListener("click", startSearch);
         }
 
         resetGameClock();
@@ -753,6 +794,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
     function resetGameStateForNewRun() {
         endBlockingAction();
         stopCombatApproachTimer();
+        stopSearch("reset");
         document.body.classList.remove("combat-active");
         defeatState = { active: false, message: "" };
         closeDefeatModal();
@@ -2887,10 +2929,14 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         return Math.max(0, Math.min(100, percent));
     }
 
-    function markContactWindow() {
+    function markContactWindow({ early = false } = {}) {
         if (!combatState.active) return;
+        if (combatState.preContactStrikeReady) return;
         combatState.preContactStrikeReady = true;
-        logMessage("Tu as une fenÇùtre pour frapper avant le contact direct.");
+        const message = early
+            ? "L'ennemi est à portée immédiate : place un coup d'arrêt maintenant."
+            : "Tu as une fenêtre pour frapper avant le contact direct.";
+        logMessage(message);
     }
 
     function updateApproachMeterUI() {
@@ -2917,6 +2963,15 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             if (enemy) {
                 logMessage(`${enemy.name} se rapproche (${describeDistance(nextDistance)}).`);
             }
+        }
+
+        if (
+            combatState.active &&
+            !combatState.preContactStrikeReady &&
+            approach &&
+            approach.remainingMs <= getEquippedWeaponPreContactWindowMs()
+        ) {
+            markContactWindow({ early: combatState.distance > 0 });
         }
 
         if (approach.remainingMs <= 0 && approach.initialDistance > 0 && !approach.contactTriggered) {
@@ -2973,7 +3028,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
 
     function canDoPreContactStrike() {
         if (!combatState.active) return false;
-        if (combatState.distance > 0) return false;
+        if (combatState.distance > 1) return false;
         if (!combatState.preContactStrikeReady) return false;
         if (!canUseMelee()) return false;
         const now = performance.now();
@@ -2998,6 +3053,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
 
         if (enemy.hp <= 0) {
             logMessage(`${enemy.name} s'effondre avant de t'atteindre.`);
+            clearPendingEnemyAttack();
             combatState.enemies.shift();
             if (!combatState.enemies.length) {
                 endCombat(true);
@@ -3007,9 +3063,54 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         return true;
     }
 
+    function clearPendingEnemyAttack() {
+        if (combatState.pendingEnemyAttackTimer) {
+            clearTimeout(combatState.pendingEnemyAttackTimer);
+        }
+        combatState.pendingEnemyAttackTimer = null;
+        combatState.pendingEnemyAttack = null;
+    }
+
+    function resolvePendingEnemyAttack(trigger = "timeout") {
+        const pending = combatState.pendingEnemyAttack;
+        clearPendingEnemyAttack();
+        if (!pending || !combatState.active) return;
+        const enemy = combatState.enemies?.[0];
+        const attackerName = pending.enemyName || enemy?.name || "L'adversaire";
+        const damage = pending.damage || 0;
+        if (damage <= 0) return;
+
+        applyHeroDamage(damage, { type: "normal", reason: "Ton adversaire t'assène le coup fatal." });
+        registerWound(Math.ceil(damage / 3));
+        logMessage(`${attackerName} t'atteint et inflige ${damage} dégâts.`);
+        showToast(`Tu es blessé : -${damage} PV`, "danger");
+        combatState.nextEnemyAttackAt = performance.now() + ENEMY_ATTACK_COOLDOWN_MS;
+        updateStatsUI();
+    }
+
+    function attemptDodge() {
+        if (!combatState.active) return;
+        const pending = combatState.pendingEnemyAttack;
+        if (!pending) {
+            showToast("Pas d'attaque à esquiver.", "info");
+            return;
+        }
+        const now = performance.now();
+        if (now > (pending.expiresAt || 0)) {
+            resolvePendingEnemyAttack("timeout");
+            return;
+        }
+        clearPendingEnemyAttack();
+        combatState.nextEnemyAttackAt = now + ENEMY_ATTACK_COOLDOWN_MS;
+        logMessage("Tu esquives de justesse, l'ennemi se rééquilibre.");
+        showToast("Esquive réussie", "success");
+        if (combatState.active) renderCombatUI();
+    }
+
     function attemptEnemyAttack(opts = {}) {
         if (!combatState.active) return false;
         if (combatState.awaitingIntroConfirm) return false;
+        if (combatState.pendingEnemyAttack) return false;
         const enemy = combatState.enemies && combatState.enemies[0];
         if (!enemy) return false;
 
@@ -3042,16 +3143,27 @@ import { GAME_CONSTANTS } from "./game-constants.js";
 
         const roll = rollDice(6, 1);
         const damage = enemy.baseDamage + roll.sum;
-        applyHeroDamage(damage, { type: "normal", reason: "Ton adversaire t'assène le coup fatal." });
-        registerWound(Math.ceil(damage / 3));
-        logMessage(`${enemy.name} riposte et inflige ${damage} dégâts.`);
-        showToast(`Tu es blessé : -${damage} PV`, "danger");
-        combatState.nextEnemyAttackAt = now + ENEMY_ATTACK_COOLDOWN_MS;
-        updateStatsUI();
+        const windowMs = computeEnemyDodgeWindowMs(enemy);
+        const expiresAt = now + windowMs;
 
-        if (hero.hp <= 0 || defeatState.active) {
-            return true;
+        combatState.pendingEnemyAttack = {
+            enemyId: enemy.id,
+            enemyName: enemy.name,
+            damage,
+            expiresAt,
+            startedAt: now
+        };
+        if (combatState.pendingEnemyAttackTimer) {
+            clearTimeout(combatState.pendingEnemyAttackTimer);
         }
+        combatState.pendingEnemyAttackTimer = setTimeout(() => {
+            if (!combatState.active) return;
+            resolvePendingEnemyAttack("timeout");
+        }, windowMs);
+
+        logMessage(
+            `${enemy.name} arme son coup. Il te reste ${(windowMs / 1000).toFixed(1)}s pour l'éviter.`
+        );
         return true;
     }
 
@@ -3187,10 +3299,34 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         return 1;
     }
 
+    function getEquippedWeaponPreContactWindowMs() {
+        const tpl = getEquippedWeaponTemplate();
+        const custom = tpl?.weaponStats?.preContactWindowMs;
+        if (Number.isFinite(custom)) {
+            return Math.max(120, custom);
+        }
+        if (equippedWeaponTemplateId === "knife") {
+            return KNIFE_PRECONTACT_WINDOW_MS || DEFAULT_PRECONTACT_WINDOW_MS;
+        }
+        const reach = tpl?.weaponStats?.range;
+        if (Number.isFinite(reach) && reach > 1) {
+            return LONG_WEAPON_PRECONTACT_WINDOW_MS || DEFAULT_PRECONTACT_WINDOW_MS;
+        }
+        return DEFAULT_PRECONTACT_WINDOW_MS;
+    }
+
     function canUseMelee() {
         if (!combatState?.active) return false;
         const reach = getEquippedWeaponRange();
-        return combatState.distance <= reach;
+        if (combatState.distance <= reach) return true;
+        if (combatState.distance <= 1) {
+            const approach = combatState.approach;
+            if (approach && approach.remainingMs <= getEquippedWeaponPreContactWindowMs()) {
+                return true;
+            }
+            if (combatState.preContactStrikeReady) return true;
+        }
+        return false;
     }
 
     function canUseRanged() {
@@ -3214,17 +3350,20 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         const enemyName =
             option.enemyName || d.description || option.text || "adversaire";
         const difficulty = Math.max(6, d.difficulty || 10);
+        const fitness = Math.max(1, Math.round(difficulty / 4));
         const enemy = {
             id: `enemy-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
             name: enemyName,
             hp: difficulty,
             maxHp: difficulty,
             baseDamage: Math.max(2, Math.round(difficulty / 4)),
-            fleeDifficulty: Math.max(8, difficulty)
+            fleeDifficulty: Math.max(8, difficulty),
+            fitness
         };
 
         const startDistance = computeStartDistance(option);
 
+        stopSearch("combat");
         endBlockingAction();
         stopCombatApproachTimer();
 
@@ -3242,6 +3381,8 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             nextEnemyAttackAt: performance.now(),
             approach: buildApproachState(startDistance),
             preContactStrikeReady: false,
+            pendingEnemyAttack: null,
+            pendingEnemyAttackTimer: null,
             awaitingIntroConfirm: false,
             originCombatId:
                 typeof optionIndex === "number"
@@ -3312,7 +3453,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             attackBtn.classList.add("choice-btn");
             attackBtn.textContent = meleeInCooldown
                 ? `Attaque au corps à corps (${(cooldownRemainingMs / 1000).toFixed(1)}s)`
-                : "Attaque au corps à corps";
+            : "Attaque au corps à corps";
             attackBtn.disabled = !combatState.enemies.length || meleeInCooldown;
             attackBtn.addEventListener("click", performMeleeAttack);
             choicesEl.appendChild(attackBtn);
@@ -3326,6 +3467,17 @@ import { GAME_CONSTANTS } from "./game-constants.js";
                     ? ` (portée actuelle de l'arme : ${reach})`
                     : " (tu combats à mains nues)");
             choicesEl.appendChild(info);
+        }
+
+        if (combatState.enemies.length && combatState.distance <= 1) {
+            const pushBtn = document.createElement("button");
+            pushBtn.classList.add("choice-btn", "secondary-btn");
+            pushBtn.textContent = meleeInCooldown
+                ? `Pousser (${(cooldownRemainingMs / 1000).toFixed(1)}s)`
+                : "Pousser / repousser";
+            pushBtn.disabled = meleeInCooldown;
+            pushBtn.addEventListener("click", pushEnemyBack);
+            choicesEl.appendChild(pushBtn);
         }
 
         const throwableElements = getThrowableWeaponElements();
@@ -3355,6 +3507,16 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         fleeBtn.addEventListener("click", attemptFlee);
         choicesEl.appendChild(fleeBtn);
 
+        if (combatState.pendingEnemyAttack) {
+            const pending = combatState.pendingEnemyAttack;
+            const remainingMs = Math.max(0, (pending.expiresAt || 0) - performance.now());
+            const dodgeBtn = document.createElement("button");
+            dodgeBtn.classList.add("choice-btn");
+            dodgeBtn.textContent = `Esquiver (${(remainingMs / 1000).toFixed(1)}s)`;
+            dodgeBtn.addEventListener("click", attemptDodge);
+            choicesEl.appendChild(dodgeBtn);
+        }
+
         updateApproachMeterUI();
     }
 
@@ -3372,10 +3534,86 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         return Math.max(0.25, Math.min(0.95, base - penalty));
     }
 
+    function computeEnemyDodgeWindowMs(enemy) {
+        const difficulty = combatState.difficulty || enemy?.maxHp || 10;
+        const fitness = enemy?.fitness || 1;
+        const difficultyPenalty = Math.max(0, (difficulty - 8) * (DODGE_DIFFICULTY_PENALTY_MS || 0));
+        const fitnessPenalty = Math.max(0, fitness * (DODGE_FITNESS_PENALTY_MS || 0));
+        const window = (BASE_DODGE_WINDOW_MS || 800) - difficultyPenalty - fitnessPenalty;
+        return Math.max(320, Math.min(1400, window));
+    }
+
     function heroWinsApproachInitiative() {
         const chance = computeHeroInitiativeChance();
         const roll = Math.random();
         return roll < chance;
+    }
+
+    function rollInRange(min, max) {
+        const low = Number.isFinite(min) ? min : 0;
+        const high = Number.isFinite(max) ? max : low;
+        const span = Math.max(0, high - low);
+        return Math.round(low + Math.random() * span);
+    }
+
+    function computePushSuccessChance(enemy) {
+        const force = Math.max(0, hero.force || 0);
+        const base = 0.45 + Math.min(0.35, force * 0.08);
+        const fitnessPenalty = Math.max(0, (enemy?.fitness || 1) * 0.05);
+        const distancePenalty = combatState.distance > 0 ? 0.05 : 0;
+        return Math.max(0.2, Math.min(0.9, base - fitnessPenalty - distancePenalty));
+    }
+
+    function pushEnemyBack() {
+        if (!combatState.active) return;
+        if (combatState.awaitingIntroConfirm) {
+            closeCombatIntroModal();
+            activateCombatAfterIntro();
+        }
+        syncCombatDistanceFromApproach();
+        const enemy = combatState.enemies?.[0];
+        if (!enemy) {
+            endCombat(true);
+            return;
+        }
+        if (combatState.distance > 1) {
+            logMessage("Tu dois encore te rapprocher pour repousser l'ennemi.");
+            return;
+        }
+        const now = performance.now();
+        if (now < (combatState.attackCooldownEndsAt || 0)) {
+            const remaining = Math.max(0, combatState.attackCooldownEndsAt - now);
+            logMessage(`Tu es encore en récupération pendant ${(remaining / 1000).toFixed(1)}s.`);
+            return;
+        }
+
+        const chance = computePushSuccessChance(enemy);
+        const succeeded = Math.random() < chance;
+        combatState.attackCooldownEndsAt = now + ATTACK_COOLDOWN_MS * 0.8;
+        clearPendingEnemyAttack();
+
+        if (succeeded) {
+            const newDistance = Math.min(3, combatState.distance + 1);
+            combatState.distance = newDistance;
+            combatState.approach = buildApproachState(newDistance);
+            combatState.preContactStrikeReady = false;
+            combatState.nextEnemyAttackAt = now + ENEMY_ATTACK_COOLDOWN_MS;
+            logMessage(`Tu repousses ${enemy.name}, il recule (${describeDistance(combatState.distance)}).`);
+            showToast("Poussée réussie", "success");
+            updateApproachMeterUI();
+        } else {
+            const counter = rollInRange(
+                PUSH_FAIL_DAMAGE_RANGE?.min || 1,
+                PUSH_FAIL_DAMAGE_RANGE?.max || 4
+            );
+            combatState.nextEnemyAttackAt = now + ENEMY_ATTACK_COOLDOWN_MS * 0.5;
+            applyHeroDamage(counter, { type: "normal", reason: `${enemy.name} résiste.` });
+            registerWound(Math.max(1, Math.ceil(counter / 2)));
+            logMessage(`${enemy.name} te repousse : ${counter} dégâts.`);
+            showToast("Poussée ratée", "danger");
+        }
+
+        if (combatState.active) renderCombatUI();
     }
 
     function approachEnemy() {
@@ -3457,6 +3695,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
 
         if (enemy.hp <= 0) {
             logMessage(`${enemy.name} s'effondre.`);
+            clearPendingEnemyAttack();
             combatState.enemies.shift();
             if (!combatState.enemies.length) {
                 endCombat(true);
@@ -3533,6 +3772,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
 
         if (didHit && enemy.hp <= 0) {
             logMessage(`${enemy.name} est neutralisé par ton lancer.`);
+            clearPendingEnemyAttack();
             combatState.enemies.shift();
             if (!combatState.enemies.length) {
                 endCombat(true);
@@ -3572,7 +3812,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
 
     function enemyTurn() {
         const attacked = attemptEnemyAttack({ logApproach: true });
-        if (attacked && combatState.active) {
+        if ((attacked || combatState.pendingEnemyAttack) && combatState.active) {
             renderCombatUI();
         }
     }
@@ -3580,6 +3820,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
     function endCombat(victory) {
         closeCombatIntroModal();
         stopCombatApproachTimer();
+        clearPendingEnemyAttack();
         musicController.playCalm({ fadeOutMs: 1500 });
 
         const previousCombat = combatState;
@@ -4100,7 +4341,9 @@ import { GAME_CONSTANTS } from "./game-constants.js";
                 flags: new Set(),
                 lootApplied: new Set(),
                 statusMessages: {},
-                lostThrowables: []
+                lostThrowables: [],
+                searchState: null,
+                minLootGrantedScenes: new Set()
             };
             locationsState[locationId] = state;
         }
@@ -4119,6 +4362,12 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         if (!state.lostThrowables) {
             state.lostThrowables = [];
         }
+        if (!state.searchState) {
+            state.searchState = null;
+        }
+        if (!state.minLootGrantedScenes) {
+            state.minLootGrantedScenes = new Set();
+        }
         return state;
     }
 
@@ -4129,6 +4378,10 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         const state = getLocationState(locationId);
         if (!state) return;
         state.lootGenerated = true;
+        if (state.searchState) {
+            state.searchState.running = false;
+            state.searchState.lastTick = null;
+        }
 
         state.lootNodes = [];
 
@@ -4322,6 +4575,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             return;
         }
 
+        stopSearch("scene-change");
         combatState = { active: false };
         document.body.classList.remove("combat-active");
         updateGroundPanelVisibility();
@@ -4352,6 +4606,9 @@ import { GAME_CONSTANTS } from "./game-constants.js";
 
         const state = getLocationState(currentLocationId);
         if (!state) return;
+        const location = locations[currentLocationId] || {};
+        ensureSearchStateForScene(scene);
+        grantMinLootToInventory(scene, location, state);
 
         if (choicesEl) {
             choicesEl.innerHTML = "";
@@ -4368,17 +4625,11 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             });
         }
 
+        updateSearchStatus(scene, state);
         if (!lootEl) return;
 
         lootEl.innerHTML = "";
-
-        if (!state.lootGenerated) {
-            spawnLootForScene(scene);
-            state.lootGenerated = true;
-        } else {
-            state.lootNodes.forEach(node => appendItemToZone(node, lootEl));
-        }
-
+        state.lootNodes.forEach(node => appendItemToZone(node, lootEl));
         updateCapacityUI();
         refreshWoundsIfRelevant();
         refreshLostThrowableActions();
@@ -4613,13 +4864,16 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         return chosenPool[index];
     }
 
-    function spawnLootForScene(scene) {
-        if (!lootEl) return;
+    function getSearchDurationMs(scene, location) {
+        const range = scene.searchSecondsRange || location.searchSecondsRange || DEFAULT_SEARCH_SECONDS_RANGE || {};
+        const min = Math.max(1, Math.round(range.min ?? DEFAULT_SEARCH_SECONDS_RANGE?.min ?? 5));
+        const max = Math.max(min, Math.round(range.max ?? DEFAULT_SEARCH_SECONDS_RANGE?.max ?? min));
+        const span = Math.max(0, max - min);
+        const seconds = min + Math.random() * span;
+        return Math.round(seconds * 1000);
+    }
 
-        lootEl.innerHTML = "";
-
-        const location = locations[scene.locationId || scene.id] || {};
-
+    function gatherMinLootTemplates(scene, location) {
         const minLoot = [];
         const minSeen = new Set();
         [location.minLoot, scene.minLoot].forEach(list => {
@@ -4631,7 +4885,37 @@ import { GAME_CONSTANTS } from "./game-constants.js";
                 minLoot.push(templateId);
             });
         });
+        return minLoot;
+    }
 
+    function grantMinLootToInventory(scene, location, state) {
+        if (!inventoryEl || !state) return;
+        const grants = [
+            { key: `location:${scene.locationId || scene.id}`, list: location.minLoot },
+            { key: `scene:${scene.id}`, list: scene.minLoot }
+        ];
+        let granted = 0;
+
+        grants.forEach(entry => {
+            if (!Array.isArray(entry.list)) return;
+            if (state.minLootGrantedScenes?.has(entry.key)) return;
+            entry.list.forEach(templateId => {
+                const item = createItemFromTemplate(templateId);
+                if (!item) return;
+                const el = createItemElement(item);
+                appendItemToZone(el, inventoryEl);
+                granted += 1;
+            });
+            state.minLootGrantedScenes?.add(entry.key);
+        });
+
+        if (granted > 0) {
+            updateCapacityUI();
+            logMessage(`Tu sécurises ${granted} objet(s) indispensable(s) dans ton sac.`);
+        }
+    }
+
+    function buildRandomLootTemplates(scene, location) {
         const sceneLootPool = resolveRandomLootPool(scene.randomLoot || []);
         const randomLootPool =
             sceneLootPool.length > 0
@@ -4647,34 +4931,261 @@ import { GAME_CONSTANTS } from "./game-constants.js";
                 ? 1
                 : 0;
         const randomLootCount = computeRandomLootCount(randomLootQuantity);
-
-        let generatedLootCount = 0;
-
-        minLoot.forEach(templateId => {
-            const item = createItemFromTemplate(templateId);
-            if (!item) return;
-            const el = createItemElement(item);
-            appendItemToZone(el, lootEl);
-            generatedLootCount += 1;
-        });
+        const templates = [];
 
         for (let i = 0; i < randomLootCount; i += 1) {
             const rarity = pickRarityFromChances(rarityChances);
             const templateId = pickRandomTemplateByRarity(randomLootPool, rarity);
-            if (!templateId) continue;
+            if (templateId) {
+                templates.push(templateId);
+            }
+        }
+        return templates;
+    }
 
-            const item = createItemFromTemplate(templateId);
-            if (!item) continue;
-            const el = createItemElement(item);
-            appendItemToZone(el, lootEl);
-            generatedLootCount += 1;
+    function ensureSearchStateForScene(scene) {
+        if (!scene) return null;
+        const locationId = scene.locationId || scene.id;
+        const state = getLocationState(locationId);
+        const location = locations[locationId] || {};
+        if (!state) return null;
+        if (!state.searchState) {
+            state.searchState = {
+                totalMs: getSearchDurationMs(scene, location),
+                progress: 0,
+                revealedCount: 0,
+                randomLootTemplates: buildRandomLootTemplates(scene, location),
+                running: false,
+                lastTick: null,
+                foundLog: []
+            };
+            if (state.searchState.randomLootTemplates.length === 0) {
+                state.searchState.progress = 100;
+            }
+        } else {
+            if (!Array.isArray(state.searchState.randomLootTemplates)) {
+                state.searchState.randomLootTemplates = buildRandomLootTemplates(scene, location);
+            }
+            if (!Array.isArray(state.searchState.foundLog)) {
+                state.searchState.foundLog = [];
+            }
+            if (typeof state.searchState.revealedCount !== "number") {
+                state.searchState.revealedCount = 0;
+            }
+            if (typeof state.searchState.progress !== "number") {
+                state.searchState.progress = 0;
+            }
+        }
+        state.lootGenerated = true;
+        return state.searchState;
+    }
+
+    function updateSearchStatus(scene, state) {
+        const searchState = state?.searchState;
+        const totalLoot = searchState?.randomLootTemplates?.length || 0;
+        const percent = searchState ? Math.min(100, Math.round(searchState.progress || 0)) : 0;
+        const discoveries = searchState ? searchState.revealedCount || 0 : 0;
+        const noLoot = searchState && totalLoot === 0;
+        const disabled =
+            combatState.active ||
+            isActionInProgress() ||
+            !searchState ||
+            searchState.progress >= 100 ||
+            noLoot;
+
+        if (searchBtn) {
+            searchBtn.disabled = disabled;
+            if (searchState && searchState.progress >= 100) {
+                searchBtn.textContent = "Fouille terminée";
+            } else if (noLoot) {
+                searchBtn.textContent = "Rien à fouiller";
+            } else {
+                searchBtn.textContent = "Fouiller";
+            }
         }
 
-        updateCapacityUI();
-        if (generatedLootCount > 0) {
-            logMessage(
-                "Tu trouves quelques objets dans ce lieu. À toi de décider quoi garder."
-            );
+        if (searchStatusEl) {
+            if (!searchState) {
+                searchStatusEl.textContent = "Fouille indisponible ici.";
+            } else if (noLoot) {
+                searchStatusEl.textContent = "Rien d'utile à dénicher dans ce lieu.";
+            } else if (searchState.progress >= 100) {
+                searchStatusEl.textContent = `Lieu fouillé (${discoveries}/${totalLoot} trouvailles).`;
+            } else {
+                searchStatusEl.textContent = `Fouille ${percent}% • ${discoveries}/${totalLoot} objets`;
+            }
         }
+    }
+
+    function openSearchModal(scene, state) {
+        if (!searchModalEl || !state?.searchState) return;
+        if (searchModalLocationEl) {
+            searchModalLocationEl.textContent = getLocationLabel(scene.locationId || scene.id);
+        }
+        updateSearchModalUI(state);
+        searchModalEl.classList.remove("hidden");
+        searchModalEl.classList.add("open");
+    }
+
+    function closeSearchModal() {
+        if (!searchModalEl) return;
+        searchModalEl.classList.remove("open");
+        searchModalEl.classList.add("hidden");
+    }
+
+    function updateSearchModalUI(state) {
+        if (!state?.searchState) return;
+        const searchState = state.searchState;
+        const percent = Math.min(100, Math.round(searchState.progress || 0));
+        if (searchModalProgressEl) {
+            searchModalProgressEl.style.width = `${percent}%`;
+        }
+        if (searchModalProgressLabelEl) {
+            const total = searchState.randomLootTemplates.length;
+            searchModalProgressLabelEl.textContent =
+                `Progression : ${percent}% (${searchState.revealedCount}/${total} trouvaille${total > 1 ? "s" : ""})`;
+        }
+        if (searchModalFoundListEl) {
+            searchModalFoundListEl.innerHTML = "";
+            (searchState.foundLog || []).forEach(entry => {
+                const li = document.createElement("li");
+                li.textContent = entry;
+                searchModalFoundListEl.appendChild(li);
+            });
+        }
+    }
+
+    function revealSearchFindings(scene, state) {
+        const searchState = state?.searchState;
+        if (!searchState || !lootEl) return;
+        const total = searchState.randomLootTemplates.length || 0;
+        if (total === 0) return;
+        const step = 100 / total;
+
+        while (
+            searchState.revealedCount < total &&
+            searchState.progress >= (searchState.revealedCount + 1) * step
+        ) {
+            const templateId = searchState.randomLootTemplates[searchState.revealedCount];
+            if (templateId) {
+                const item = createItemFromTemplate(templateId);
+                if (item) {
+                    const el = createItemElement(item);
+                    appendItemToZone(el, lootEl);
+                    state.lootNodes.push(el);
+                    const label = item.name || templateId;
+                    searchState.foundLog.push(label);
+                    logMessage(`Fouille : tu déniches ${label}.`);
+                }
+            }
+            searchState.revealedCount += 1;
+        }
+    }
+
+    function finishSearch(scene, state, token) {
+        if (activeSearchToken !== token) return;
+        const searchState = state?.searchState;
+        if (!searchState) return;
+        revealSearchFindings(scene, state);
+        searchState.progress = 100;
+        searchState.running = false;
+        searchState.lastTick = null;
+        if (activeSearchInterval) clearInterval(activeSearchInterval);
+        activeSearchInterval = null;
+        activeSearchToken = null;
+        endBlockingAction();
+        if (searchModalStopBtn) {
+            searchModalStopBtn.style.pointerEvents = "";
+            searchModalStopBtn.style.opacity = "";
+        }
+        updateSearchModalUI(state);
+        updateSearchStatus(scene, state);
+        showToast("Fouille terminée", "success");
+        setTimeout(() => closeSearchModal(), 150);
+    }
+
+    function stopSearch(reason = "stop") {
+        const scene = scenes[currentSceneId];
+        const state = getLocationState(currentLocationId);
+        const searchState = state?.searchState;
+        if (activeSearchInterval) clearInterval(activeSearchInterval);
+        activeSearchInterval = null;
+        activeSearchToken = null;
+        endBlockingAction();
+        if (searchModalStopBtn) {
+            searchModalStopBtn.style.pointerEvents = "";
+            searchModalStopBtn.style.opacity = "";
+        }
+        if (searchState) {
+            searchState.running = false;
+            searchState.lastTick = null;
+        }
+        closeSearchModal();
+        if (scene && state) {
+            updateSearchStatus(scene, state);
+            if (reason === "manual" && searchState && searchState.progress > 0 && searchState.progress < 100) {
+                logMessage("Tu interromps la fouille : tu conserves ce qui a déjà été trouvé.");
+            }
+        }
+    }
+
+    function startSearch() {
+        const scene = scenes[currentSceneId];
+        const state = getLocationState(currentLocationId);
+        if (!scene || !state) return;
+        if (combatState.active) {
+            showToast("Impossible de fouiller en plein combat.", "warning");
+            return;
+        }
+        if (isActionInProgress()) {
+            showToast("Une action est déjà en cours.", "info");
+            return;
+        }
+
+        const searchState = ensureSearchStateForScene(scene);
+        if (!searchState) return;
+        if (!searchState.randomLootTemplates.length) {
+            updateSearchStatus(scene, state);
+            showToast("Rien de plus à fouiller ici.", "info");
+            return;
+        }
+        if (searchState.progress >= 100) {
+            updateSearchStatus(scene, state);
+            showToast("Ce lieu a déjà été fouillé à fond.", "info");
+            return;
+        }
+
+        const token = Symbol("search");
+        activeSearchToken = token;
+        searchState.running = true;
+        searchState.lastTick = performance.now();
+        openSearchModal(scene, state);
+        startBlockingAction("Fouille en cours", searchState.totalMs, {
+            useOverlay: false,
+            spinnerInChoices: false,
+            hideInventory: false,
+            onCancel: () => stopSearch("manual")
+        });
+        if (searchModalStopBtn) {
+            searchModalStopBtn.style.pointerEvents = "auto";
+            searchModalStopBtn.style.opacity = "1";
+        }
+
+        activeSearchInterval = setInterval(() => {
+            if (activeSearchToken !== token || !searchState.running) return;
+            const now = performance.now();
+            const last = searchState.lastTick || now;
+            const delta = now - last;
+            searchState.lastTick = now;
+            const totalMs = Math.max(1, searchState.totalMs || 1);
+            const deltaPercent = (delta / totalMs) * 100;
+            searchState.progress = Math.min(100, searchState.progress + deltaPercent);
+            revealSearchFindings(scene, state);
+            updateSearchModalUI(state);
+            updateSearchStatus(scene, state);
+            if (searchState.progress >= 100) {
+                finishSearch(scene, state, token);
+            }
+        }, 140);
     }
 })();

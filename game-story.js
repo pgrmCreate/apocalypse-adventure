@@ -8,7 +8,7 @@ window.GAME_STORY = {
             id: "intro",
             title: "Chambre barricadee",
             text:
-                "Tu as passe plusieurs jours enferme au 3e etage. Les planches sur la fenetre et le matelas contre la porte ont tenu, mais la reserve baisse et les bruits dans l'immeuble se rapprochent. Il est temps de sortir avec methode.",
+                "Quatre jours enferme au 3e etage. L'air sent le renferme et la sueur froide. Les planches sur la fenetre ont tenu, le matelas contre la porte aussi, mais la reserve se vide et les coups lointains dans l'immeuble se font plus nets. Il faut sortir, en acceptant que tout geste aura un prix.",
             locationId: "apt_main",
             timeContext: "slow",
             minLoot: [],
@@ -42,7 +42,7 @@ window.GAME_STORY = {
             id: "aptLiving",
             title: "Salon encombre",
             text:
-                "Le salon est praticable, couvert de couvertures et de meubles pousses contre les murs. Le couloir est au sud, la cuisine a l'est, ta chambre a l'ouest. Rien ne semble immediatement dangereux, mais chaque bruit compte.",
+                "Le salon est praticable mais tout colle : couvertures humides, meubles pousses a la hate. Les murs portent des traces de mains sales. Le couloir est au sud, la cuisine a l'est, ta chambre a l'ouest. Rien ne bouge, mais chaque craquement fait dresser les poils.",
             locationId: "apt_living",
             timeContext: "slow",
             minLoot: [],
@@ -72,7 +72,7 @@ window.GAME_STORY = {
             id: "aptKitchen",
             title: "Cuisine ravagee",
             text:
-                "Les placards sont portes ouverts, l'odeur d'epices et de poussiere se melange. Quelques boites ont roule sous la table. Tout bruit attire ton attention; mieux vaut rester rapide.",
+                "Les placards sont éventrés, l'odeur de graisse rance couvre celle du sang. Un bras momifié dépasse entre deux planches arrachées : quelqu'un a été écrasé ici et pourrait encore mordre. Chaque mouvement fait crisser le verre au sol.",
             locationId: "apt_kitchen",
             timeContext: "slow",
             minLoot: ["cannedFood", "waterBottle"],
@@ -81,14 +81,14 @@ window.GAME_STORY = {
             randomLootQuantity: 3,
             options: [
                 {
-                    text: "Ouvrir le placard renverse (risque de morsure)",
+                    text: "Dégager le corps coincé contre les placards",
                     diceTest: {
                         type: "combat",
                         diceCount: 2,
                         diceSides: 6,
                         difficulty: 9,
                         description:
-                            "Un corps maigre tente de s'extraire du placard renverse. Tu le repousses pour garder la main."
+                            "Tu soulèves la planche, le corps glisse et la mâchoire claque encore. Tu dois le repousser pour récupérer ce qui reste."
                     },
                     successScene: "aptKitchen",
                     failScene: "aptKitchen",
@@ -108,7 +108,7 @@ window.GAME_STORY = {
             id: "aptHallway",
             title: "Couloir du 3e etage",
             text:
-                "La moquette est couverte de papiers et de traces de pas seches. La porte du voisin 3B est entrouverte. Au fond, la cage d'escalier descend vers les etages inferieurs.",
+                "La moquette est couverte de papiers, de miettes de verre et de traces brunies. Une odeur de métal flotte depuis la porte entrouverte du voisin 3B. Au fond, la cage d'escalier descend, obscurcie.",
             locationId: "apt_hallway",
             timeContext: "slow",
             minLoot: [],
@@ -181,7 +181,7 @@ window.GAME_STORY = {
             id: "stairs3Encounter",
             title: "Cage d'escalier du 3e",
             text:
-                "Un rodeur tangue a mi-palier, la bouche ouverte. Il te voit a peine, mais bloque la descente. Tu dois agir vite ou faire demi-tour.",
+                "A mi-palier, un rodeur tangue, la nuque tordue, des éclats de verre plantés dans le dos. Il grogne sans vraiment te voir mais il barre la descente. Si tu te rates, tu finiras enchevêtré avec lui dans la rampe.",
             locationId: "stairs3",
             timeContext: "fast",
             minLoot: [],
@@ -350,7 +350,7 @@ window.GAME_STORY = {
             id: "apt1",
             title: "Appartement 1A - Pieces intactes",
             text:
-                "Cet appartement est surprenamment intact. Une table renversee sert de barricade legere. Sur le frigo est scotchee une cle rouillee etiquetee 'Garage'.",
+                "Cet appartement est surprenamment intact, comme abandonné dans la précipitation. Une table renversee sert de barricade legere. Sur le frigo est scotchee une cle rouillee etiquetee 'Garage'. Dans la chambre, on entend un souffle irrégulier.",
             locationId: "apt1",
             timeContext: "slow",
             minLoot: ["garageKey", "waterBottle", "energyBar"],
@@ -776,7 +776,7 @@ window.GAME_STORY = {
             id: "survivorCamp",
             title: "Campement de fortune",
             text:
-                "Une tente ecrasee et un feu eteint. Un survivant blesse t'observe, mefiant mais lucide. Il semble avoir des vivres a echanger contre un peu d'aide.",
+                "Une tente ecrasee, un feu eteint et des compresses souillees. Un survivant blesse t'observe, mefiant mais lucide, un couteau serre contre lui. Il a des vivres mais refuse de mourir seul.",
             locationId: "camp",
             timeContext: "fast",
             minLoot: [],
@@ -912,20 +912,14 @@ window.GAME_STORY = {
             randomLootQuantity: 1,
             options: [
                 {
-                    text: "Entrer par l'appartement ouvert",
-                    diceTest: {
-                        type: "skill",
-                        diceCount: 1,
-                        diceSides: 6,
-                        stat: "finesse",
-                        difficulty: 7,
-                        description: "Tu te hisses par la fenetre en prenant appui sur la rambarde."
-                    },
-                    successScene: "fireEscapeLanding",
-                    failScene: "fireEscapeLanding",
-                    successEffect: { audaceChange: 1 },
-                    failEffect: { hpChange: -1 },
+                    text: "S'infiltrer dans le studio aux rideaux arrachés",
+                    nextScene: "fireEscapeFlat",
                     timeCost: 0.6
+                },
+                {
+                    text: "Grimper jusqu'au toit pour reprendre de l'air",
+                    nextScene: "roofAccess",
+                    timeCost: 0.8
                 },
                 {
                     text: "Redescendre vers le quai de livraison",
@@ -936,6 +930,83 @@ window.GAME_STORY = {
                     text: "Descendre l'echelle vers le square",
                     nextScene: "parkSquare",
                     timeCost: 0.6
+                }
+            ]
+        },
+
+        fireEscapeFlat: {
+            id: "fireEscapeFlat",
+            title: "Studio saccagé",
+            text:
+                "Le studio est ravagé. Un homme est attaché au radiateur avec une ceinture, les yeux vitreux, la mâchoire fracturée mais encore capable de mordre. Sur la table, une photo d'enfant et un mot griffonné demandent d'en finir.",
+            locationId: "fire_escape_flat",
+            timeContext: "slow",
+            minLoot: ["paper"],
+            randomLoot: ["waterBottle", "bandage", "energyBar"],
+            randomLootRarity: { 1: 0.78, 2: 0.17, 3: 0.05 },
+            randomLootQuantity: 1,
+            options: [
+                {
+                    text: "Achever l'homme attaché et fouiller la pièce",
+                    diceTest: {
+                        type: "combat",
+                        diceCount: 2,
+                        diceSides: 6,
+                        difficulty: 9,
+                        description: "Il tente de t'agripper malgré la ceinture. Tu frappes vite pour ne pas finir mordu."
+                    },
+                    successScene: "fireEscapeFlat",
+                    failScene: "fireEscapeFlat",
+                    successEffect: { audaceChange: 1 },
+                    failEffect: { hpChange: -3 },
+                    startDistanceRange: { min: 0, max: 1 }
+                },
+                {
+                    text: "Prendre ce qui traîne et ressortir par l'échelle",
+                    nextScene: "fireEscapeLanding",
+                    timeCost: 0.6
+                },
+                {
+                    text: "Passer par la fenêtre et rejoindre la ruelle",
+                    nextScene: "streetIntro",
+                    timeCost: 0.8
+                }
+            ]
+        },
+
+        roofAccess: {
+            id: "roofAccess",
+            title: "Accès au toit",
+            text:
+                "Sur le toit, des corps calcinés entourent une radio de détresse muette. La ville fume au loin, des alarmes résonnent. Allumer un signal pourrait attirer des secours... ou pire.",
+            locationId: "roof_access",
+            timeContext: "fast",
+            minLoot: ["flare"],
+            randomLoot: ["paper", "energyBar"],
+            randomLootRarity: { 1: 0.8, 2: 0.15, 3: 0.05 },
+            randomLootQuantity: 1,
+            options: [
+                {
+                    text: "Allumer une fusée éclairante malgré le danger",
+                    timeCost: 0.7,
+                    effect: { audaceChange: 1, hpChange: -1 },
+                    nextScene: "roofAccess"
+                },
+                {
+                    text: "Bidouiller la radio et noter les fréquences encore actives",
+                    timeCost: 0.8,
+                    effect: { finesseChange: 1 },
+                    nextScene: "roofAccess"
+                },
+                {
+                    text: "Redescendre par l'échelle extérieure",
+                    nextScene: "fireEscapeLanding",
+                    timeCost: 0.6
+                },
+                {
+                    text: "Rejoindre la ruelle en longeant les toits",
+                    nextScene: "streetIntro",
+                    timeCost: 0.8
                 }
             ]
         },
@@ -966,6 +1037,7 @@ window.GAME_STORY = {
             mapPaths: { east: "apt_living" },
             mapFloor: 3,
             mapSize: { width: 2, height: 1 },
+            searchSecondsRange: { min: 4, max: 7 },
             minLoot: [],
             randomLoot: [],
             randomLootRarity: {},
@@ -978,6 +1050,7 @@ window.GAME_STORY = {
             mapPaths: { west: "apt_main", east: "apt_kitchen", south: "apt_hallway" },
             mapFloor: 3,
             mapSize: { width: 2, height: 1 },
+            searchSecondsRange: { min: 6, max: 9 },
             minLoot: [],
             randomLoot: ["waterBottle", "paper", "energyBar"],
             randomLootRarity: { 1: 0.8, 2: 0.18, 3: 0.02 },
@@ -990,6 +1063,7 @@ window.GAME_STORY = {
             mapPaths: { west: "apt_living" },
             mapFloor: 3,
             mapSize: { width: 1, height: 1 },
+            searchSecondsRange: { min: 5, max: 8 },
             minLoot: ["cannedFood", "waterBottle"],
             randomLoot: ["knife", "matches", "energyBar", "flare"],
             randomLootRarity: { 1: 0.75, 2: 0.2, 3: 0.05 },
@@ -1006,6 +1080,7 @@ window.GAME_STORY = {
             },
             mapFloor: 3,
             mapSize: { width: 3, height: 1 },
+            searchSecondsRange: { min: 4, max: 6 },
             minLoot: [],
             randomLoot: ["pen", "paper", "cloth", "flare"],
             randomLootRarity: { 1: 0.88, 2: 0.1, 3: 0.02 },
@@ -1018,6 +1093,7 @@ window.GAME_STORY = {
             mapPaths: { west: "apt_hallway" },
             mapFloor: 3,
             mapSize: { width: 2, height: 1 },
+            searchSecondsRange: { min: 6, max: 9 },
             minLoot: ["bandage"],
             randomLoot: ["antisepticSpray", "energyBar", "cloth", "cigarette"],
             randomLootRarity: { 1: 0.7, 2: 0.2, 3: 0.1 },
@@ -1030,6 +1106,7 @@ window.GAME_STORY = {
             mapPaths: { north: "apt_hallway", south: "landing2" },
             mapFloor: 3,
             mapSize: { width: 1, height: 2 },
+            searchSecondsRange: { min: 5, max: 8 },
             minLoot: [],
             randomLoot: ["bandage", "cloth"],
             randomLootRarity: { 1: 0.82, 2: 0.15, 3: 0.03 },
@@ -1042,6 +1119,7 @@ window.GAME_STORY = {
             mapPaths: { north: "stairs3", east: "apt2", south: "landing1" },
             mapFloor: 2,
             mapSize: { width: 2, height: 1 },
+            searchSecondsRange: { min: 4, max: 6 },
             minLoot: [],
             randomLoot: ["bandage", "toothbrush"],
             randomLootRarity: { 1: 0.82, 2: 0.15, 3: 0.03 },
@@ -1054,6 +1132,7 @@ window.GAME_STORY = {
             mapPaths: { west: "landing2" },
             mapFloor: 2,
             mapSize: { width: 2, height: 1 },
+            searchSecondsRange: { min: 6, max: 9 },
             minLoot: ["plank", "rustyPipe"],
             randomLoot: ["bandage", "cloth", "nail", "flare"],
             randomLootRarity: { 1: 0.7, 2: 0.2, 3: 0.1 },
@@ -1066,6 +1145,7 @@ window.GAME_STORY = {
             mapPaths: { north: "landing2", east: "apt1", south: "groundHall" },
             mapFloor: 1,
             mapSize: { width: 2, height: 1 },
+            searchSecondsRange: { min: 4, max: 6 },
             minLoot: [],
             randomLoot: ["cannedFood", "cloth", "energyBar"],
             randomLootRarity: { 1: 0.83, 2: 0.14, 3: 0.03 },
@@ -1078,6 +1158,7 @@ window.GAME_STORY = {
             mapPaths: { west: "landing1" },
             mapFloor: 1,
             mapSize: { width: 2, height: 1 },
+            searchSecondsRange: { min: 6, max: 9 },
             minLoot: ["waterBottle", "garageKey", "energyBar"],
             randomLoot: ["medkit", "antisepticSpray", "towel"],
             randomLootRarity: { 1: 0.7, 2: 0.2, 3: 0.1 },
@@ -1090,6 +1171,7 @@ window.GAME_STORY = {
             mapPaths: { north: "landing1", east: "garage" },
             mapFloor: 0,
             mapSize: { width: 2, height: 1 },
+            searchSecondsRange: { min: 5, max: 8 },
             minLoot: [],
             randomLoot: [],
             randomLootRarity: { 1: 0.8, 2: 0.2 },
@@ -1102,6 +1184,7 @@ window.GAME_STORY = {
             mapPaths: { west: "groundHall", south: "outside" },
             mapFloor: 0,
             mapSize: { width: 3, height: 2 },
+            searchSecondsRange: { min: 11, max: 16 },
             minLoot: ["plank"],
             randomLoot: ["cannedFood", "waterBottle", "anvil", "matches", "crowbar", "nail", "kitchenPan"],
             randomLootRarity: { 1: 0.6, 2: 0.25, 3: 0.15 },
@@ -1120,6 +1203,7 @@ window.GAME_STORY = {
             },
             mapFloor: 0,
             mapSize: { width: 3, height: 1 },
+            searchSecondsRange: { min: 6, max: 9 },
             minLoot: ["cloth"],
             randomLoot: ["toothbrush", "towel", "matches", "lighter", "flare", "energyBar"],
             randomLootRarity: { 1: 0.8, 2: 0.15, 3: 0.05 },
@@ -1132,6 +1216,7 @@ window.GAME_STORY = {
             mapPaths: { west: "street_alley", east: "pharmacy_inside" },
             mapFloor: 0,
             mapSize: { width: 2, height: 1 },
+            searchSecondsRange: { min: 5, max: 7 },
             minLoot: [],
             randomLoot: [],
             randomLootRarity: {},
@@ -1143,6 +1228,7 @@ window.GAME_STORY = {
             mapPaths: { west: "pharmacy_front" },
             mapFloor: 0,
             mapSize: { width: 2, height: 2 },
+            searchSecondsRange: { min: 8, max: 12 },
             minLoot: ["bandage", "cleanBandage"],
             randomLoot: ["medkit", "waterBottle", "antisepticSpray", "energyBar"],
             randomLootRarity: { 1: 0.68, 2: 0.2, 3: 0.12 },
@@ -1161,6 +1247,7 @@ window.GAME_STORY = {
             },
             mapFloor: 0,
             mapSize: { width: 3, height: 2 },
+            searchSecondsRange: { min: 9, max: 14 },
             minLoot: ["towel"],
             randomLoot: ["plank", "bandage", "cloth", "energyBar"],
             randomLootRarity: { 1: 0.85, 2: 0.12, 3: 0.03 },
@@ -1172,6 +1259,7 @@ window.GAME_STORY = {
             mapPaths: { west: "park" },
             mapFloor: 0,
             mapSize: { width: 2, height: 1 },
+            searchSecondsRange: { min: 6, max: 9 },
             minLoot: [],
             randomLoot: ["cannedFood", "waterBottle", "energyBar"],
             randomLootRarity: { 1: 0.72, 2: 0.23, 3: 0.05 },
@@ -1183,6 +1271,7 @@ window.GAME_STORY = {
             mapPaths: { north: "garage", east: "street_alley" },
             mapFloor: 0,
             mapSize: { width: 2, height: 1 },
+            searchSecondsRange: { min: 5, max: 8 },
             minLoot: [],
             randomLoot: [],
             randomLootRarity: {},
@@ -1194,6 +1283,7 @@ window.GAME_STORY = {
             mapPaths: { southwest: "street_alley", northeast: "fire_escape" },
             mapFloor: 0,
             mapSize: { width: 3, height: 1 },
+            searchSecondsRange: { min: 9, max: 13 },
             minLoot: [],
             randomLoot: ["cannedFood", "plank", "energyBar"],
             randomLootRarity: { 1: 0.8, 2: 0.15, 3: 0.05 },
@@ -1205,6 +1295,7 @@ window.GAME_STORY = {
             mapPaths: { northwest: "street_alley", north: "park_fountain" },
             mapFloor: 0,
             mapSize: { width: 2, height: 1 },
+            searchSecondsRange: { min: 7, max: 11 },
             minLoot: [],
             randomLoot: ["flare"],
             randomLootRarity: { 1: 0.85, 2: 0.15 },
@@ -1216,6 +1307,7 @@ window.GAME_STORY = {
             mapPaths: { southwest: "park", northeast: "street_alley" },
             mapFloor: 0,
             mapSize: { width: 2, height: 1 },
+            searchSecondsRange: { min: 6, max: 8 },
             minLoot: ["cannedFood"],
             randomLoot: ["paper", "flare", "energyBar"],
             randomLootRarity: { 1: 0.85, 2: 0.12, 3: 0.03 },
@@ -1227,6 +1319,7 @@ window.GAME_STORY = {
             mapPaths: { north: "park", northeast: "park_kiosk", south: "subway_entrance" },
             mapFloor: 0,
             mapSize: { width: 2, height: 1 },
+            searchSecondsRange: { min: 6, max: 9 },
             minLoot: [],
             randomLoot: ["bandage", "antisepticSpray", "toothbrush"],
             randomLootRarity: { 1: 0.78, 2: 0.18, 3: 0.04 },
@@ -1235,13 +1328,40 @@ window.GAME_STORY = {
 
         fire_escape: {
             mapLabel: "Escalier de secours",
-            mapPaths: { southwest: "delivery_yard", south: "park" },
+            mapPaths: { southwest: "delivery_yard", south: "park", north: "roof_access", east: "fire_escape_flat" },
             mapFloor: 0,
             mapSize: { width: 2, height: 1 },
+            searchSecondsRange: { min: 5, max: 7 },
             minLoot: [],
             randomLoot: ["paper", "energyBar"],
             randomLootRarity: { 1: 0.82, 2: 0.15, 3: 0.03 },
             randomLootQuantity: 0.6
+        },
+
+        fire_escape_flat: {
+            mapLabel: "Studio (secours)",
+            mapPaths: { west: "fire_escape" },
+            mapFloor: 0,
+            mapSize: { width: 1, height: 1 },
+            searchSecondsRange: { min: 6, max: 9 },
+            minLoot: ["paper"],
+            randomLoot: ["bandage", "energyBar"],
+            randomLootRarity: { 1: 0.78, 2: 0.17, 3: 0.05 },
+            randomLootQuantity: 1,
+            enemyDistanceRange: { min: 0, max: 1 }
+        },
+
+        roof_access: {
+            mapLabel: "Toit",
+            mapPaths: { south: "fire_escape" },
+            mapFloor: 1,
+            mapSize: { width: 2, height: 1 },
+            searchSecondsRange: { min: 7, max: 11 },
+            minLoot: ["flare"],
+            randomLoot: ["paper", "energyBar"],
+            randomLootRarity: { 1: 0.8, 2: 0.15, 3: 0.05 },
+            randomLootQuantity: 0.8,
+            enemyDistanceRange: { min: 1, max: 2 }
         },
 
         none: {

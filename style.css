@@ -1279,6 +1279,63 @@ body.combat-active .craft-panel {
     }
 }
 
+.search-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.5rem 0;
+}
+
+.search-status {
+    font-size: 0.9rem;
+    color: #cfe0ff;
+    opacity: 0.8;
+}
+
+.search-modal .search-progress {
+    margin: 0.5rem 0 1rem;
+}
+
+.search-progress-track {
+    width: 100%;
+    height: 12px;
+    background: #0f1626;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+}
+
+.search-progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #2ea0ff, #3ad06a);
+    transition: width 0.2s ease;
+}
+
+.search-found {
+    margin-top: 1rem;
+}
+
+.search-found-list {
+    list-style: none;
+    margin: 0.35rem 0 0;
+    padding: 0;
+    max-height: 180px;
+    overflow-y: auto;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    background: rgba(13, 16, 26, 0.6);
+}
+
+.search-found-list li {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.search-found-list li:last-child {
+    border-bottom: none;
+}
+
 /* Responsive */
 
 @media (max-width: 768px) {
