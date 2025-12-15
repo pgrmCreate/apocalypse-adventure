@@ -1245,6 +1245,58 @@ body.combat-active .craft-panel {
     color: var(--muted);
 }
 
+.combat-header {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    background: rgba(12, 17, 27, 0.8);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.combat-threat {
+    color: var(--warning);
+    font-size: 0.95rem;
+}
+
+.combat-chip {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(255, 94, 94, 0.18);
+    border: 1px solid rgba(255, 94, 94, 0.45);
+    color: #ffcaca;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.combat-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.combat-action {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.combat-action .choice-btn {
+    width: 100%;
+}
+
+.combat-hint {
+    font-size: 0.85rem;
+    color: var(--muted);
+    line-height: 1.3;
+}
+
 @keyframes spin {
     from {
         transform: rotate(0deg);
@@ -1284,6 +1336,13 @@ body.combat-active .craft-panel {
     align-items: center;
     gap: 0.5rem;
     margin: 0.5rem 0;
+}
+
+.search-btn-locked {
+    cursor: not-allowed;
+    opacity: 0.6;
+    background: #222833;
+    border-style: dashed;
 }
 
 .search-status {

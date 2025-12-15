@@ -2929,14 +2929,21 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         return Math.max(0, Math.min(100, percent));
     }
 
+    function formatSeconds(ms) {
+        return (Math.max(0, ms || 0) / 1000).toFixed(1);
+    }
+
     function markContactWindow({ early = false } = {}) {
         if (!combatState.active) return;
         if (combatState.preContactStrikeReady) return;
         combatState.preContactStrikeReady = true;
         const message = early
-            ? "L'ennemi est à portée immédiate : place un coup d'arrêt maintenant."
-            : "Tu as une fenêtre pour frapper avant le contact direct.";
+            ? "L'ennemi est a portee immediate : place un coup d'arret maintenant."
+            : "Fenetre de frappe juste avant l'impact : cogne avant qu'il t'enfonce.";
         logMessage(message);
+        if (combatState.active && !combatState.awaitingIntroConfirm) {
+            renderCombatUI();
+        }
     }
 
     function updateApproachMeterUI() {
@@ -2957,6 +2964,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         const nextDistance = Math.max(0, Math.ceil(approach.initialDistance * ratio));
         const previousDistance = combatState.distance;
         let reachedContact = false;
+        let windowOpened = false;
         if (nextDistance !== combatState.distance) {
             combatState.distance = nextDistance;
             const enemy = combatState.enemies && combatState.enemies[0];
@@ -2972,6 +2980,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             approach.remainingMs <= getEquippedWeaponPreContactWindowMs()
         ) {
             markContactWindow({ early: combatState.distance > 0 });
+            windowOpened = true;
         }
 
         if (approach.remainingMs <= 0 && approach.initialDistance > 0 && !approach.contactTriggered) {
@@ -2981,44 +2990,50 @@ import { GAME_CONSTANTS } from "./game-constants.js";
 
         if (previousDistance !== combatState.distance && combatState.distance === 0 && combatState.active) {
             markContactWindow();
-            renderCombatUI();
             stopCombatApproachTimer();
         }
 
-        return { reachedContact };
+        if (
+            combatState.active &&
+            !combatState.awaitingIntroConfirm &&
+            (previousDistance !== combatState.distance || windowOpened || reachedContact)
+        ) {
+            renderCombatUI();
+        }
+
+        return { reachedContact, distanceChanged: previousDistance !== combatState.distance, windowOpened };
     }
 
     function startCombatApproachTimer() {
         stopCombatApproachTimer();
-        const approach = combatState.approach;
         if (!combatState.active || combatState.awaitingIntroConfirm) return;
-        if (combatState.distance <= 0) return;
-        if (!approach || approach.totalMs <= 0) {
-            if (combatState.active) {
-                combatApproachTimer = setInterval(() => {
-                    if (!combatState.active) {
-                        stopCombatApproachTimer();
-                        return;
-                    }
-                    const attacked = attemptEnemyAttack();
-                    if (attacked && combatState.active) renderCombatUI();
-                }, 200);
-            }
-            return;
-        }
         combatApproachTimer = setInterval(() => {
             if (!combatState.active) {
                 stopCombatApproachTimer();
                 return;
             }
-            if (combatState.approach && combatState.approach.totalMs > 0) {
-                combatState.approach.remainingMs = Math.max(0, combatState.approach.remainingMs - 200);
-                syncCombatDistanceFromApproach();
-                updateApproachMeterUI();
+
+            let shouldRender = false;
+            if (combatState.approach) {
+                const totalMs = Math.max(0, combatState.approach.totalMs || 0);
+                if (totalMs > 0) {
+                    combatState.approach.remainingMs = Math.max(0, combatState.approach.remainingMs - 180);
+                    const syncResult = syncCombatDistanceFromApproach();
+                    shouldRender =
+                        shouldRender ||
+                        (syncResult &&
+                            (syncResult.distanceChanged || syncResult.windowOpened || syncResult.reachedContact));
+                    updateApproachMeterUI();
+                }
             }
-            const attacked = attemptEnemyAttack();
-            if (attacked && combatState.active) renderCombatUI();
-        }, 200);
+
+            const attacked = attemptEnemyAttack({ skipSync: true });
+            if (attacked) shouldRender = true;
+
+            if (shouldRender && combatState.active && !combatState.awaitingIntroConfirm) {
+                renderCombatUI();
+            }
+        }, 180);
     }
 
     function stopCombatApproachTimer() {
@@ -3114,9 +3129,12 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         const enemy = combatState.enemies && combatState.enemies[0];
         if (!enemy) return false;
 
-        const syncResult = syncCombatDistanceFromApproach();
-        updateApproachMeterUI();
-        const reachedContact = syncResult && syncResult.reachedContact;
+        let reachedContact = false;
+        if (!opts.skipSync) {
+            const syncResult = syncCombatDistanceFromApproach();
+            updateApproachMeterUI();
+            reachedContact = syncResult && syncResult.reachedContact;
+        }
 
         if (canDoPreContactStrike()) {
             const struck = heroPreContactStrike();
@@ -3410,15 +3428,73 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         if (choiceTitleEl) choiceTitleEl.textContent = "Actions de combat";
         choicesEl.innerHTML = "";
 
+        const now = performance.now();
+        const cooldownRemainingMs = Math.max(0, (combatState.attackCooldownEndsAt || 0) - now);
+        const meleeInCooldown = cooldownRemainingMs > 0;
+        const inMeleeRange = canUseMelee();
+        const throwableElements = getThrowableWeaponElements();
+        const pending = combatState.pendingEnemyAttack;
+        const hasEnemy = combatState.enemies.length > 0;
+        const nextEnemySwingMs = pending
+            ? Math.max(0, (pending.expiresAt || 0) - now)
+            : Math.max(0, (combatState.nextEnemyAttackAt || now) - now);
+        const reach = getEquippedWeaponRange();
+
+        const createAction = (label, onClick, { disabled = false, reason = "", classes = [] } = {}) => {
+            const wrapper = document.createElement("div");
+            wrapper.classList.add("combat-action");
+            const btn = document.createElement("button");
+            btn.classList.add("choice-btn", ...classes);
+            btn.textContent = label;
+            btn.disabled = disabled;
+            btn.addEventListener("click", onClick);
+            wrapper.appendChild(btn);
+            if (reason) {
+                const hint = document.createElement("div");
+                hint.classList.add("combat-hint");
+                hint.textContent = reason;
+                wrapper.appendChild(hint);
+            }
+            return wrapper;
+        };
+
+        const header = document.createElement("div");
+        header.classList.add("combat-header");
+
         const status = document.createElement("div");
         status.classList.add("combat-status");
-        status.textContent = combatState.enemies
-            .map(e => `${e.name} (${e.hp}/${e.maxHp} PV)`).join(" • ");
-        choicesEl.appendChild(status);
+        status.textContent = hasEnemy
+            ? combatState.enemies.map(e => `${e.name} (${e.hp}/${e.maxHp} PV)`).join(" • ")
+            : "Plus de menace visible.";
+        header.appendChild(status);
+
+        const threat = document.createElement("div");
+        threat.classList.add("combat-threat");
+        if (pending) {
+            threat.textContent = `${pending.enemyName || "L'adversaire"} arme un coup : ${formatSeconds(
+                nextEnemySwingMs
+            )}s pour reagir.`;
+        } else if (hasEnemy) {
+            if (nextEnemySwingMs > 0) {
+                threat.textContent = `Prochain coup estime dans ${formatSeconds(nextEnemySwingMs)}s. Reste en tension.`;
+            } else {
+                threat.textContent = "L'adversaire cherche une faille. Ne reste pas passif.";
+            }
+        } else {
+            threat.textContent = "Silence brutal apres l'impact.";
+        }
+        header.appendChild(threat);
+        choicesEl.appendChild(header);
 
         const distanceInfo = document.createElement("div");
         distanceInfo.classList.add("combat-distance");
         distanceInfo.textContent = `Distance : ${describeDistance(combatState.distance)}`;
+        if (combatState.preContactStrikeReady) {
+            const chip = document.createElement("span");
+            chip.classList.add("combat-chip");
+            chip.textContent = "Fenetre de frappe";
+            distanceInfo.appendChild(chip);
+        }
         choicesEl.appendChild(distanceInfo);
 
         const approachWrapper = document.createElement("div");
@@ -3435,88 +3511,105 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         approachWrapper.appendChild(approachLabel);
         choicesEl.appendChild(approachWrapper);
 
-        if (combatState.distance > 0) {
-            const approachBtn = document.createElement("button");
-            approachBtn.classList.add("choice-btn");
-            approachBtn.textContent = "Se rapprocher";
-            approachBtn.addEventListener("click", approachEnemy);
-            choicesEl.appendChild(approachBtn);
+        const actionsGrid = document.createElement("div");
+        actionsGrid.classList.add("combat-actions-grid");
+
+        actionsGrid.appendChild(
+            createAction("Se rapprocher", approachEnemy, {
+                disabled: combatState.distance <= 0 || !hasEnemy,
+                reason:
+                    combatState.distance <= 0
+                        ? "Deja au contact, reste mobile pour encaisser."
+                        : !hasEnemy
+                        ? "Plus personne a approcher."
+                        : "Combler la distance pour cogner."
+            })
+        );
+
+        let meleeReason = "";
+        if (!hasEnemy) {
+            meleeReason = "Plus de cible.";
+        } else if (!inMeleeRange) {
+            meleeReason =
+                reach > 0
+                    ? `Hors de portee (arme ${reach}). Avance ou projette-le.`
+                    : "Trop loin, mains nues inutiles ici.";
+        } else if (meleeInCooldown) {
+            meleeReason = `Recuperation ${formatSeconds(cooldownRemainingMs)}s.`;
+        } else if (combatState.preContactStrikeReady) {
+            meleeReason = "Fenetre d'arret avant qu'il s'ecrase sur toi.";
         }
 
-        const now = performance.now();
-        const cooldownRemainingMs = Math.max(0, (combatState.attackCooldownEndsAt || 0) - now);
-        const meleeInCooldown = cooldownRemainingMs > 0;
-        const inMeleeRange = canUseMelee();
+        actionsGrid.appendChild(
+            createAction(
+                combatState.preContactStrikeReady ? "Coup d'arret" : "Attaque au corps a corps",
+                performMeleeAttack,
+                {
+                    disabled: !hasEnemy || !inMeleeRange || meleeInCooldown,
+                    reason: meleeReason
+                }
+            )
+        );
 
-        if (inMeleeRange) {
-            const attackBtn = document.createElement("button");
-            attackBtn.classList.add("choice-btn");
-            attackBtn.textContent = meleeInCooldown
-                ? `Attaque au corps à corps (${(cooldownRemainingMs / 1000).toFixed(1)}s)`
-            : "Attaque au corps à corps";
-            attackBtn.disabled = !combatState.enemies.length || meleeInCooldown;
-            attackBtn.addEventListener("click", performMeleeAttack);
-            choicesEl.appendChild(attackBtn);
-        } else if (combatState.enemies.length) {
-            const info = document.createElement("div");
-            info.classList.add("combat-distance");
-            const reach = getEquippedWeaponRange();
-            info.textContent =
-                "L'adversaire est hors de portée pour une attaque au corps à corps." +
-                (reach > 0
-                    ? ` (portée actuelle de l'arme : ${reach})`
-                    : " (tu combats à mains nues)");
-            choicesEl.appendChild(info);
+        const pushDisabled = !hasEnemy || combatState.distance > 1 || meleeInCooldown;
+        let pushReason = "";
+        if (!hasEnemy) {
+            pushReason = "Rien a repousser.";
+        } else if (combatState.distance > 1) {
+            pushReason = "Trop loin pour heurter, avance d'abord.";
+        } else if (meleeInCooldown) {
+            pushReason = `Reprends ton souffle (${formatSeconds(cooldownRemainingMs)}s).`;
         }
+        actionsGrid.appendChild(
+            createAction("Pousser / heurter", pushEnemyBack, {
+                disabled: pushDisabled,
+                reason: pushReason,
+                classes: ["secondary-btn"]
+            })
+        );
 
-        if (combatState.enemies.length && combatState.distance <= 1) {
-            const pushBtn = document.createElement("button");
-            pushBtn.classList.add("choice-btn", "secondary-btn");
-            pushBtn.textContent = meleeInCooldown
-                ? `Pousser (${(cooldownRemainingMs / 1000).toFixed(1)}s)`
-                : "Pousser / repousser";
-            pushBtn.disabled = meleeInCooldown;
-            pushBtn.addEventListener("click", pushEnemyBack);
-            choicesEl.appendChild(pushBtn);
-        }
-
-        const throwableElements = getThrowableWeaponElements();
         if (throwableElements.length === 0) {
-            const noThrow = document.createElement("div");
-            noThrow.classList.add("combat-distance");
-            noThrow.textContent = "Aucune arme de jet disponible.";
-            choicesEl.appendChild(noThrow);
+            actionsGrid.appendChild(
+                createAction("Lancer", () => {}, { disabled: true, reason: "Rien a lancer." })
+            );
         } else {
-            const throwContainer = document.createElement("div");
-            throwContainer.classList.add("throw-buttons");
             throwableElements.forEach(el => {
-                const btn = document.createElement("button");
-                btn.classList.add("choice-btn");
                 const itemName = el.dataset.name || "objet";
-                btn.textContent = `Lancer ${itemName}`;
-                btn.disabled = meleeInCooldown || !canUseRanged();
-                btn.addEventListener("click", () => performRangedAttack(el));
-                throwContainer.appendChild(btn);
+                const throwDisabled = meleeInCooldown || !canUseRanged();
+                const throwReason = throwDisabled
+                    ? meleeInCooldown
+                        ? `Recuperation ${formatSeconds(cooldownRemainingMs)}s.`
+                        : "Trop loin pour un lancer utile."
+                    : "Projette et garde tes distances.";
+                actionsGrid.appendChild(
+                    createAction(`Lancer ${itemName}`, () => performRangedAttack(el), {
+                        disabled: throwDisabled,
+                        reason: throwReason
+                    })
+                );
             });
-            choicesEl.appendChild(throwContainer);
         }
 
-        const fleeBtn = document.createElement("button");
-        fleeBtn.classList.add("choice-btn");
-        fleeBtn.textContent = "Fuir";
-        fleeBtn.addEventListener("click", attemptFlee);
-        choicesEl.appendChild(fleeBtn);
+        const dodgeDisabled = !pending;
+        const dodgeReason = pending
+            ? "Fenetre d'esquive ouverte."
+            : "Pas de coup arme pour le moment.";
+        actionsGrid.appendChild(
+            createAction(
+                pending ? `Esquiver (${formatSeconds(nextEnemySwingMs)}s)` : "Esquiver",
+                attemptDodge,
+                { disabled: dodgeDisabled, reason: dodgeReason }
+            )
+        );
 
-        if (combatState.pendingEnemyAttack) {
-            const pending = combatState.pendingEnemyAttack;
-            const remainingMs = Math.max(0, (pending.expiresAt || 0) - performance.now());
-            const dodgeBtn = document.createElement("button");
-            dodgeBtn.classList.add("choice-btn");
-            dodgeBtn.textContent = `Esquiver (${(remainingMs / 1000).toFixed(1)}s)`;
-            dodgeBtn.addEventListener("click", attemptDodge);
-            choicesEl.appendChild(dodgeBtn);
-        }
+        actionsGrid.appendChild(
+            createAction("Fuir", attemptFlee, {
+                disabled: !hasEnemy,
+                reason: hasEnemy ? "Quitter le combat coute du temps, mais c'est la vie." : "Plus rien a fuir."
+            })
+        );
 
+        choicesEl.appendChild(actionsGrid);
         updateApproachMeterUI();
     }
 
@@ -4436,26 +4529,21 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         const state = getLocationState(locationId);
         if (!state || !key || state.lootApplied.has(key) || !lootEl) return;
 
-        let added = false;
-        if (!state || !key || state.lootApplied.has(key)) return;
         const fragment = document.createDocumentFragment();
         templates.forEach(templateId => {
             const item = createItemFromTemplate(templateId);
             if (!item) return;
             const node = createItemElement(item);
-            appendItemToZone(node, lootEl);
-            added = true;
+            fragment.appendChild(node);
+            state.lootNodes.push(node);
         });
 
-        if (added) {
-            fragment.appendChild(node);
-        }
-
-        if (fragment.childNodes.length > 0 && lootEl) {
+        if (fragment.childNodes.length > 0) {
             lootEl.appendChild(fragment);
             state.lootApplied.add(key);
             saveLocationState(locationId);
             updateCapacityUI();
+            logMessage("Du materiel tombe sur le sol apres cette decision.");
         }
     }
 
@@ -4608,7 +4696,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         if (!state) return;
         const location = locations[currentLocationId] || {};
         ensureSearchStateForScene(scene);
-        grantMinLootToInventory(scene, location, state);
+        ensureMinLootOnGround(scene, location, state);
 
         if (choicesEl) {
             choicesEl.innerHTML = "";
@@ -4888,13 +4976,13 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         return minLoot;
     }
 
-    function grantMinLootToInventory(scene, location, state) {
-        if (!inventoryEl || !state) return;
+    function ensureMinLootOnGround(scene, location, state) {
+        if (!lootEl || !state) return;
         const grants = [
             { key: `location:${scene.locationId || scene.id}`, list: location.minLoot },
             { key: `scene:${scene.id}`, list: scene.minLoot }
         ];
-        let granted = 0;
+        const newNodes = [];
 
         grants.forEach(entry => {
             if (!Array.isArray(entry.list)) return;
@@ -4903,15 +4991,14 @@ import { GAME_CONSTANTS } from "./game-constants.js";
                 const item = createItemFromTemplate(templateId);
                 if (!item) return;
                 const el = createItemElement(item);
-                appendItemToZone(el, inventoryEl);
-                granted += 1;
+                state.lootNodes.push(el);
+                newNodes.push(el);
             });
             state.minLootGrantedScenes?.add(entry.key);
         });
-
-        if (granted > 0) {
-            updateCapacityUI();
-            logMessage(`Tu sécurises ${granted} objet(s) indispensable(s) dans ton sac.`);
+        if (newNodes.length > 0) {
+            newNodes.forEach(node => appendItemToZone(node, lootEl));
+            logMessage("Du materiel essentiel git deja au sol ici.");
         }
     }
 
@@ -4982,25 +5069,40 @@ import { GAME_CONSTANTS } from "./game-constants.js";
 
     function updateSearchStatus(scene, state) {
         const searchState = state?.searchState;
-        const totalLoot = searchState?.randomLootTemplates?.length || 0;
         const percent = searchState ? Math.min(100, Math.round(searchState.progress || 0)) : 0;
-        const discoveries = searchState ? searchState.revealedCount || 0 : 0;
-        const noLoot = searchState && totalLoot === 0;
+        const noLoot = searchState && (!searchState.randomLootTemplates || searchState.randomLootTemplates.length === 0);
+        const fullyLooted = !!(searchState && searchState.progress >= 100);
         const disabled =
             combatState.active ||
             isActionInProgress() ||
             !searchState ||
-            searchState.progress >= 100 ||
+            fullyLooted ||
             noLoot;
 
         if (searchBtn) {
             searchBtn.disabled = disabled;
-            if (searchState && searchState.progress >= 100) {
-                searchBtn.textContent = "Fouille terminée";
+            searchBtn.setAttribute("aria-disabled", String(disabled));
+            searchBtn.classList.toggle("search-btn-locked", fullyLooted);
+            if (!searchState) {
+                searchBtn.textContent = "Fouille indisponible";
+                searchBtn.title = "";
+                searchBtn.style.pointerEvents = "none";
+                searchBtn.tabIndex = -1;
+            } else if (fullyLooted) {
+                searchBtn.textContent = "Lieu retourne";
+                searchBtn.title = "Plus rien a gratter ici.";
+                searchBtn.style.pointerEvents = "none";
+                searchBtn.tabIndex = -1;
             } else if (noLoot) {
-                searchBtn.textContent = "Rien à fouiller";
+                searchBtn.textContent = "Rien a fouiller";
+                searchBtn.title = "Le sol est deja vide.";
+                searchBtn.style.pointerEvents = "none";
+                searchBtn.tabIndex = -1;
             } else {
                 searchBtn.textContent = "Fouiller";
+                searchBtn.title = "";
+                searchBtn.style.pointerEvents = "";
+                searchBtn.tabIndex = 0;
             }
         }
 
@@ -5008,11 +5110,13 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             if (!searchState) {
                 searchStatusEl.textContent = "Fouille indisponible ici.";
             } else if (noLoot) {
-                searchStatusEl.textContent = "Rien d'utile à dénicher dans ce lieu.";
-            } else if (searchState.progress >= 100) {
-                searchStatusEl.textContent = `Lieu fouillé (${discoveries}/${totalLoot} trouvailles).`;
+                searchStatusEl.textContent = "Rien d'utile a denicher dans ce lieu.";
+            } else if (fullyLooted) {
+                searchStatusEl.textContent = "Lieu retourne : plus rien au sol.";
+            } else if (percent <= 0) {
+                searchStatusEl.textContent = "Pret a fouiller ce lieu.";
             } else {
-                searchStatusEl.textContent = `Fouille ${percent}% • ${discoveries}/${totalLoot} objets`;
+                searchStatusEl.textContent = `Fouille en cours : ${percent}%`;
             }
         }
     }
@@ -5041,9 +5145,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             searchModalProgressEl.style.width = `${percent}%`;
         }
         if (searchModalProgressLabelEl) {
-            const total = searchState.randomLootTemplates.length;
-            searchModalProgressLabelEl.textContent =
-                `Progression : ${percent}% (${searchState.revealedCount}/${total} trouvaille${total > 1 ? "s" : ""})`;
+            searchModalProgressLabelEl.textContent = `Progression : ${percent}%`;
         }
         if (searchModalFoundListEl) {
             searchModalFoundListEl.innerHTML = "";
