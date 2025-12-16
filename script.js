@@ -1575,6 +1575,17 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         setTagButtonsDisabled(false);
     }
 
+    function ensureCombatUIUnlocked() {
+        if (!combatState.active) return;
+        if (actionInProgress) {
+            endBlockingAction();
+        } else {
+            document.body.classList.remove("action-blocked");
+            document.body.classList.remove("inventory-hidden");
+            if (actionOverlayEl) actionOverlayEl.classList.add("hidden");
+        }
+    }
+
     function isActionInProgress() {
         return actionInProgress;
     }
@@ -2936,6 +2947,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
     function markContactWindow({ early = false } = {}) {
         if (!combatState.active) return;
         if (combatState.preContactStrikeReady) return;
+        ensureCombatUIUnlocked();
         combatState.preContactStrikeReady = true;
         const message = early
             ? "L'ennemi est a portee immediate : place un coup d'arret maintenant."
@@ -3105,6 +3117,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
 
     function attemptDodge() {
         if (!combatState.active) return;
+        ensureCombatUIUnlocked();
         const pending = combatState.pendingEnemyAttack;
         if (!pending) {
             showToast("Pas d'attaque à esquiver.", "info");
@@ -3119,7 +3132,10 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         combatState.nextEnemyAttackAt = now + ENEMY_ATTACK_COOLDOWN_MS;
         logMessage("Tu esquives de justesse, l'ennemi se rééquilibre.");
         showToast("Esquive réussie", "success");
-        if (combatState.active) renderCombatUI();
+        if (combatState.active) {
+            startCombatApproachTimer();
+            renderCombatUI();
+        }
     }
 
     function attemptEnemyAttack(opts = {}) {
@@ -3128,6 +3144,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         if (combatState.pendingEnemyAttack) return false;
         const enemy = combatState.enemies && combatState.enemies[0];
         if (!enemy) return false;
+        ensureCombatUIUnlocked();
 
         let reachedContact = false;
         if (!opts.skipSync) {
@@ -3411,6 +3428,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         currentTimeContext = "fast";
         document.body.classList.add("combat-active");
         updateGroundPanelVisibility();
+        ensureCombatUIUnlocked();
         musicController.playActions();
         renderCombatUI();
         logMessage(`Un combat s'engage contre ${enemy.name}.`);
@@ -3425,6 +3443,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
 
     function renderCombatUI() {
         if (!choicesEl || !combatState.active) return;
+        ensureCombatUIUnlocked();
         if (choiceTitleEl) choiceTitleEl.textContent = "Actions de combat";
         choicesEl.innerHTML = "";
 
@@ -3551,12 +3570,12 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             )
         );
 
-        const pushDisabled = !hasEnemy || combatState.distance > 1 || meleeInCooldown;
+        const pushDisabled = !hasEnemy || combatState.distance !== 0 || meleeInCooldown;
         let pushReason = "";
         if (!hasEnemy) {
             pushReason = "Rien a repousser.";
-        } else if (combatState.distance > 1) {
-            pushReason = "Trop loin pour heurter, avance d'abord.";
+        } else if (combatState.distance !== 0) {
+            pushReason = "Il faut coller l'ennemi pour le heurter.";
         } else if (meleeInCooldown) {
             pushReason = `Reprends ton souffle (${formatSeconds(cooldownRemainingMs)}s).`;
         }
@@ -3653,8 +3672,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         const force = Math.max(0, hero.force || 0);
         const base = 0.45 + Math.min(0.35, force * 0.08);
         const fitnessPenalty = Math.max(0, (enemy?.fitness || 1) * 0.05);
-        const distancePenalty = combatState.distance > 0 ? 0.05 : 0;
-        return Math.max(0.2, Math.min(0.9, base - fitnessPenalty - distancePenalty));
+        return Math.max(0.2, Math.min(0.9, base - fitnessPenalty));
     }
 
     function pushEnemyBack() {
@@ -3663,14 +3681,15 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             closeCombatIntroModal();
             activateCombatAfterIntro();
         }
+        ensureCombatUIUnlocked();
         syncCombatDistanceFromApproach();
         const enemy = combatState.enemies?.[0];
         if (!enemy) {
             endCombat(true);
             return;
         }
-        if (combatState.distance > 1) {
-            logMessage("Tu dois encore te rapprocher pour repousser l'ennemi.");
+        if (combatState.distance !== 0) {
+            logMessage("Tu dois etre au contact pour repousser l'ennemi.");
             return;
         }
         const now = performance.now();
@@ -3754,6 +3773,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             closeCombatIntroModal();
             activateCombatAfterIntro();
         }
+        ensureCombatUIUnlocked();
         syncCombatDistanceFromApproach();
         const enemy = combatState.enemies?.[0];
         if (!enemy) {
@@ -3802,6 +3822,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
 
     function performRangedAttack(throwable) {
         if (!combatState.active) return;
+        ensureCombatUIUnlocked();
         syncCombatDistanceFromApproach();
         const enemy = combatState.enemies?.[0];
         if (!enemy) {
@@ -3914,6 +3935,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         closeCombatIntroModal();
         stopCombatApproachTimer();
         clearPendingEnemyAttack();
+        ensureCombatUIUnlocked();
         musicController.playCalm({ fadeOutMs: 1500 });
 
         const previousCombat = combatState;
@@ -3975,6 +3997,16 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             logEl.removeChild(last);
         }
     }
+
+    window.addEventListener("error", evt => {
+        const details =
+            (evt && evt.message) ||
+            (evt && evt.error && evt.error.message) ||
+            "Erreur inconnue";
+        logMessage(`ERREUR : ${details}`);
+        ensureCombatUIUnlocked();
+        stopCombatApproachTimer();
+    });
 
     function showToast(text, type = "info") {
         if (!toastContainerEl || !text) return;
@@ -4534,7 +4566,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             const item = createItemFromTemplate(templateId);
             if (!item) return;
             const node = createItemElement(item);
-            fragment.appendChild(node);
+            appendItemToZone(node, fragment);
             state.lootNodes.push(node);
         });
 
