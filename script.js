@@ -3552,9 +3552,6 @@ if (!enemy) {
         }
         return true;
     }
-}
-        return true;
-    }
 
     function clearPendingEnemyAttack() {
         if (combatState.pendingEnemyAttackTimer) {
