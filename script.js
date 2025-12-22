@@ -58,6 +58,12 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         DEFAULT_PRECONTACT_WINDOW_MS,
         KNIFE_PRECONTACT_WINDOW_MS,
         LONG_WEAPON_PRECONTACT_WINDOW_MS,
+        COMBAT_INTENT_BASE_MS,
+        COMBAT_INTENT_VARIANCE_MS,
+        COMBAT_REFLEX_WINDOW_MS,
+        COMBAT_REFLEX_STRESS_FACTOR,
+        COMBAT_DISTANCE_STEP_COST_MS,
+        COMBAT_GUARD_STAGGER_MS,
         PUSH_FAIL_DAMAGE_RANGE,
         BASE_DODGE_WINDOW_MS,
         DODGE_DIFFICULTY_PENALTY_MS,
@@ -283,7 +289,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
     let equippedWeaponTemplateId = null;
     let equippedBagTemplateId = null;
     let wounds = [];
-    let combatState = { active: false, enemies: [] };
+    let combatState = { active: false, enemies: [], intent: null };
     let lastNeedStatus = null;
     const visitedLocations = new Set();
     let gameTimeMinutes = DEFAULT_START_HOUR * 60;
@@ -2910,6 +2916,51 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         return "Mineur";
     }
 
+    function computeCombatTension() {
+        const hpRatio = hero.maxHp > 0 ? Math.max(0, Math.min(1, hero.hp / hero.maxHp)) : 1;
+        const woundPenalty = Math.min(0.35, (wounds?.length || 0) * 0.08);
+        const hungerPenalty = Math.min(0.2, Math.max(hero.hunger, hero.thirst) / 120);
+        const distancePenalty =
+            combatState.distance === 0 ? 0.25 : combatState.distance === 1 ? 0.16 : 0.05;
+        const base = 0.2 + (1 - hpRatio) * 0.45;
+        const tension = base + woundPenalty + hungerPenalty + distancePenalty;
+        return Math.max(0, Math.min(1, tension));
+    }
+
+    function getWeaponSweetSpotDistance() {
+        const tpl = getEquippedWeaponTemplate();
+        if (!tpl?.weaponStats) return 0;
+        const reach = Math.max(1, tpl.weaponStats.range || 1);
+        return reach > 1 ? 1 : 0;
+    }
+
+    function computeRangeEfficiency(distance) {
+        const tpl = getEquippedWeaponTemplate();
+        const reach = Math.max(1, tpl?.weaponStats?.range || 1);
+        const sweetSpot = getWeaponSweetSpotDistance();
+        const delta = Math.max(0, Math.abs(distance - sweetSpot));
+        const damageMult = Math.max(0.55, Math.min(1.25, 1 - delta * 0.18));
+        const timeMult = Math.max(0.85, 1 + delta * 0.2);
+        return {
+            reach,
+            sweetSpot,
+            delta,
+            damageMult,
+            timeMult,
+            sweetSpotLabel: describeDistance(sweetSpot)
+        };
+    }
+
+    function computeIntentReflexWindowMs() {
+        const base = COMBAT_REFLEX_WINDOW_MS || 900;
+        const factor = typeof COMBAT_REFLEX_STRESS_FACTOR === "number"
+            ? COMBAT_REFLEX_STRESS_FACTOR
+            : 0.45;
+        const tension = computeCombatTension();
+        const scaled = base * (1 - tension * factor);
+        return Math.max(260, Math.min(base, scaled));
+    }
+
     function getLocationLabel(locationId = currentLocationId) {
         const location = locations[locationId] || {};
         return location.mapLabel || location.name || "Lieu inconnu";
@@ -2944,6 +2995,378 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         return (Math.max(0, ms || 0) / 1000).toFixed(1);
     }
 
+    function getActiveEnemy() {
+        return combatState.enemies && combatState.enemies[0];
+    }
+
+    function hasActiveIntent() {
+        return combatState.intent && !combatState.intent.resolved;
+    }
+
+    function describeReflexOutcome(intent) {
+        if (!intent) return "";
+        if (intent.reflexOutcome === "hit") return "Fenetre callee";
+        if (intent.reflexOutcome === "missed") return "Fenetre manquee";
+        return "Fenetre a venir";
+    }
+
+    function computeIntentDuration(kind, rangeEff, payload = {}) {
+        const base = COMBAT_INTENT_BASE_MS || 5400;
+        const variance = Math.max(0, COMBAT_INTENT_VARIANCE_MS || 0);
+        const randomPart = Math.random() * variance;
+        let duration = base + randomPart;
+        switch (kind) {
+            case "strike":
+                duration = base + randomPart * 0.6;
+                break;
+            case "shove":
+                duration = base * 0.85 + randomPart * 0.5;
+                break;
+            case "throw":
+                duration = base * 0.8 + randomPart * 0.45;
+                break;
+            case "advance":
+                duration = (COMBAT_DISTANCE_STEP_COST_MS || 3200) + randomPart * 0.4;
+                break;
+            case "retreat":
+                duration = (COMBAT_DISTANCE_STEP_COST_MS || 3200) * 1.05 + randomPart * 0.4;
+                break;
+            case "flee":
+                duration = base * 1.05 + randomPart * 0.6;
+                break;
+            default:
+                duration = base + randomPart * 0.5;
+        }
+
+        if (payload.preContact) {
+            duration *= 0.65;
+        }
+
+        const adjusted = duration * (rangeEff?.timeMult || 1);
+        return Math.max(1200, Math.round(adjusted));
+    }
+
+    function startCombatIntent(kind, payload = {}) {
+        if (!combatState.active) return false;
+        if (combatState.awaitingIntroConfirm) {
+            closeCombatIntroModal();
+            activateCombatAfterIntro();
+        }
+        ensureCombatUIUnlocked();
+
+        if (hasActiveIntent()) {
+            logMessage("Une intention est dÇ¸jÇÿ verrouillÇ¸e. Termine-la ou annule.");
+            return false;
+        }
+
+        const enemy = getActiveEnemy();
+        if (!enemy && kind !== "flee") {
+            logMessage("Plus de cible immÇ¸diate.");
+            endCombat(true);
+            return false;
+        }
+
+        const now = performance.now();
+        const rangeEff = computeRangeEfficiency(combatState.distance);
+        const durationMs = computeIntentDuration(kind, rangeEff, payload);
+        const reflexWindowMs = Math.min(durationMs * 0.45, computeIntentReflexWindowMs());
+        const reflexWindowEnd = now + durationMs - Math.max(320, durationMs * 0.16);
+        const reflexWindowStart = Math.max(
+            now + 600,
+            reflexWindowEnd - reflexWindowMs
+        );
+
+        const label =
+            payload.label ||
+            (kind === "strike"
+                ? "Porter un coup"
+                : kind === "shove"
+                ? "Heurter / repousser"
+                : kind === "throw"
+                ? "Lancer"
+                : kind === "advance"
+                ? "Avancer"
+                : kind === "retreat"
+                ? "Décrocher"
+                : kind === "flee"
+                ? "Fuite"
+                : "Action");
+
+        combatState.intent = {
+            id: `intent-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+            kind,
+            label,
+            payload,
+            startedAt: now,
+            endsAt: now + durationMs,
+            durationMs,
+            reflexWindowStart,
+            reflexWindowEnd,
+            reflexOutcome: "pending",
+            rangeEff,
+            windowAnnounced: false,
+            resolved: false
+        };
+
+        logMessage(
+            `${label} en cours (~${formatSeconds(durationMs)}s). Rendement de portee : ${Math.round(
+                (rangeEff.damageMult || 1) * 100
+            )}% (${rangeEff.sweetSpotLabel}).`
+        );
+        startCombatApproachTimer();
+        renderCombatUI();
+        return true;
+    }
+
+    function cancelCombatIntent() {
+        if (!hasActiveIntent()) return;
+        const label = combatState.intent?.label || "intention";
+        combatState.intent.resolved = true;
+        combatState.intent = null;
+        combatState.nextEnemyAttackAt = Math.max(
+            performance.now() + (ENEMY_ATTACK_COOLDOWN_MS || 0) * 0.25,
+            combatState.nextEnemyAttackAt || 0
+        );
+        logMessage(`${label} interrompue : tu perds du temps et exposes une faille.`);
+        renderCombatUI();
+    }
+
+    function resolveCombatIntent(intent) {
+        if (!intent || !combatState.active) return false;
+        const now = performance.now();
+        const enemy = getActiveEnemy();
+        const reflexOutcome = intent.reflexOutcome;
+        intent.resolved = true;
+        combatState.intent = null;
+
+        const reflexDamageMult =
+            reflexOutcome === "hit" ? 1.22 : reflexOutcome === "missed" ? 0.9 : 1;
+        const reflexSpeedMult = reflexOutcome === "hit" ? 0.82 : reflexOutcome === "missed" ? 1.12 : 1;
+        const guardBonusMs = reflexOutcome === "hit" ? (COMBAT_GUARD_STAGGER_MS || 800) : 0;
+
+        if (intent.kind === "advance") {
+            if (combatState.distance <= 0) {
+                logMessage("Tu es dÇ¸jÇÿ collÇ¸ : avancer ne sert Çÿ rien.");
+            } else {
+                combatState.distance = Math.max(0, combatState.distance - 1);
+                combatState.approach = buildApproachState(combatState.distance);
+                logMessage(`Tu combles la distance (${describeDistance(combatState.distance)}).`);
+                if (combatState.distance === 0 && reflexOutcome === "hit") {
+                    combatState.preContactStrikeReady = true;
+                    logMessage("Tu arrives calÇ¸, prÇ¦t Çÿ cueillir l'impact.");
+                }
+            }
+            combatState.nextEnemyAttackAt = now + (ENEMY_ATTACK_COOLDOWN_MS || 0) * 0.6;
+            renderCombatUI();
+            return true;
+        }
+
+        if (intent.kind === "retreat") {
+            const previous = combatState.distance;
+            combatState.distance = Math.min(3, combatState.distance + 1);
+            combatState.approach = buildApproachState(combatState.distance);
+            if (reflexOutcome === "hit" && combatState.pendingEnemyAttack) {
+                clearPendingEnemyAttack();
+                combatState.nextEnemyAttackAt = now + (ENEMY_ATTACK_COOLDOWN_MS || 0) + guardBonusMs;
+                logMessage("Tu te degages net, l'ennemi perd son tempo.");
+            } else {
+                combatState.nextEnemyAttackAt = Math.max(
+                    now + (ENEMY_ATTACK_COOLDOWN_MS || 0) * 0.5,
+                    combatState.nextEnemyAttackAt || 0
+                );
+            }
+            logMessage(
+                `Tu décroches ${previous === combatState.distance ? "au dernier moment" : ""} (${describeDistance(
+                    combatState.distance
+                )}).`
+            );
+            renderCombatUI();
+            return true;
+        }
+
+        
+        if (intent.kind === "flee") {
+            const roll = rollDice(6, 2);
+            const difficulty = intent.payload?.difficulty ?? (combatState.enemies?.[0]
+                ? combatState.enemies[0].fleeDifficulty
+                : 10);
+            const total = roll.sum + hero.audace + (reflexOutcome === "hit" ? 2 : reflexOutcome === "missed" ? -1 : 0);
+            logMessage(
+                `Fuite : jet ${roll.rolls.join(" + ")} + audace (${hero.audace}) ${reflexOutcome === "hit" ? "+2 sync" : reflexOutcome === "missed" ? "-1" : ""}= ${total} (difficulte ${difficulty}).`
+            );
+            if (total >= difficulty) {
+                logMessage("Tu te degages, haletant mais vivant.");
+                showToast("Fuite reussie", "success");
+                endCombat(false);
+            } else {
+                logMessage("Le zombie te rattrape, tu payes ton hesite.");
+                showToast("Fuite ratee", "warning");
+                const forcedHit = attemptEnemyAttack({ ignoreCooldown: true, ignoreDistance: true });
+                if (!forcedHit) {
+                    combatState.nextEnemyAttackAt = now + ENEMY_ATTACK_COOLDOWN_MS;
+                }
+                renderCombatUI();
+            }
+            return true;
+        }
+
+if (!enemy) {
+            renderCombatUI();
+            return false;
+        }
+
+        if (intent.kind === "strike") {
+            const roll = rollDice(6, 1);
+            const baseDamage = computeBaseAttackPower() + roll.sum;
+            const rangeEff = intent.rangeEff || computeRangeEfficiency(combatState.distance);
+            const preContactBonus = intent.payload?.preContact ? 1.12 : 1;
+            const damage = Math.max(
+                1,
+                Math.round(baseDamage * rangeEff.damageMult * reflexDamageMult * preContactBonus)
+            );
+            enemy.hp = Math.max(0, enemy.hp - damage);
+            combatState.attackCooldownEndsAt = now + ATTACK_COOLDOWN_MS * reflexSpeedMult;
+            combatState.nextEnemyAttackAt = Math.max(
+                combatState.nextEnemyAttackAt || 0,
+                now + (ENEMY_ATTACK_COOLDOWN_MS || 0) * (reflexOutcome === "hit" ? 0.8 : 1)
+            );
+            combatState.preContactStrikeReady = false;
+            logMessage(
+                `Impact sur ${enemy.name} : ${damage} degats (jet ${roll.rolls.join(
+                    ", "
+                )}, rendement ${Math.round(rangeEff.damageMult * 100)}%, ${describeReflexOutcome(intent)}).`
+            );
+            showToast(`Coup portÇ¸ : ${damage} dÇ¸gÇ½ts`, "success");
+            if (enemy.hp <= 0) {
+                logMessage(`${enemy.name} s'effondre.`);
+                clearPendingEnemyAttack();
+                combatState.enemies.shift();
+                if (!combatState.enemies.length) {
+                    endCombat(true);
+                    return true;
+                }
+            }
+            enemyTurn();
+            renderCombatUI();
+            return true;
+        }
+
+        if (intent.kind === "shove") {
+            const chanceBase = computePushSuccessChance(enemy);
+            const adjustedChance =
+                reflexOutcome === "hit"
+                    ? Math.min(0.98, chanceBase + 0.15)
+                    : reflexOutcome === "missed"
+                    ? Math.max(0.15, chanceBase - 0.12)
+                    : chanceBase;
+            const succeeded = Math.random() < adjustedChance;
+            combatState.attackCooldownEndsAt = now + ATTACK_COOLDOWN_MS * reflexSpeedMult;
+            clearPendingEnemyAttack();
+
+            if (succeeded) {
+                const step = reflexOutcome === "hit" ? 2 : 1;
+                const newDistance = Math.min(3, combatState.distance + step);
+                combatState.distance = newDistance;
+                combatState.approach = buildApproachState(newDistance);
+                combatState.preContactStrikeReady = false;
+                combatState.nextEnemyAttackAt = now + (ENEMY_ATTACK_COOLDOWN_MS || 0);
+                logMessage(
+                    `Tu heurtes ${enemy.name}, il recule (${describeDistance(
+                        combatState.distance
+                    )}). [Chance ${(adjustedChance * 100).toFixed(0)}%]`
+                );
+                showToast("PoussÇ¸e rÇ¸ussie", "success");
+            } else {
+                const counter = rollInRange(
+                    PUSH_FAIL_DAMAGE_RANGE?.min || 1,
+                    PUSH_FAIL_DAMAGE_RANGE?.max || 4
+                );
+                combatState.nextEnemyAttackAt = now + (ENEMY_ATTACK_COOLDOWN_MS || 0) * 0.5;
+                applyHeroDamage(counter, { type: "normal", reason: `${enemy.name} rÇ¸siste.` });
+                registerWound(Math.max(1, Math.ceil(counter / 2)));
+                logMessage(`${enemy.name} te repousse : ${counter} dÇ¸gÇ½ts.`);
+                showToast("PoussÇ¸e ratÇ¸e", "danger");
+            }
+            renderCombatUI();
+            return true;
+        }
+
+        if (intent.kind === "throw") {
+            const throwableId = intent.payload?.throwableId;
+            const chosenThrowable = throwableId
+                ? document.querySelector(`[data-item-id="${throwableId}"]`)
+                : intent.payload?.throwableEl;
+            if (!chosenThrowable) {
+                logMessage("Tu n'as plus l'objet Çÿ lancer en main.");
+                renderCombatUI();
+                return false;
+            }
+
+            const base = parseFloat(chosenThrowable.dataset.baseDamage || "0") || 0;
+            const finesseBonus = hero.finesse * 0.8;
+            const damage = Math.max(1, Math.round((base + finesseBonus) * reflexDamageMult));
+            const baseHit = computeThrowableHitChance(combatState.distance);
+            const adjustedHit =
+                reflexOutcome === "hit"
+                    ? Math.min(0.97, baseHit + 0.18)
+                    : reflexOutcome === "missed"
+                    ? Math.max(0.2, baseHit - 0.12)
+                    : baseHit;
+            const didHit = Math.random() < adjustedHit;
+            const targetName = chosenThrowable.dataset.name || "arme";
+
+            combatState.attackCooldownEndsAt = now + ATTACK_COOLDOWN_MS * reflexSpeedMult;
+            if (didHit) {
+                enemy.hp = Math.max(0, enemy.hp - damage);
+                logMessage(
+                    `Lancer : ${targetName} touche ${enemy.name} (${damage} degats, ${(adjustedHit * 100).toFixed(0)}% de chance).`
+                );
+                showToast(`Lancer reussi : ${damage} degats`, "success");
+                if (enemy.hp <= 0) {
+                    logMessage(`${enemy.name} est neutralisÇ¸.`);
+                    clearPendingEnemyAttack();
+                    combatState.enemies.shift();
+                    if (!combatState.enemies.length) {
+                        registerLostThrowable(chosenThrowable);
+                        endCombat(true);
+                        return true;
+                    }
+                }
+            } else {
+                logMessage(
+                    `Tu lances ${targetName}, mais ${enemy.name} Ç¸chappe au projectile (chance ${(adjustedHit * 100).toFixed(0)}%).`
+                );
+                showToast("Lancer manquÇ¸", "warning");
+            }
+
+            registerLostThrowable(chosenThrowable);
+            if (equippedWeaponTemplateId === chosenThrowable.dataset.templateId) {
+                equippedWeaponTemplateId = null;
+            }
+            updateEquippedWeaponUI();
+            updateCapacityUI();
+
+            enemyTurn();
+            renderCombatUI();
+            return true;
+        }
+
+        return false;
+    }
+
+    function markIntentReflex() {
+        if (!hasActiveIntent()) return;
+        const intent = combatState.intent;
+        const now = performance.now();
+        if (now < intent.reflexWindowStart || now > intent.reflexWindowEnd) {
+            showToast("Fenetre pas encore ouverte ou deja passee.", "warning");
+            return;
+        }
+        intent.reflexOutcome = "hit";
+        logMessage("Tu cales ton geste : bonus de precision/tempo.");
+        renderCombatUI();
+    }
+
     function markContactWindow({ early = false } = {}) {
         if (!combatState.active) return;
         if (combatState.preContactStrikeReady) return;
@@ -2967,6 +3390,36 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         if (label) {
             label.textContent = `Rapprochement : ${describeDistance(combatState.distance)}`;
         }
+    }
+
+    function progressCombatIntent() {
+        if (!combatState.active || !hasActiveIntent()) return false;
+        const intent = combatState.intent;
+        const now = performance.now();
+        let changed = false;
+
+        if (!intent.lastRenderTs || now - intent.lastRenderTs > 400) {
+            intent.lastRenderTs = now;
+            changed = true;
+        }
+
+        if (!intent.windowAnnounced && now >= intent.reflexWindowStart) {
+            logMessage(`Fenetre reflexe ouverte sur ${intent.label}.`);
+            intent.windowAnnounced = true;
+            changed = true;
+        }
+
+        if (intent.reflexOutcome === "pending" && now > intent.reflexWindowEnd) {
+            intent.reflexOutcome = "missed";
+            changed = true;
+        }
+
+        if (now >= intent.endsAt) {
+            resolveCombatIntent(intent);
+            return true;
+        }
+
+        return changed;
     }
 
     function syncCombatDistanceFromApproach() {
@@ -3002,7 +3455,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
 
         if (previousDistance !== combatState.distance && combatState.distance === 0 && combatState.active) {
             markContactWindow();
-            stopCombatApproachTimer();
+            combatState.approach = null;
         }
 
         if (
@@ -3026,6 +3479,8 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             }
 
             let shouldRender = false;
+            const intentChanged = progressCombatIntent();
+            if (intentChanged) shouldRender = true;
             if (combatState.approach) {
                 const totalMs = Math.max(0, combatState.approach.totalMs || 0);
                 if (totalMs > 0) {
@@ -3055,6 +3510,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
 
     function canDoPreContactStrike() {
         if (!combatState.active) return false;
+        if (hasActiveIntent()) return false;
         if (combatState.distance > 1) return false;
         if (!combatState.preContactStrikeReady) return false;
         if (!canUseMelee()) return false;
@@ -3068,15 +3524,22 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         if (!enemy) return false;
 
         const roll = rollDice(6, 1);
-        const damage = computeBaseAttackPower() + roll.sum;
+        const rangeEff = computeRangeEfficiency(combatState.distance);
+        const damage = Math.max(
+            1,
+            Math.round((computeBaseAttackPower() + roll.sum) * rangeEff.damageMult * 1.12)
+        );
         enemy.hp = Math.max(0, enemy.hp - damage);
         logMessage(
-            `Tu frappes avant l'impact et infliges ${damage} dÇ¸gÇ½ts (jet ${roll.rolls.join(", ")}).`
+            `Tu frappes avant l'impact et infliges ${damage} degats (jet ${roll.rolls.join(
+                ", "
+            )}, rendement ${Math.round(rangeEff.damageMult * 100)}%).`
         );
-        showToast("Coup d'arrÛt portÇ¸", "success");
+        showToast("Coup d'arret porte", "success");
 
-        combatState.attackCooldownEndsAt = performance.now() + ATTACK_COOLDOWN_MS;
+        combatState.attackCooldownEndsAt = performance.now() + ATTACK_COOLDOWN_MS * 0.8;
         combatState.preContactStrikeReady = false;
+        combatState.nextEnemyAttackAt = performance.now() + (ENEMY_ATTACK_COOLDOWN_MS || 0);
 
         if (enemy.hp <= 0) {
             logMessage(`${enemy.name} s'effondre avant de t'atteindre.`);
@@ -3087,6 +3550,9 @@ import { GAME_CONSTANTS } from "./game-constants.js";
                 return true;
             }
         }
+        return true;
+    }
+}
         return true;
     }
 
@@ -3419,6 +3885,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             pendingEnemyAttack: null,
             pendingEnemyAttackTimer: null,
             awaitingIntroConfirm: false,
+            intent: null,
             originCombatId:
                 typeof optionIndex === "number"
                     ? `${currentSceneId}:${optionIndex}`
@@ -3454,24 +3921,38 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         const throwableElements = getThrowableWeaponElements();
         const pending = combatState.pendingEnemyAttack;
         const hasEnemy = combatState.enemies.length > 0;
+        const enemy = getActiveEnemy();
         const nextEnemySwingMs = pending
             ? Math.max(0, (pending.expiresAt || 0) - now)
             : Math.max(0, (combatState.nextEnemyAttackAt || now) - now);
         const reach = getEquippedWeaponRange();
+        const intent = combatState.intent;
+        const intentActive = hasActiveIntent();
+        const rangeEff = computeRangeEfficiency(combatState.distance);
+        const tension = computeCombatTension();
 
-        const createAction = (label, onClick, { disabled = false, reason = "", classes = [] } = {}) => {
+        const createAction = (
+            label,
+            onClick,
+            { disabled = false, reason = "", classes = [], allowDuringIntent = false } = {}
+        ) => {
+            const lockReason = intentActive && !allowDuringIntent
+                ? `Intention en cours : ${intent?.label || "enchainement"}.`
+                : "";
+            const finalDisabled = disabled || (intentActive && !allowDuringIntent);
+            const finalReason = lockReason || reason;
             const wrapper = document.createElement("div");
             wrapper.classList.add("combat-action");
             const btn = document.createElement("button");
             btn.classList.add("choice-btn", ...classes);
             btn.textContent = label;
-            btn.disabled = disabled;
+            btn.disabled = finalDisabled;
             btn.addEventListener("click", onClick);
             wrapper.appendChild(btn);
-            if (reason) {
+            if (finalReason) {
                 const hint = document.createElement("div");
                 hint.classList.add("combat-hint");
-                hint.textContent = reason;
+                hint.textContent = finalReason;
                 wrapper.appendChild(hint);
             }
             return wrapper;
@@ -3516,6 +3997,13 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         }
         choicesEl.appendChild(distanceInfo);
 
+        const bandInfo = document.createElement("div");
+        bandInfo.classList.add("combat-band");
+        bandInfo.textContent = `Bande ideale arme : ${rangeEff.sweetSpotLabel} | rendement ${Math.round(
+            rangeEff.damageMult * 100
+        )}% | tension ${Math.round(tension * 100)}%.`;
+        choicesEl.appendChild(bandInfo);
+
         const approachWrapper = document.createElement("div");
         approachWrapper.classList.add("combat-approach");
         const track = document.createElement("div");
@@ -3530,6 +4018,76 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         approachWrapper.appendChild(approachLabel);
         choicesEl.appendChild(approachWrapper);
 
+        if (intent) {
+            const intentBox = document.createElement("div");
+            intentBox.classList.add("combat-intent");
+
+            const intentTitle = document.createElement("div");
+            intentTitle.classList.add("intent-title");
+            const remaining = Math.max(0, intent.endsAt - now);
+            intentTitle.textContent = `${intent.label} (${formatSeconds(remaining)}s)`;
+            intentBox.appendChild(intentTitle);
+
+            const intentTrack = document.createElement("div");
+            intentTrack.classList.add("intent-track");
+            const intentFill = document.createElement("div");
+            intentFill.classList.add("intent-fill");
+            const progressPct = Math.max(
+                0,
+                Math.min(100, ((now - intent.startedAt) / intent.durationMs) * 100)
+            );
+            intentFill.style.width = `${progressPct}%`;
+            intentTrack.appendChild(intentFill);
+
+            const windowEl = document.createElement("div");
+            windowEl.classList.add("intent-window");
+            const windowStartPct = Math.max(
+                0,
+                Math.min(100, ((intent.reflexWindowStart - intent.startedAt) / intent.durationMs) * 100)
+            );
+            const windowEndPct = Math.max(
+                windowStartPct,
+                Math.min(100, ((intent.reflexWindowEnd - intent.startedAt) / intent.durationMs) * 100)
+            );
+            windowEl.style.left = `${windowStartPct}%`;
+            windowEl.style.width = `${Math.max(4, windowEndPct - windowStartPct)}%`;
+            intentTrack.appendChild(windowEl);
+            intentBox.appendChild(intentTrack);
+
+            const intentMeta = document.createElement("div");
+            intentMeta.classList.add("intent-meta");
+            let reflexText = "";
+            if (intent.reflexOutcome === "hit") {
+                reflexText = "Fenetre callee : bonus de synchronisation.";
+            } else if (intent.reflexOutcome === "missed") {
+                reflexText = "Fenetre manquee : geste lourd.";
+            } else if (now >= intent.reflexWindowStart && now <= intent.reflexWindowEnd) {
+                reflexText = `Fenetre reflexe ouverte (${formatSeconds(intent.reflexWindowEnd - now)}s).`;
+            } else {
+                reflexText = `Fenetre dans ${formatSeconds(intent.reflexWindowStart - now)}s.`;
+            }
+            intentMeta.textContent = reflexText;
+            intentBox.appendChild(intentMeta);
+
+            const intentActions = document.createElement("div");
+            intentActions.classList.add("intent-actions");
+            if (now >= intent.reflexWindowStart && now <= intent.reflexWindowEnd && intent.reflexOutcome !== "hit") {
+                const reflexBtn = document.createElement("button");
+                reflexBtn.classList.add("small-btn");
+                reflexBtn.textContent = "Caler le geste";
+                reflexBtn.addEventListener("click", markIntentReflex);
+                intentActions.appendChild(reflexBtn);
+            }
+            const cancelBtn = document.createElement("button");
+            cancelBtn.classList.add("small-btn", "secondary-btn");
+            cancelBtn.textContent = "Annuler l'intention";
+            cancelBtn.addEventListener("click", cancelCombatIntent);
+            intentActions.appendChild(cancelBtn);
+            intentBox.appendChild(intentActions);
+
+            choicesEl.appendChild(intentBox);
+        }
+
         const actionsGrid = document.createElement("div");
         actionsGrid.classList.add("combat-actions-grid");
 
@@ -3542,6 +4100,17 @@ import { GAME_CONSTANTS } from "./game-constants.js";
                         : !hasEnemy
                         ? "Plus personne a approcher."
                         : "Combler la distance pour cogner."
+            })
+        );
+        actionsGrid.appendChild(
+            createAction("Se degager", () => startCombatIntent("retreat", { enemyId: enemy?.id }), {
+                disabled: combatState.distance >= 3 || !hasEnemy,
+                reason:
+                    combatState.distance >= 3
+                        ? "Deja au plus loin."
+                        : !hasEnemy
+                        ? "Plus personne a tenir a distance."
+                        : "Creer de l'espace, mais tu restes expose quelques secondes."
             })
         );
 
@@ -3617,7 +4186,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             createAction(
                 pending ? `Esquiver (${formatSeconds(nextEnemySwingMs)}s)` : "Esquiver",
                 attemptDodge,
-                { disabled: dodgeDisabled, reason: dodgeReason }
+                { disabled: dodgeDisabled, reason: dodgeReason, allowDuringIntent: true }
             )
         );
 
@@ -3682,6 +4251,30 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             activateCombatAfterIntro();
         }
         ensureCombatUIUnlocked();
+        if (hasActiveIntent()) {
+            logMessage("Une action est deja en cours : attends ou annule.");
+            return;
+        }
+        syncCombatDistanceFromApproach();
+        const enemy = getActiveEnemy();
+        if (!enemy) {
+            endCombat(true);
+            return;
+        }
+        if (combatState.distance !== 0) {
+            logMessage("Tu dois etre au contact pour repousser l'ennemi.");
+            return;
+        }
+        const now = performance.now();
+        if (now < (combatState.attackCooldownEndsAt || 0)) {
+            const remaining = Math.max(0, combatState.attackCooldownEndsAt - now);
+            logMessage(`Tu es encore en recuperation pendant ${(remaining / 1000).toFixed(1)}s.`);
+            return;
+        }
+
+        startCombatIntent("shove", { enemyId: enemy.id });
+    }
+ensureCombatUIUnlocked();
         syncCombatDistanceFromApproach();
         const enemy = combatState.enemies?.[0];
         if (!enemy) {
@@ -3736,7 +4329,17 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             return;
         }
 
+        if (hasActiveIntent()) {
+            logMessage("Action deja verrouillee : termine-la avant de bouger.");
+            return;
+        }
         if (combatState.distance <= 0) {
+            logMessage("Tu es deja au contact de l'ennemi.");
+            return;
+        }
+        startCombatIntent("advance", { enemyId: enemy.id, label: `Avancer vers ${enemy.name}` });
+    }
+if (combatState.distance <= 0) {
             logMessage("Tu es déjà au contact de l'ennemi.");
             return;
         }
@@ -3774,6 +4377,36 @@ import { GAME_CONSTANTS } from "./game-constants.js";
             activateCombatAfterIntro();
         }
         ensureCombatUIUnlocked();
+        if (hasActiveIntent()) {
+            logMessage("Une action est deja en cours : attends ou annule.");
+            return;
+        }
+        syncCombatDistanceFromApproach();
+        const enemy = getActiveEnemy();
+        if (!enemy) {
+            endCombat(true);
+            return;
+        }
+
+        const now = performance.now();
+        if (now < (combatState.attackCooldownEndsAt || 0)) {
+            const remaining = Math.max(0, combatState.attackCooldownEndsAt - now);
+            logMessage(`Tu dois patienter encore ${(remaining / 1000).toFixed(1)}s avant de frapper.`);
+            return;
+        }
+
+        if (!canUseMelee()) {
+            logMessage("Tu es trop loin pour frapper, rapproche-toi d'abord.");
+            return;
+        }
+
+        const preContact = combatState.preContactStrikeReady;
+        const started = startCombatIntent("strike", { enemyId: enemy.id, preContact });
+        if (started && preContact) {
+            combatState.preContactStrikeReady = false;
+        }
+    }
+ensureCombatUIUnlocked();
         syncCombatDistanceFromApproach();
         const enemy = combatState.enemies?.[0];
         if (!enemy) {
@@ -3823,14 +4456,49 @@ import { GAME_CONSTANTS } from "./game-constants.js";
     function performRangedAttack(throwable) {
         if (!combatState.active) return;
         ensureCombatUIUnlocked();
+        if (hasActiveIntent()) {
+            logMessage("Une action est deja en cours : attends ou annule.");
+            return;
+        }
         syncCombatDistanceFromApproach();
-        const enemy = combatState.enemies?.[0];
+        const enemy = getActiveEnemy();
         if (!enemy) {
             endCombat(true);
             return;
         }
 
         const now = performance.now();
+        if (now < (combatState.attackCooldownEndsAt || 0)) {
+            const remaining = Math.max(0, combatState.attackCooldownEndsAt - now);
+            logMessage(`Ton attaque est en recuperation pendant encore ${(remaining / 1000).toFixed(1)}s.`);
+            return;
+        }
+
+        const weaponEl = getEquippedWeaponElement();
+        const chosenThrowable = throwable || (weaponEl && weaponEl.dataset.throwable === "true"
+            ? weaponEl
+            : getThrowableWeaponElements()[0]);
+
+        if (!canUseRanged()) {
+            logMessage("La cible est trop loin pour une attaque a distance efficace.");
+            return;
+        }
+
+        if (!chosenThrowable) {
+            logMessage("Aucune arme de jet disponible.");
+            return;
+        }
+
+        const labelName = chosenThrowable.dataset.name || "objet";
+        const started = startCombatIntent("throw", {
+            enemyId: enemy.id,
+            throwableId: chosenThrowable.dataset.itemId,
+            throwableName: labelName,
+            label: `Armer ${labelName}`
+        });
+        if (!started) return;
+    }
+const now = performance.now();
         if (now < (combatState.attackCooldownEndsAt || 0)) {
             const remaining = Math.max(0, combatState.attackCooldownEndsAt - now);
             logMessage(`Ton attaque est en récupération pendant encore ${(remaining / 1000).toFixed(1)}s.`);
@@ -3900,13 +4568,15 @@ import { GAME_CONSTANTS } from "./game-constants.js";
 
     function attemptFlee() {
         if (!combatState.active) return;
-        const roll = rollDice(6, 2);
-        const difficulty = combatState.enemies?.[0]
-            ? combatState.enemies[0].fleeDifficulty
-            : 10;
-        const total = roll.sum + hero.audace;
-        logMessage(
-            `Fuite : jet ${roll.rolls.join(" + ")} + audace (${hero.audace}) = ${total} (difficulté ${difficulty}).`
+        if (hasActiveIntent()) {
+            logMessage("Une action est deja en cours : attends ou annule.");
+            return;
+        }
+        const enemy = getActiveEnemy();
+        const difficulty = enemy ? enemy.fleeDifficulty : 10;
+        startCombatIntent("flee", { enemyId: enemy?.id, difficulty, label: "Tentative de fuite" });
+    }
++ audace (${hero.audace}) = ${total} (difficulté ${difficulty}).`
         );
 
         if (total >= difficulty) {
@@ -3959,7 +4629,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         }
         showToast(victory ? "Victoire" : "Défaite", victory ? "success" : "danger");
         currentTimeContext = previousCombat.previousTimeContext || currentTimeContext;
-        combatState = { active: false, enemies: [] };
+        combatState = { active: false, enemies: [], intent: null };
         document.body.classList.remove("combat-active");
         updateGroundPanelVisibility();
         if (choiceTitleEl) choiceTitleEl.textContent = "Que fais-tu ?";
@@ -4696,7 +5366,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         }
 
         stopSearch("scene-change");
-        combatState = { active: false };
+        combatState = { active: false, enemies: [], intent: null };
         document.body.classList.remove("combat-active");
         updateGroundPanelVisibility();
         if (choiceTitleEl) {

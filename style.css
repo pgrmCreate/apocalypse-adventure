@@ -1274,6 +1274,66 @@ body.combat-active .craft-panel {
     letter-spacing: 0.03em;
 }
 
+.combat-band {
+    margin: 4px 0 6px;
+    font-size: 0.85rem;
+    color: var(--muted);
+}
+
+.combat-intent {
+    margin: 8px 0 10px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: rgba(16, 20, 31, 0.85);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.intent-title {
+    font-weight: 700;
+    font-size: 0.95rem;
+}
+
+.intent-track {
+    position: relative;
+    height: 12px;
+    background: #0f1421;
+    border-radius: 999px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+}
+
+.intent-fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    height: 100%;
+    width: 0;
+    background: linear-gradient(90deg, #4caf50, #7ad76d);
+    transition: width 0.12s ease;
+}
+
+.intent-window {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    background: rgba(245, 158, 11, 0.28);
+    border: 1px dashed rgba(245, 158, 11, 0.8);
+    pointer-events: none;
+}
+
+.intent-meta {
+    font-size: 0.85rem;
+    color: var(--muted);
+}
+
+.intent-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
 .combat-actions-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
