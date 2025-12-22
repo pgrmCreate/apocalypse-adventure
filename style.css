@@ -1357,6 +1357,248 @@ body.combat-active .craft-panel {
     line-height: 1.3;
 }
 
+/* Combat overlay */
+.combat-overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1200;
+    pointer-events: none;
+}
+
+.combat-overlay.hidden {
+    display: none;
+}
+
+.combat-overlay-backdrop {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(8, 10, 16, 0.9), rgba(8, 10, 16, 0.75));
+    backdrop-filter: blur(4px);
+}
+
+.combat-overlay-content {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 30px 24px 20px;
+    pointer-events: none;
+}
+
+.combat-overlay-top {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.combat-distance-readout {
+    min-width: 140px;
+    text-align: center;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #f4f7ff;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: rgba(23, 31, 46, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    box-shadow: 0 0 18px rgba(0, 0, 0, 0.45);
+}
+
+.combat-overlay-middle {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    width: 100%;
+    gap: 26px;
+    pointer-events: none;
+}
+
+.combat-center-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    pointer-events: none;
+}
+
+.glow-btn {
+    width: 110px;
+    height: 110px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: radial-gradient(circle at 40% 40%, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.08) 60%, rgba(255, 255, 255, 0.02) 75%, rgba(255, 255, 255, 0) 100%);
+    position: relative;
+    box-shadow: 0 0 18px rgba(0, 0, 0, 0.6), 0 0 22px rgba(0, 0, 0, 0.4) inset;
+    pointer-events: auto;
+    cursor: pointer;
+    transition: transform 0.1s ease, box-shadow 0.15s ease;
+}
+
+.glow-btn::after {
+    content: "";
+    position: absolute;
+    inset: 10%;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    filter: blur(2px);
+}
+
+.glow-btn:active {
+    transform: scale(0.96);
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.55), 0 0 14px rgba(0, 0, 0, 0.35) inset;
+}
+
+.glow-btn.risk-green {
+    box-shadow: 0 0 22px rgba(69, 212, 131, 0.35), 0 0 36px rgba(69, 212, 131, 0.22);
+}
+
+.glow-btn.risk-yellow {
+    box-shadow: 0 0 22px rgba(244, 211, 94, 0.35), 0 0 36px rgba(244, 211, 94, 0.22);
+}
+
+.glow-btn.risk-orange {
+    box-shadow: 0 0 22px rgba(241, 159, 31, 0.35), 0 0 36px rgba(241, 159, 31, 0.22);
+}
+
+.glow-btn.risk-red {
+    box-shadow: 0 0 22px rgba(230, 75, 75, 0.45), 0 0 36px rgba(230, 75, 75, 0.28);
+}
+
+.attack-btn.left {
+    justify-self: start;
+}
+
+.attack-btn.right {
+    justify-self: end;
+}
+
+.push-btn {
+    width: 120px;
+    height: 120px;
+    font-weight: 700;
+    color: #0c0f16;
+    background: radial-gradient(circle at 40% 40%, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0.12) 60%, rgba(255, 255, 255, 0) 100%);
+}
+
+.risk-legend {
+    font-size: 0.95rem;
+    color: var(--muted);
+    min-height: 22px;
+    text-align: center;
+    pointer-events: none;
+}
+
+.combat-overlay-bottom {
+    width: 100%;
+    display: flex;
+    justify-content: flex-start;
+    pointer-events: none;
+}
+
+.throw-toggle-wrapper {
+    pointer-events: auto;
+}
+
+.throw-btn {
+    width: 70px;
+    height: 70px;
+    background: radial-gradient(circle at 40% 40%, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.08) 60%, rgba(255, 255, 255, 0) 100%);
+}
+
+.throw-panel {
+    position: absolute;
+    left: 18px;
+    bottom: 120px;
+    width: 230px;
+    max-height: 50vh;
+    background: rgba(12, 16, 24, 0.95);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(3px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    pointer-events: auto;
+}
+
+.throw-panel.hidden {
+    display: none;
+}
+
+.throw-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.04);
+    border-bottom: 1px solid var(--border);
+    color: #f0f4ff;
+    font-weight: 700;
+}
+
+.close-btn {
+    background: transparent;
+    border: none;
+    color: #f0f4ff;
+    font-size: 1.2rem;
+    cursor: pointer;
+}
+
+.throw-list {
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto;
+}
+
+.throw-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.throw-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+    transform: translateX(2px);
+}
+
+.throw-item .icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.12);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+}
+
+.throw-item .name {
+    flex: 1;
+    color: #f4f7ff;
+    font-weight: 600;
+}
+
+.throw-item .meta {
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
 @keyframes spin {
     from {
         transform: rotate(0deg);

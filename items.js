@@ -14,11 +14,14 @@ window.ITEM_TEMPLATES = {
         value: 4,
         type: "outil",
         rarity: 2,
+        icon: "assets/icons/knife.svg",
         weaponStats: {
             baseDamage: 2,
             forceMultiplier: 0.5,
             finesseMultiplier: 1.0,
             throwable: true,
+            minRange: 0.5,
+            maxRange: 1.0,
             range: 1
         }
     },
@@ -28,11 +31,14 @@ window.ITEM_TEMPLATES = {
         value: 8,
         type: "arme",
         rarity: 3,
+        icon: "assets/icons/bat.svg",
         weaponStats: {
             baseDamage: 3,
             forceMultiplier: 1.0,
             finesseMultiplier: 0.5,
-            range: 1
+            minRange: 0.75,
+            maxRange: 1.75,
+            range: 1.75
         }
     },
 
@@ -41,11 +47,14 @@ window.ITEM_TEMPLATES = {
         value: 9,
         type: "arme",
         rarity: 3,
+        icon: "assets/icons/crowbar.svg",
         weaponStats: {
             baseDamage: 4,
             forceMultiplier: 1.1,
             finesseMultiplier: 0.4,
-            range: 1
+            minRange: 0.75,
+            maxRange: 1.75,
+            range: 1.75
         }
     },
 
@@ -54,11 +63,14 @@ window.ITEM_TEMPLATES = {
         value: 6,
         type: "arme",
         rarity: 2,
+        icon: "assets/icons/rustyPipe.svg",
         weaponStats: {
             baseDamage: 3,
             forceMultiplier: 0.9,
             finesseMultiplier: 0.4,
-            range: 1
+            minRange: 0.75,
+            maxRange: 1.5,
+            range: 1.5
         }
     },
 
@@ -67,10 +79,13 @@ window.ITEM_TEMPLATES = {
         value: 5,
         type: "arme",
         rarity: 1,
+        icon: "assets/icons/kitchenPan.svg",
         weaponStats: {
             baseDamage: 2,
             forceMultiplier: 0.8,
             finesseMultiplier: 0.3,
+            minRange: 0.5,
+            maxRange: 1.0,
             range: 1
         }
     },
@@ -324,11 +339,14 @@ window.ITEM_TEMPLATES = {
         value: 7,
         type: "arme",
         rarity: 2,
+        icon: "assets/icons/spear.svg",
         weaponStats: {
             baseDamage: 3,
             forceMultiplier: 0.9,
             finesseMultiplier: 0.8,
             throwable: true,
+            minRange: 1,
+            maxRange: 2,
             range: 2
         },
         craftDurationSec: 7,

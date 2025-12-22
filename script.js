@@ -399,6 +399,16 @@ import { GAME_CONSTANTS } from "./game-constants.js";
     let restartBtn;
     let equippedWeaponNameEl;
     let attackPreviewEl;
+    let combatOverlayEl;
+    let combatDistanceReadoutEl;
+    let combatAttackLeftBtn;
+    let combatAttackRightBtn;
+    let combatPushBtn;
+    let combatThrowToggleBtn;
+    let combatThrowPanelEl;
+    let combatThrowListEl;
+    let combatThrowCloseBtn;
+    let combatRiskLegendEl;
 
     let mapSectionEl;
     let mapHeaderEl;
@@ -461,6 +471,16 @@ import { GAME_CONSTANTS } from "./game-constants.js";
 
         equippedWeaponNameEl = document.getElementById("equipped-weapon-name");
         attackPreviewEl = document.getElementById("attack-preview");
+        combatOverlayEl = document.getElementById("combat-overlay");
+        combatDistanceReadoutEl = document.getElementById("combat-distance-readout");
+        combatAttackLeftBtn = document.getElementById("combat-attack-left");
+        combatAttackRightBtn = document.getElementById("combat-attack-right");
+        combatPushBtn = document.getElementById("combat-push-btn");
+        combatThrowToggleBtn = document.getElementById("combat-throw-toggle");
+        combatThrowPanelEl = document.getElementById("combat-throw-panel");
+        combatThrowListEl = document.getElementById("combat-throw-list");
+        combatThrowCloseBtn = document.getElementById("combat-throw-close");
+        combatRiskLegendEl = document.getElementById("combat-risk-legend");
 
         selectedItemNameEl = document.getElementById("selected-item-name");
         selectedItemInfoEl = document.getElementById("selected-item-info");
@@ -564,6 +584,24 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         actionOverlayTextEl = document.getElementById("action-overlay-text");
         actionProgressBarEl = document.getElementById("action-progress-bar");
         actionOverlayCancelBtn = document.getElementById("action-overlay-cancel");
+        if (combatAttackLeftBtn) {
+            combatAttackLeftBtn.addEventListener("click", () => handleOverlayAttack("left"));
+        }
+        if (combatAttackRightBtn) {
+            combatAttackRightBtn.addEventListener("click", () => handleOverlayAttack("right"));
+        }
+        if (combatPushBtn) {
+            combatPushBtn.addEventListener("click", () => {
+                pushEnemyBack();
+                renderCombatUI();
+            });
+        }
+        if (combatThrowToggleBtn) {
+            combatThrowToggleBtn.addEventListener("click", toggleThrowPanel);
+        }
+        if (combatThrowCloseBtn) {
+            combatThrowCloseBtn.addEventListener("click", () => setThrowPanelOpen(false));
+        }
 
         damageFlashEl = document.getElementById("damage-flash");
         assetLoaderEl = document.getElementById("asset-loader");
@@ -1256,6 +1294,7 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         closeInventoryModal();
         closeStatusModal();
         endBlockingAction();
+        setCombatOverlayVisible(false);
         stopCombatApproachTimer();
         renderScene("gameOver");
         showDefeatModal(message);
@@ -2901,11 +2940,30 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         return getThrowableWeaponElements().length > 0;
     }
 
+    function getThrowableRange() {
+        return { min: 0.75, max: 3 };
+    }
+
+    function getEquippedWeaponRangeStats() {
+        const tpl = getEquippedWeaponTemplate();
+        const stats = tpl?.weaponStats || {};
+        const minRange = Number.isFinite(stats.minRange) ? Math.max(0, stats.minRange) : 0.5;
+        const maxRange = Number.isFinite(stats.maxRange)
+            ? Math.max(minRange, stats.maxRange)
+            : Math.max(minRange + 0.25, stats.range || 1);
+        return { minRange: roundDistance(minRange), maxRange: roundDistance(maxRange) };
+    }
+
+    const DIST_STEP = 0.25;
+
+    function roundDistance(value) {
+        return Math.max(0, Math.round((Number(value) || 0) / DIST_STEP) * DIST_STEP);
+    }
+
     function describeDistance(distance) {
-        if (distance <= 0) return "au contact";
-        if (distance === 1) return "très proche";
-        if (distance === 2) return "à portée";
-        return "loin";
+        const clamped = Math.max(0, Number(distance) || 0);
+        if (clamped <= 0) return "0.00 m (contact)";
+        return `${clamped.toFixed(2)} m`;
     }
 
     function describeCombatDifficulty(difficulty) {
@@ -2920,29 +2978,29 @@ import { GAME_CONSTANTS } from "./game-constants.js";
         const hpRatio = hero.maxHp > 0 ? Math.max(0, Math.min(1, hero.hp / hero.maxHp)) : 1;
         const woundPenalty = Math.min(0.35, (wounds?.length || 0) * 0.08);
         const hungerPenalty = Math.min(0.2, Math.max(hero.hunger, hero.thirst) / 120);
-        const distancePenalty =
-            combatState.distance === 0 ? 0.25 : combatState.distance === 1 ? 0.16 : 0.05;
+        const proximity = Math.max(0, 1.5 - Math.min(3, combatState.distance || 0));
+        const distancePenalty = Math.min(0.25, proximity * 0.12);
         const base = 0.2 + (1 - hpRatio) * 0.45;
         const tension = base + woundPenalty + hungerPenalty + distancePenalty;
         return Math.max(0, Math.min(1, tension));
     }
 
     function getWeaponSweetSpotDistance() {
-        const tpl = getEquippedWeaponTemplate();
-        if (!tpl?.weaponStats) return 0;
-        const reach = Math.max(1, tpl.weaponStats.range || 1);
-        return reach > 1 ? 1 : 0;
+        const { minRange, maxRange } = getEquippedWeaponRangeStats();
+        return roundDistance(minRange + (maxRange - minRange) / 2);
     }
 
     function computeRangeEfficiency(distance) {
         const tpl = getEquippedWeaponTemplate();
-        const reach = Math.max(1, tpl?.weaponStats?.range || 1);
-        const sweetSpot = getWeaponSweetSpotDistance();
+        const stats = getEquippedWeaponRangeStats();
+        const minRange = stats.minRange;
+        const maxRange = stats.maxRange;
+        const sweetSpot = roundDistance(minRange + (maxRange - minRange) / 2);
         const delta = Math.max(0, Math.abs(distance - sweetSpot));
-        const damageMult = Math.max(0.55, Math.min(1.25, 1 - delta * 0.18));
-        const timeMult = Math.max(0.85, 1 + delta * 0.2);
+        const damageMult = Math.max(0.55, Math.min(1.25, 1 - delta * 0.25));
+        const timeMult = Math.max(0.8, 1 + delta * 0.25);
         return {
-            reach,
+            reach: maxRange,
             sweetSpot,
             delta,
             damageMult,
@@ -2967,14 +3025,14 @@ import { GAME_CONSTANTS } from "./game-constants.js";
     }
 
     function computeApproachDuration(distance) {
-        if (distance <= 0) return 0;
-        if (distance === 1) return 10000;
-        if (distance === 2) return 16000;
-        return 22000;
+        const d = Math.max(0, Number(distance) || 0);
+        if (d <= 0) return 0;
+        const base = 4000;
+        return Math.round(base + 6000 * d);
     }
 
     function buildApproachState(distance) {
-        const initial = Math.max(0, distance || 0);
+        const initial = roundDistance(distance || 0);
         const totalMs = computeApproachDuration(initial);
         return {
             initialDistance: initial,
@@ -3146,14 +3204,15 @@ import { GAME_CONSTANTS } from "./game-constants.js";
 
         if (intent.kind === "advance") {
             if (combatState.distance <= 0) {
-                logMessage("Tu es dÇ¸jÇÿ collÇ¸ : avancer ne sert Çÿ rien.");
+                logMessage("Tu es d?j? coll? : avancer ne sert ? rien.");
             } else {
-                combatState.distance = Math.max(0, combatState.distance - 1);
+                const step = 0.5;
+                combatState.distance = roundDistance(Math.max(0, combatState.distance - step));
                 combatState.approach = buildApproachState(combatState.distance);
                 logMessage(`Tu combles la distance (${describeDistance(combatState.distance)}).`);
-                if (combatState.distance === 0 && reflexOutcome === "hit") {
+                if (combatState.distance <= 0 && reflexOutcome === "hit") {
                     combatState.preContactStrikeReady = true;
-                    logMessage("Tu arrives calÇ¸, prÇ¦t Çÿ cueillir l'impact.");
+                    logMessage("Tu arrives cal?, pr?t ? cueillir l'impact.");
                 }
             }
             combatState.nextEnemyAttackAt = now + (ENEMY_ATTACK_COOLDOWN_MS || 0) * 0.6;
@@ -3163,20 +3222,20 @@ import { GAME_CONSTANTS } from "./game-constants.js";
 
         if (intent.kind === "retreat") {
             const previous = combatState.distance;
-            combatState.distance = Math.min(3, combatState.distance + 1);
+            const step = 0.5;
+            combatState.distance = roundDistance(Math.min(3, combatState.distance + step));
             combatState.approach = buildApproachState(combatState.distance);
             if (reflexOutcome === "hit" && combatState.pendingEnemyAttack) {
                 clearPendingEnemyAttack();
                 combatState.nextEnemyAttackAt = now + (ENEMY_ATTACK_COOLDOWN_MS || 0) + guardBonusMs;
-                logMessage("Tu te degages net, l'ennemi perd son tempo.");
             } else {
                 combatState.nextEnemyAttackAt = Math.max(
-                    now + (ENEMY_ATTACK_COOLDOWN_MS || 0) * 0.5,
+                    now + (ENEMY_ATTACK_COOLDOWN_MS || 0),
                     combatState.nextEnemyAttackAt || 0
                 );
             }
             logMessage(
-                `Tu décroches ${previous === combatState.distance ? "au dernier moment" : ""} (${describeDistance(
+                `Tu d?croches ${previous === combatState.distance ? "au dernier moment" : ""} (${describeDistance(
                     combatState.distance
                 )}).`
             );
@@ -3264,8 +3323,7 @@ if (!enemy) {
             clearPendingEnemyAttack();
 
             if (succeeded) {
-                const step = reflexOutcome === "hit" ? 2 : 1;
-                const newDistance = Math.min(3, combatState.distance + step);
+                const newDistance = roundDistance(2);
                 combatState.distance = newDistance;
                 combatState.approach = buildApproachState(newDistance);
                 combatState.preContactStrikeReady = false;
@@ -3275,17 +3333,17 @@ if (!enemy) {
                         combatState.distance
                     )}). [Chance ${(adjustedChance * 100).toFixed(0)}%]`
                 );
-                showToast("PoussÇ¸e rÇ¸ussie", "success");
+                showToast("Pouss?e r?ussie", "success");
             } else {
                 const counter = rollInRange(
                     PUSH_FAIL_DAMAGE_RANGE?.min || 1,
                     PUSH_FAIL_DAMAGE_RANGE?.max || 4
                 );
                 combatState.nextEnemyAttackAt = now + (ENEMY_ATTACK_COOLDOWN_MS || 0) * 0.5;
-                applyHeroDamage(counter, { type: "normal", reason: `${enemy.name} rÇ¸siste.` });
+                applyHeroDamage(counter, { type: "normal", reason: `${enemy.name} r?siste.` });
                 registerWound(Math.max(1, Math.ceil(counter / 2)));
-                logMessage(`${enemy.name} te repousse : ${counter} dÇ¸gÇ½ts.`);
-                showToast("PoussÇ¸e ratÇ¸e", "danger");
+                logMessage(`${enemy.name} te repousse : ${counter} d?g?ts.`);
+                showToast("Pouss?e rat?e", "danger");
             }
             renderCombatUI();
             return true;
@@ -3426,7 +3484,7 @@ if (!enemy) {
         const approach = combatState.approach;
         if (!approach || (!approach.totalMs && approach.initialDistance === 0)) return;
         const ratio = approach.totalMs === 0 ? 0 : approach.remainingMs / approach.totalMs;
-        const nextDistance = Math.max(0, Math.ceil(approach.initialDistance * ratio));
+        const nextDistance = roundDistance(Math.max(0, approach.initialDistance * ratio));
         const previousDistance = combatState.distance;
         let reachedContact = false;
         let windowOpened = false;
@@ -3450,10 +3508,10 @@ if (!enemy) {
 
         if (approach.remainingMs <= 0 && approach.initialDistance > 0 && !approach.contactTriggered) {
             approach.contactTriggered = true;
-            reachedContact = true;
+            reachedContact = combatState.distance <= 0;
         }
 
-        if (previousDistance !== combatState.distance && combatState.distance === 0 && combatState.active) {
+        if (previousDistance !== combatState.distance && combatState.distance <= 0 && combatState.active) {
             markContactWindow();
             combatState.approach = null;
         }
@@ -3511,7 +3569,8 @@ if (!enemy) {
     function canDoPreContactStrike() {
         if (!combatState.active) return false;
         if (hasActiveIntent()) return false;
-        if (combatState.distance > 1) return false;
+        const { maxRange } = getEquippedWeaponRangeStats();
+        if (combatState.distance > maxRange) return false;
         if (!combatState.preContactStrikeReady) return false;
         if (!canUseMelee()) return false;
         const now = performance.now();
@@ -3787,14 +3846,8 @@ if (!enemy) {
     }
 
     function getEquippedWeaponRange() {
-        const tpl = getEquippedWeaponTemplate();
-        if (!tpl) return 0;
-        const reach = tpl.weaponStats?.range;
-        if (Number.isFinite(reach)) {
-            // Toute arme devrait offrir au moins une étape d'engagement avant le contact.
-            return Math.max(1, reach);
-        }
-        return 1;
+        const stats = getEquippedWeaponRangeStats();
+        return stats.maxRange;
     }
 
     function getEquippedWeaponPreContactWindowMs() {
@@ -3815,9 +3868,10 @@ if (!enemy) {
 
     function canUseMelee() {
         if (!combatState?.active) return false;
-        const reach = getEquippedWeaponRange();
-        if (combatState.distance <= reach) return true;
-        if (combatState.distance <= 1) {
+        const { minRange, maxRange } = getEquippedWeaponRangeStats();
+        const d = combatState.distance;
+        if (d >= minRange && d <= maxRange) return true;
+        if (d <= maxRange && d <= 1) {
             const approach = combatState.approach;
             if (approach && approach.remainingMs <= getEquippedWeaponPreContactWindowMs()) {
                 return true;
@@ -3828,19 +3882,22 @@ if (!enemy) {
     }
 
     function canUseRanged() {
-        return combatState.distance <= 2;
+        const range = getThrowableRange();
+        return combatState.distance >= range.min && combatState.distance <= range.max;
     }
 
     function computeStartDistance(option) {
         const location = locations[currentLocationId] || {};
-        if (typeof option.startDistance === "number") {
-            return Math.max(0, Math.round(option.startDistance));
+        const fromOption = option.startDistance;
+        if (typeof fromOption === "number") {
+            return roundDistance(Math.max(0, fromOption));
         }
         const range = option.startDistanceRange || location.enemyDistanceRange || {};
-        const min = Number.isFinite(range.min) ? Math.max(0, Math.round(range.min)) : 0;
-        const max = Number.isFinite(range.max) ? Math.max(min, Math.round(range.max)) : min + 1;
+        const min = Number.isFinite(range.min) ? Math.max(0, range.min) : 1;
+        const max = Number.isFinite(range.max) ? Math.max(min, range.max) : min + 0.75;
         const span = Math.max(0, max - min);
-        return min + Math.round(Math.random() * span);
+        const roll = min + Math.random() * span;
+        return roundDistance(roll);
     }
 
     function startCombat(option, optionIndex) {
@@ -3887,7 +3944,8 @@ if (!enemy) {
                 typeof optionIndex === "number"
                     ? `${currentSceneId}:${optionIndex}`
                     : null,
-            originLocationId: currentLocationId
+            originLocationId: currentLocationId,
+            overlayRisk: null
         };
         currentTimeContext = "fast";
         document.body.classList.add("combat-active");
@@ -3906,299 +3964,179 @@ if (!enemy) {
     }
 
     function renderCombatUI() {
-        if (!choicesEl || !combatState.active) return;
+        if (!combatState.active) {
+            setCombatOverlayVisible(false);
+            return;
+        }
         ensureCombatUIUnlocked();
-        if (choiceTitleEl) choiceTitleEl.textContent = "Actions de combat";
-        choicesEl.innerHTML = "";
+        if (choicesEl) choicesEl.innerHTML = "";
+        setCombatOverlayVisible(true);
+        updateCombatOverlay();
+    }
 
+    function updateCombatOverlay() {
+        if (!combatOverlayEl) return;
         const now = performance.now();
+        const hasEnemy = combatState.enemies.length > 0;
         const cooldownRemainingMs = Math.max(0, (combatState.attackCooldownEndsAt || 0) - now);
         const meleeInCooldown = cooldownRemainingMs > 0;
-        const inMeleeRange = canUseMelee();
-        const throwableElements = getThrowableWeaponElements();
         const pending = combatState.pendingEnemyAttack;
-        const hasEnemy = combatState.enemies.length > 0;
-        const enemy = getActiveEnemy();
         const nextEnemySwingMs = pending
             ? Math.max(0, (pending.expiresAt || 0) - now)
             : Math.max(0, (combatState.nextEnemyAttackAt || now) - now);
-        const reach = getEquippedWeaponRange();
-        const intent = combatState.intent;
-        const intentActive = hasActiveIntent();
-        const rangeEff = computeRangeEfficiency(combatState.distance);
-        const tension = computeCombatTension();
+        const { minRange, maxRange } = getEquippedWeaponRangeStats();
+        const canStrike = hasEnemy && !meleeInCooldown && combatState.distance >= minRange && combatState.distance <= maxRange;
+        const canPush = hasEnemy && !meleeInCooldown && combatState.distance <= 0.5;
+        const risks = getOverlayAttackRisks();
 
-        const createAction = (
-            label,
-            onClick,
-            { disabled = false, reason = "", classes = [], allowDuringIntent = false } = {}
-        ) => {
-            const lockReason = intentActive && !allowDuringIntent
-                ? `Intention en cours : ${intent?.label || "enchainement"}.`
-                : "";
-            const finalDisabled = disabled || (intentActive && !allowDuringIntent);
-            const finalReason = lockReason || reason;
-            const wrapper = document.createElement("div");
-            wrapper.classList.add("combat-action");
-            const btn = document.createElement("button");
-            btn.classList.add("choice-btn", ...classes);
-            btn.textContent = label;
-            btn.disabled = finalDisabled;
-            btn.addEventListener("click", onClick);
-            wrapper.appendChild(btn);
-            if (finalReason) {
-                const hint = document.createElement("div");
-                hint.classList.add("combat-hint");
-                hint.textContent = finalReason;
-                wrapper.appendChild(hint);
-            }
-            return wrapper;
+        if (combatDistanceReadoutEl) {
+            combatDistanceReadoutEl.textContent = describeDistance(combatState.distance);
+        }
+
+        const updateAttackBtn = (btn, side) => {
+            if (!btn) return;
+            const risk = risks[side] ?? 0;
+            const cls = riskToClass(risk);
+            btn.classList.remove("risk-green", "risk-yellow", "risk-orange", "risk-red");
+            if (cls) btn.classList.add(cls);
+            btn.disabled = !canStrike;
+            btn.textContent = side === "left" ? "?" : "?";
+            btn.setAttribute("aria-disabled", String(!canStrike));
+            btn.title = canStrike
+                ? `Risque estim? : ${(risk * 100).toFixed(0)}%`
+                : "Hors port?e ou en r?cup?ration";
         };
 
-        const header = document.createElement("div");
-        header.classList.add("combat-header");
+        updateAttackBtn(combatAttackLeftBtn, "left");
+        updateAttackBtn(combatAttackRightBtn, "right");
 
-        const status = document.createElement("div");
-        status.classList.add("combat-status");
-        status.textContent = hasEnemy
-            ? combatState.enemies.map(e => `${e.name} (${e.hp}/${e.maxHp} PV)`).join(" • ")
-            : "Plus de menace visible.";
-        header.appendChild(status);
-
-        const threat = document.createElement("div");
-        threat.classList.add("combat-threat");
-        if (pending) {
-            threat.textContent = `${pending.enemyName || "L'adversaire"} arme un coup : ${formatSeconds(
-                nextEnemySwingMs
-            )}s pour reagir.`;
-        } else if (hasEnemy) {
-            if (nextEnemySwingMs > 0) {
-                threat.textContent = `Prochain coup estime dans ${formatSeconds(nextEnemySwingMs)}s. Reste en tension.`;
-            } else {
-                threat.textContent = "L'adversaire cherche une faille. Ne reste pas passif.";
-            }
-        } else {
-            threat.textContent = "Silence brutal apres l'impact.";
-        }
-        header.appendChild(threat);
-        choicesEl.appendChild(header);
-
-        const distanceInfo = document.createElement("div");
-        distanceInfo.classList.add("combat-distance");
-        distanceInfo.textContent = `Distance : ${describeDistance(combatState.distance)}`;
-        if (combatState.preContactStrikeReady) {
-            const chip = document.createElement("span");
-            chip.classList.add("combat-chip");
-            chip.textContent = "Fenetre de frappe";
-            distanceInfo.appendChild(chip);
-        }
-        choicesEl.appendChild(distanceInfo);
-
-        const bandInfo = document.createElement("div");
-        bandInfo.classList.add("combat-band");
-        bandInfo.textContent = `Bande ideale arme : ${rangeEff.sweetSpotLabel} | rendement ${Math.round(
-            rangeEff.damageMult * 100
-        )}% | tension ${Math.round(tension * 100)}%.`;
-        choicesEl.appendChild(bandInfo);
-
-        const approachWrapper = document.createElement("div");
-        approachWrapper.classList.add("combat-approach");
-        const track = document.createElement("div");
-        track.classList.add("approach-track");
-        const fill = document.createElement("div");
-        fill.classList.add("approach-fill");
-        track.appendChild(fill);
-        const approachLabel = document.createElement("div");
-        approachLabel.classList.add("approach-label");
-        approachLabel.textContent = `Rapprochement : ${describeDistance(combatState.distance)}`;
-        approachWrapper.appendChild(track);
-        approachWrapper.appendChild(approachLabel);
-        choicesEl.appendChild(approachWrapper);
-
-        if (intent) {
-            const intentBox = document.createElement("div");
-            intentBox.classList.add("combat-intent");
-
-            const intentTitle = document.createElement("div");
-            intentTitle.classList.add("intent-title");
-            const remaining = Math.max(0, intent.endsAt - now);
-            intentTitle.textContent = `${intent.label} (${formatSeconds(remaining)}s)`;
-            intentBox.appendChild(intentTitle);
-
-            const intentTrack = document.createElement("div");
-            intentTrack.classList.add("intent-track");
-            const intentFill = document.createElement("div");
-            intentFill.classList.add("intent-fill");
-            const progressPct = Math.max(
-                0,
-                Math.min(100, ((now - intent.startedAt) / intent.durationMs) * 100)
-            );
-            intentFill.style.width = `${progressPct}%`;
-            intentTrack.appendChild(intentFill);
-
-            const windowEl = document.createElement("div");
-            windowEl.classList.add("intent-window");
-            const windowStartPct = Math.max(
-                0,
-                Math.min(100, ((intent.reflexWindowStart - intent.startedAt) / intent.durationMs) * 100)
-            );
-            const windowEndPct = Math.max(
-                windowStartPct,
-                Math.min(100, ((intent.reflexWindowEnd - intent.startedAt) / intent.durationMs) * 100)
-            );
-            windowEl.style.left = `${windowStartPct}%`;
-            windowEl.style.width = `${Math.max(4, windowEndPct - windowStartPct)}%`;
-            intentTrack.appendChild(windowEl);
-            intentBox.appendChild(intentTrack);
-
-            const intentMeta = document.createElement("div");
-            intentMeta.classList.add("intent-meta");
-            let reflexText = "";
-            if (intent.reflexOutcome === "hit") {
-                reflexText = "Fenetre callee : bonus de synchronisation.";
-            } else if (intent.reflexOutcome === "missed") {
-                reflexText = "Fenetre manquee : geste lourd.";
-            } else if (now >= intent.reflexWindowStart && now <= intent.reflexWindowEnd) {
-                reflexText = `Fenetre reflexe ouverte (${formatSeconds(intent.reflexWindowEnd - now)}s).`;
-            } else {
-                reflexText = `Fenetre dans ${formatSeconds(intent.reflexWindowStart - now)}s.`;
-            }
-            intentMeta.textContent = reflexText;
-            intentBox.appendChild(intentMeta);
-
-            const intentActions = document.createElement("div");
-            intentActions.classList.add("intent-actions");
-            if (now >= intent.reflexWindowStart && now <= intent.reflexWindowEnd && intent.reflexOutcome !== "hit") {
-                const reflexBtn = document.createElement("button");
-                reflexBtn.classList.add("small-btn");
-                reflexBtn.textContent = "Caler le geste";
-                reflexBtn.addEventListener("click", markIntentReflex);
-                intentActions.appendChild(reflexBtn);
-            }
-            const cancelBtn = document.createElement("button");
-            cancelBtn.classList.add("small-btn", "secondary-btn");
-            cancelBtn.textContent = "Annuler l'intention";
-            cancelBtn.addEventListener("click", cancelCombatIntent);
-            intentActions.appendChild(cancelBtn);
-            intentBox.appendChild(intentActions);
-
-            choicesEl.appendChild(intentBox);
+        if (combatRiskLegendEl) {
+            const riskLeft = Math.round((risks.left || 0) * 100);
+            const riskRight = Math.round((risks.right || 0) * 100);
+            combatRiskLegendEl.textContent = `Gauche : ${riskLeft}% ? Droite : ${riskRight}%${
+                nextEnemySwingMs > 0 ? ` ? Prochain coup: ${formatSeconds(nextEnemySwingMs)}s` : ""
+            }`;
         }
 
-        const actionsGrid = document.createElement("div");
-        actionsGrid.classList.add("combat-actions-grid");
-
-        actionsGrid.appendChild(
-            createAction("Se rapprocher", approachEnemy, {
-                disabled: combatState.distance <= 0 || !hasEnemy,
-                reason:
-                    combatState.distance <= 0
-                        ? "Deja au contact, reste mobile pour encaisser."
-                        : !hasEnemy
-                        ? "Plus personne a approcher."
-                        : "Combler la distance pour cogner."
-            })
-        );
-        actionsGrid.appendChild(
-            createAction("Se degager", () => startCombatIntent("retreat", { enemyId: enemy?.id }), {
-                disabled: combatState.distance >= 3 || !hasEnemy,
-                reason:
-                    combatState.distance >= 3
-                        ? "Deja au plus loin."
-                        : !hasEnemy
-                        ? "Plus personne a tenir a distance."
-                        : "Creer de l'espace, mais tu restes expose quelques secondes."
-            })
-        );
-
-        let meleeReason = "";
-        if (!hasEnemy) {
-            meleeReason = "Plus de cible.";
-        } else if (!inMeleeRange) {
-            meleeReason =
-                reach > 0
-                    ? `Hors de portee (arme ${reach}). Avance ou projette-le.`
-                    : "Trop loin, mains nues inutiles ici.";
-        } else if (meleeInCooldown) {
-            meleeReason = `Recuperation ${formatSeconds(cooldownRemainingMs)}s.`;
-        } else if (combatState.preContactStrikeReady) {
-            meleeReason = "Fenetre d'arret avant qu'il s'ecrase sur toi.";
+        if (combatPushBtn) {
+            combatPushBtn.disabled = !canPush;
+            combatPushBtn.setAttribute("aria-disabled", String(!canPush));
+            combatPushBtn.title = canPush ? "Repousser ? 2 m" : "Disponible au contact (?0,5 m)";
         }
 
-        actionsGrid.appendChild(
-            createAction(
-                combatState.preContactStrikeReady ? "Coup d'arret" : "Attaque au corps a corps",
-                performMeleeAttack,
-                {
-                    disabled: !hasEnemy || !inMeleeRange || meleeInCooldown,
-                    reason: meleeReason
-                }
-            )
-        );
-
-        const pushDisabled = !hasEnemy || combatState.distance !== 0 || meleeInCooldown;
-        let pushReason = "";
-        if (!hasEnemy) {
-            pushReason = "Rien a repousser.";
-        } else if (combatState.distance !== 0) {
-            pushReason = "Il faut coller l'ennemi pour le heurter.";
-        } else if (meleeInCooldown) {
-            pushReason = `Reprends ton souffle (${formatSeconds(cooldownRemainingMs)}s).`;
+        if (combatThrowToggleBtn) {
+            combatThrowToggleBtn.title = hasThrowableWeapon()
+                ? "Afficher les armes de jet"
+                : "Aucune arme de jet";
+            combatThrowToggleBtn.disabled = !hasThrowableWeapon();
+            if (!combatThrowToggleBtn.textContent) combatThrowToggleBtn.textContent = "?";
         }
-        actionsGrid.appendChild(
-            createAction("Pousser / heurter", pushEnemyBack, {
-                disabled: pushDisabled,
-                reason: pushReason,
-                classes: ["secondary-btn"]
-            })
-        );
 
-        if (throwableElements.length === 0) {
-            actionsGrid.appendChild(
-                createAction("Lancer", () => {}, { disabled: true, reason: "Rien a lancer." })
-            );
-        } else {
-            throwableElements.forEach(el => {
-                const itemName = el.dataset.name || "objet";
-                const throwDisabled = meleeInCooldown || !canUseRanged();
-                const throwReason = throwDisabled
-                    ? meleeInCooldown
-                        ? `Recuperation ${formatSeconds(cooldownRemainingMs)}s.`
-                        : "Trop loin pour un lancer utile."
-                    : "Projette et garde tes distances.";
-                actionsGrid.appendChild(
-                    createAction(`Lancer ${itemName}`, () => performRangedAttack(el), {
-                        disabled: throwDisabled,
-                        reason: throwReason
-                    })
-                );
+        if (!combatThrowPanelEl?.classList.contains("hidden")) {
+            renderThrowPanelList();
+        }
+    }
+
+    function riskToClass(risk) {
+        if (risk >= 0.5) return "risk-red";
+        if (risk >= 0.3) return "risk-orange";
+        if (risk >= 0.15) return "risk-yellow";
+        return "risk-green";
+    }
+
+    function getOverlayAttackRisks() {
+        const now = performance.now();
+        const profile = combatState.overlayRisk || {};
+        const needsRefresh =
+            !profile.nextRefresh || profile.distance !== combatState.distance || now >= profile.nextRefresh;
+        if (!needsRefresh) return profile.risks || { left: 0.1, right: 0.35 };
+
+        const safeSide = Math.random() < 0.5 ? "left" : "right";
+        const distFactor = Math.max(0, 1 - Math.min(2, combatState.distance || 0) / 2);
+        const safeRisk = 0.05 + Math.random() * 0.05 + distFactor * 0.05;
+        const riskyRisk = 0.3 + Math.random() * 0.3 + distFactor * 0.1;
+        const risks = safeSide === "left"
+            ? { left: safeRisk, right: riskyRisk }
+            : { right: safeRisk, left: riskyRisk };
+        combatState.overlayRisk = {
+            risks,
+            distance: combatState.distance,
+            nextRefresh: now + 1800
+        };
+        return risks;
+    }
+
+    function setCombatOverlayVisible(visible) {
+        if (!combatOverlayEl) return;
+        combatOverlayEl.classList.toggle("hidden", !visible);
+        if (!visible) {
+            setThrowPanelOpen(false);
+        }
+    }
+
+    function toggleThrowPanel() {
+        setThrowPanelOpen(combatThrowPanelEl?.classList.contains("hidden"));
+    }
+
+    function setThrowPanelOpen(open) {
+        if (!combatThrowPanelEl) return;
+        combatThrowPanelEl.classList.toggle("hidden", !open);
+        if (open) {
+            renderThrowPanelList();
+        }
+    }
+
+    function renderThrowPanelList() {
+        if (!combatThrowListEl) return;
+        combatThrowListEl.innerHTML = "";
+        const throwables = getThrowableWeaponElements();
+        if (!throwables.length) {
+            const empty = document.createElement("div");
+            empty.textContent = "Aucune arme de jet";
+            empty.classList.add("meta");
+            combatThrowListEl.appendChild(empty);
+            return;
+        }
+        throwables.forEach(el => {
+            const itemId = el.dataset.itemId;
+            const name = el.dataset.name || itemId || "Arme";
+            const templateId = el.dataset.templateId;
+            const row = document.createElement("button");
+            row.type = "button";
+            row.classList.add("throw-item");
+            const icon = document.createElement("div");
+            icon.classList.add("icon");
+            icon.textContent = "?";
+            const label = document.createElement("div");
+            label.classList.add("name");
+            label.textContent = name;
+            const meta = document.createElement("div");
+            meta.classList.add("meta");
+            meta.textContent = templateId || "jet";
+            row.appendChild(icon);
+            row.appendChild(label);
+            row.appendChild(meta);
+            row.addEventListener("click", () => {
+                performRangedAttack(el);
+                setThrowPanelOpen(false);
+                renderCombatUI();
             });
+            combatThrowListEl.appendChild(row);
+        });
+    }
+
+    function handleOverlayAttack(side) {
+        if (!combatState.active) return;
+        if (!canUseMelee()) {
+            showToast("Hors port?e pour frapper", "warning");
+            return;
         }
-
-        const dodgeDisabled = !pending;
-        const dodgeReason = pending
-            ? "Fenetre d'esquive ouverte."
-            : "Pas de coup arme pour le moment.";
-        actionsGrid.appendChild(
-            createAction(
-                pending ? `Esquiver (${formatSeconds(nextEnemySwingMs)}s)` : "Esquiver",
-                attemptDodge,
-                { disabled: dodgeDisabled, reason: dodgeReason, allowDuringIntent: true }
-            )
-        );
-
-        actionsGrid.appendChild(
-            createAction("Fuir", attemptFlee, {
-                disabled: !hasEnemy,
-                reason: hasEnemy ? "Quitter le combat coute du temps, mais c'est la vie." : "Plus rien a fuir."
-            })
-        );
-
-        choicesEl.appendChild(actionsGrid);
-        updateApproachMeterUI();
+        performMeleeAttack();
+        renderCombatUI();
     }
 
     function computeHeroInitiativeChance() {
+
         const finesse = Math.max(0, hero.finesse || 0);
         const baseChance = 0.35;
         const finesseBonus = Math.min(0.4, finesse * 0.08);
@@ -4207,9 +4145,10 @@ if (!enemy) {
 
     function computeThrowableHitChance(distance) {
         const finesse = Math.max(0, hero.finesse || 0);
-        const base = 0.5 + Math.min(0.35, finesse * 0.06);
-        const penalty = Math.max(0, distance) * 0.08;
-        return Math.max(0.25, Math.min(0.95, base - penalty));
+        const base = 0.65 + Math.min(0.25, finesse * 0.05);
+        const effectiveDist = Math.max(0, distance - 0.75);
+        const penalty = effectiveDist * 0.18;
+        return Math.max(0.2, Math.min(0.95, base - penalty));
     }
 
     function computeEnemyDodgeWindowMs(enemy) {
@@ -4258,8 +4197,8 @@ if (!enemy) {
             endCombat(true);
             return;
         }
-        if (combatState.distance !== 0) {
-            logMessage("Tu dois etre au contact pour repousser l'ennemi.");
+        if (combatState.distance > 0.5) {
+            logMessage("Il faut ?tre ? port?e imm?diate (?0,5 m).");
             return;
         }
         const now = performance.now();
@@ -4399,6 +4338,7 @@ if (!enemy) {
         musicController.playCalm({ fadeOutMs: 1500 });
 
         const previousCombat = combatState;
+        setCombatOverlayVisible(false);
         const nextSceneId = victory
             ? previousCombat.victoryScene
             : previousCombat.defeatScene;

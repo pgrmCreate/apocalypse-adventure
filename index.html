@@ -388,5 +388,34 @@
                 <div class="action-overlay-label" id="action-overlay-text"></div>
             </div>
         </div>
+
+        <div id="combat-overlay" class="combat-overlay hidden" aria-live="polite">
+            <div class="combat-overlay-backdrop"></div>
+            <div class="combat-overlay-content">
+                <div class="combat-overlay-top">
+                    <div id="combat-distance-readout" class="combat-distance-readout">0.00 m</div>
+                </div>
+                <div class="combat-overlay-middle">
+                    <button id="combat-attack-left" class="glow-btn attack-btn left" aria-label="Attaquer côté gauche"></button>
+                    <div class="combat-center-stack">
+                        <div id="combat-risk-legend" class="risk-legend"></div>
+                        <button id="combat-push-btn" class="glow-btn push-btn" aria-label="Repousser l'ennemi">Repousser</button>
+                    </div>
+                    <button id="combat-attack-right" class="glow-btn attack-btn right" aria-label="Attaquer côté droit"></button>
+                </div>
+                <div class="combat-overlay-bottom">
+                    <div class="throw-toggle-wrapper">
+                        <button id="combat-throw-toggle" class="glow-btn throw-btn" aria-label="Armes de jet"></button>
+                    </div>
+                </div>
+                <div id="combat-throw-panel" class="throw-panel hidden" aria-label="Armes de jet">
+                    <div class="throw-panel-header">
+                        <span>Armes de jet</span>
+                        <button id="combat-throw-close" class="close-btn" aria-label="Fermer">×</button>
+                    </div>
+                    <div id="combat-throw-list" class="throw-list"></div>
+                </div>
+            </div>
+        </div>
     </body>
 </html>
