@@ -1,0 +1,301 @@
+{
+  "game": {
+    "id": "before-dawn",
+    "version": "0.9.83",
+    "title": "Before Dawn",
+    "theme": {
+      "genre": "urban survival",
+      "tone": "brutal, grounded, every action costs blood, time, or morale",
+      "pillars": ["scarcity", "body-horror", "improvised tools", "moral erosion"]
+    },
+    "startingScene": "intro",
+    "startDayHour": 7
+  },
+  "ambiance": {
+    "visual": {
+      "palette": ["#0b0f14", "#1f252d", "#3d454f", "#8c734a", "#c4432f"],
+      "lighting": "low, sodium lamps, emergency strobes, smoke",
+      "weather": ["drizzle", "cold wind", "ashy haze"]
+    },
+    "audio": {
+      "musicContexts": {
+        "calm": ["assets/music/calm/empty-city.mp3", "assets/music/calm/on-the-road.mp3", "assets/music/calm/suspense-248067.mp3"],
+        "actions": ["assets/music/actions/action-cinematic-music-414074.mp3", "assets/music/actions/dark-cinematic-action-music-412728.mp3", "assets/music/actions/tense-action-music-414683.mp3"],
+        "sad": ["assets/music/sad/suspence-calm.mp3"],
+        "epic": ["assets/music/epic/action-440170.mp3"]
+      },
+      "volumes": { "calm": 0.45, "actions": 0.8, "sad": 0.7, "epic": 0.7 },
+      "sfx": { "lightDamage": "assets/Sound/light-damage.m4a", "heavyDamage": "assets/Sound/hight-damage.m4a" }
+    },
+    "uiCopy": {
+      "groundPanel": "Au sol",
+      "combatTitle": "Actions de combat",
+      "toastDurationsMs": 3000
+    }
+  },
+  "hero": {
+    "default": {
+      "name": "Alex",
+      "stats": { "hp": 30, "maxHp": 30, "force": 3, "finesse": 3, "audace": 3 },
+      "xp": { "value": 0, "nextThreshold": 15, "baseThreshold": 18, "growth": 0.8 },
+      "needs": { "hunger": 0, "thirst": 0, "maxHunger": 50, "maxThirst": 50 },
+      "startingInventory": ["knife", "waterBottle", "bandage"],
+      "startingBag": "smallBag"
+    }
+  },
+  "mechanics": {
+    "time": {
+      "realSecondsPerGameHour": 240,
+      "actionAcceleration": 7,
+      "timeCostStepHours": 0.25,
+      "moveDurationMs": 2000
+    },
+    "needs": {
+      "hungerDamageIntervalMinutes": 30,
+      "bleedDamageIntervalMinutes": 15,
+      "thirstBaseline": 0,
+      "hungerBaseline": 0
+    },
+    "inventory": {
+      "baseCapacity": 15,
+      "lootPickupDurationMs": 500,
+      "encumbrancePenaltyPerUnit": 0.08
+    },
+    "loot": {
+      "rarityChancesDefault": { "1": 0.75, "2": 0.2, "3": 0.05 },
+      "rarityLabels": { "1": "tres peu rare", "2": "peu rare", "3": "rare" },
+      "searchSecondsRange": { "min": 5, "max": 10 },
+      "lostThrowableSearchSeconds": { "min": 15, "max": 30 }
+    },
+    "healing": {
+      "baseProgressPerCycle": 0.8,
+      "hpPerHealProgress": 0.2,
+      "unbandagedHealingFactor": 0.6,
+      "woundCountPenalty": 0.15,
+      "severityGradient": 0.15,
+      "maxSeverityFactor": 2.2,
+      "bleedDamageRange": { "min": 0.1, "max": 0.8 },
+      "typeFactors": { "morsure": 1.2, "entaille": 1, "griffure": 0.8, "impact": 0.7, "perforation": 1.4 },
+      "bandageQuality": {
+        "0": { "bleedMultiplier": 1, "healPerCycle": 0 },
+        "1": { "bleedMultiplier": 0.5, "healPerCycle": 0 },
+        "2": { "bleedMultiplier": 0, "healPerCycle": 0 },
+        "3": { "bleedMultiplier": 0, "healPerCycle": 0.7 },
+        "4": { "bleedMultiplier": 0, "healPerCycle": 1 }
+      }
+    },
+    "crafting": {
+      "defaultDurationMs": 4000,
+      "examples": [
+        { "output": "bandage", "ingredients": ["cloth", "alcohol"], "tools": ["knife"], "timeFactor": 1.1 },
+        { "output": "molotov", "ingredients": ["bottle", "alcohol", "cloth"], "tools": ["lighter"], "timeFactor": 1.3 }
+      ]
+    },
+    "search": { "lootRevealStepPercent": "equal per item", "noiseRisk": "low" }
+  },
+  "combat": {
+    "ranges": ["contact", "1", "2", "3"],
+    "distanceStepCostMs": 3200,
+    "intentBaseMs": 5400,
+    "intentVarianceMs": 1400,
+    "reflexWindowMs": 900,
+    "reflexStressFactor": 0.45,
+    "guardStaggerMs": 800,
+    "preContactWindowMs": { "default": 450, "knife": 300, "longWeapon": 600 },
+    "cooldowns": { "attackMs": 2500, "enemyAttackMs": 3000 },
+    "dodge": { "baseWindowMs": 850, "difficultyPenaltyMs": 24, "fitnessPenaltyMs": 45 },
+    "push": { "failDamage": { "min": 2, "max": 5 } },
+    "woundTypes": ["morsure", "entaille", "griffure", "impact", "perforation"],
+    "intents": [
+      { "id": "strike", "durationMs": "base+random*0.6", "range": "contact/1" },
+      { "id": "shove", "durationMs": "base*0.85+random*0.5", "range": "contact" },
+      { "id": "throw", "durationMs": "base*0.8+random*0.45", "range": "1-3" },
+      { "id": "advance", "durationMs": "distanceStepCostMs+random*0.4" },
+      { "id": "retreat", "durationMs": "distanceStepCostMs*1.05+random*0.4" },
+      { "id": "flee", "durationMs": "base*1.05+random*0.6" }
+    ],
+    "enemyArchetypes": [
+      {
+        "id": "shambler",
+        "label": "zombie lourd",
+        "hp": 16,
+        "damage": { "min": 2, "max": 5 },
+        "fitness": 2,
+        "fleeDifficulty": 10
+      },
+      {
+        "id": "sprinter",
+        "label": "infecte nerveux",
+        "hp": 12,
+        "damage": { "min": 3, "max": 6 },
+        "fitness": 3,
+        "fleeDifficulty": 13
+      },
+      {
+        "id": "raider",
+        "label": "pillard arme",
+        "hp": 18,
+        "damage": { "min": 4, "max": 7 },
+        "fitness": 3,
+        "fleeDifficulty": 15,
+        "ranged": true
+      }
+    ]
+  },
+  "map": {
+    "floors": [
+      {
+        "id": "apt_block",
+        "label": "Immeuble evacue",
+        "width": 4,
+        "height": 3,
+        "nodes": [
+          { "id": "intro", "label": "Chambre barricadee", "x": 0, "y": 1, "type": "safe" },
+          { "id": "aptLiving", "label": "Salon encombre", "x": 1, "y": 1, "type": "loot" },
+          { "id": "aptKitchen", "label": "Cuisine ravagee", "x": 2, "y": 1, "type": "loot" },
+          { "id": "aptHallway", "label": "Couloir obscur", "x": 1, "y": 2, "type": "connector" },
+          { "id": "stairsFloor3", "label": "Escalier", "x": 3, "y": 2, "type": "stairs" }
+        ],
+        "edges": [
+          ["intro", "aptLiving"],
+          ["aptLiving", "aptKitchen"],
+          ["aptLiving", "aptHallway"],
+          ["aptHallway", "stairsFloor3"]
+        ],
+        "stairs": { "up": null, "down": "streetLevel" }
+      },
+      {
+        "id": "streetLevel",
+        "label": "Rue inondee de detritus",
+        "width": 5,
+        "height": 3,
+        "nodes": [
+          { "id": "buildingExit", "label": "Porte fracturee", "x": 1, "y": 1, "type": "connector" },
+          { "id": "alley", "label": "Ruelle coupe-gorge", "x": 0, "y": 1, "type": "combat" },
+          { "id": "pharmacy", "label": "Pharmacie pillee", "x": 2, "y": 0, "type": "loot" },
+          { "id": "police", "label": "Poste de police abandonne", "x": 3, "y": 1, "type": "combat" },
+          { "id": "evacPoint", "label": "Parking evac", "x": 4, "y": 1, "type": "exit" }
+        ],
+        "edges": [
+          ["stairsFloor3", "buildingExit"],
+          ["buildingExit", "alley"],
+          ["buildingExit", "pharmacy"],
+          ["buildingExit", "police"],
+          ["police", "evacPoint"]
+        ],
+        "stairs": { "up": "apt_block", "down": null }
+      }
+    ],
+    "movementRules": { "impasseCostHours": 0.25, "travelContext": ["fast", "slow"] }
+  },
+  "locations": {
+    "intro": { "scene": "intro", "threat": "low", "lootTable": [], "flags": ["start"] },
+    "aptLiving": { "scene": "aptLiving", "threat": "low", "lootTable": ["waterBottle", "paper", "energyBar"] },
+    "aptKitchen": { "scene": "aptKitchen", "threat": "medium", "lootTable": ["knife", "matches", "energyBar", "flare"] },
+    "aptHallway": { "scene": "aptHallway", "threat": "medium", "lootTable": ["rustyPipe", "rag", "painkiller"] },
+    "alley": { "scene": "alleyAmbush", "threat": "high", "enemyPool": ["sprinter", "raider"], "lootTable": ["scrap", "bandage"] },
+    "pharmacy": { "scene": "pharmacy", "threat": "high", "lootTable": ["bandage", "antiseptic", "painkiller"] },
+    "police": { "scene": "police", "threat": "high", "enemyPool": ["raider"], "lootTable": ["ammo", "crowbar", "vest"] },
+    "evacPoint": { "scene": "evacPoint", "threat": "medium", "lootTable": ["flare", "radio"], "flags": ["potential_end"] }
+  },
+  "scenes": {
+    "intro": {
+      "title": "Chambre barricadee",
+      "text": "Quatre jours enferme dans l'appartement. Air rance, barricade qui craque. Les reserves fondent, rester ici c'est mourir lentement.",
+      "locationId": "apt_main",
+      "options": [
+        { "text": "Retirer la barricade et rejoindre le salon", "next": "aptLiving", "timeCostHours": 1.1, "flagOnSuccess": "barricade_removed" },
+        { "text": "Attendre en surveillant les bruits", "next": "intro", "timeCostHours": 1 }
+      ]
+    },
+    "aptLiving": {
+      "title": "Salon encombre",
+      "text": "Meubles pousses, murs marques de mains sales. Rien ne bouge mais la tension reste vive.",
+      "locationId": "apt_living",
+      "options": [
+        { "text": "Aller a la cuisine", "next": "aptKitchen", "timeCostHours": 0.6 },
+        { "text": "Sortir dans le couloir", "next": "aptHallway", "timeCostHours": 0.6 },
+        { "text": "Retourner barricader la chambre", "next": "intro", "timeCostHours": 0.8 }
+      ]
+    },
+    "aptKitchen": {
+      "title": "Cuisine ravagee",
+      "text": "Placards eventres, verre au sol, odeur de graisse et de sang sec. Chaque pas coupe ou glisse.",
+      "locationId": "apt_kitchen",
+      "options": [
+        { "text": "Fouiller les placards", "action": "search", "timeCostHours": 0.4 },
+        { "text": "Revenir au salon", "next": "aptLiving", "timeCostHours": 0.6 }
+      ]
+    },
+    "aptHallway": {
+      "title": "Couloir obscur",
+      "text": "Portes entrouvertes, traces de lutte. Un grondement lointain remonte l'escalier.",
+      "locationId": "apt_hall",
+      "options": [
+        { "text": "Descendre l'escalier", "next": "buildingExit", "timeCostHours": 0.9 },
+        { "text": "Revenir au salon", "next": "aptLiving", "timeCostHours": 0.6 }
+      ]
+    },
+    "alleyAmbush": {
+      "title": "Ruelle coupe-gorge",
+      "text": "Benne renversee, corps au sol, chiens errants. Un infecte surgit entre deux scooters.",
+      "locationId": "alley",
+      "autoCombat": ["sprinter"]
+    },
+    "pharmacy": {
+      "title": "Pharmacie pillee",
+      "text": "Vitrines brisees, odeur d'alcool renverse. Les rayons vides cachent peut-etre des caches.",
+      "locationId": "pharmacy",
+      "options": [
+        { "text": "Fouiller les tiroirs", "action": "search", "timeCostHours": 0.7 },
+        { "text": "Ravir le frigo des vaccins", "action": "search", "timeCostHours": 0.6, "risk": "alarm" },
+        { "text": "Repartir vers la rue", "next": "buildingExit", "timeCostHours": 0.8 }
+      ]
+    },
+    "police": {
+      "title": "Poste de police abandonne",
+      "text": "Barreaudages tordus, odeur de poudre. Les casiers gisent ouverts, traces de sang sur les murs.",
+      "locationId": "police",
+      "options": [
+        { "text": "Ouvrir l'armurerie", "action": "lockpick", "difficulty": 14, "timeCostHours": 0.8, "reward": "ammo" },
+        { "text": "Inspecter les cellules", "action": "search", "timeCostHours": 0.7 },
+        { "text": "Sortir", "next": "buildingExit", "timeCostHours": 0.8 }
+      ]
+    },
+    "evacPoint": {
+      "title": "Parking evac",
+      "text": "Camions abandonnes, traces de pneus, flares consommes. Peut-etre un helo reviendra, ou un piege.",
+      "locationId": "evacPoint",
+      "options": [
+        { "text": "Allumer une fusée de detresse", "action": "signal", "timeCostHours": 0.2, "consumes": "flare", "outcome": "end_check" },
+        { "text": "Installer un campement precaires", "action": "rest", "timeCostHours": 2 }
+      ]
+    }
+  },
+  "items": {
+    "knife": { "name": "Couteau de cuisine", "type": "outil", "rarity": 2, "weight": 4, "weaponStats": { "baseDamage": 2, "forceMultiplier": 0.5, "finesseMultiplier": 1.0, "throwable": true, "range": 1 } },
+    "bat": { "name": "Batte de base-ball", "type": "arme", "rarity": 3, "weight": 8, "weaponStats": { "baseDamage": 3, "forceMultiplier": 1.0, "finesseMultiplier": 0.5, "range": 1 } },
+    "crowbar": { "name": "Pied-de-biche", "type": "arme", "rarity": 3, "weight": 9, "weaponStats": { "baseDamage": 4, "forceMultiplier": 1.1, "finesseMultiplier": 0.4, "range": 1 } },
+    "waterBottle": { "name": "Bouteille d'eau", "type": "consommable", "rarity": 1, "weight": 2, "thirstRestore": 20 },
+    "energyBar": { "name": "Barre energetique", "type": "consommable", "rarity": 1, "weight": 1, "hungerRestore": 12 },
+    "bandage": { "name": "Bandage", "type": "soin", "rarity": 2, "weight": 1, "heal": 4 },
+    "flare": { "name": "Fumigene", "type": "outil", "rarity": 2, "weight": 1, "utility": "signal" },
+    "smallBag": { "name": "Petit sac", "type": "sac", "rarity": 1, "weight": 2, "bagStats": { "capacity": 15 } }
+  },
+  "lootTables": {
+    "indoor_basic": { "randomLoot": ["waterBottle", "paper", "energyBar"], "randomLootQuantity": 2 },
+    "kitchen": { "randomLoot": ["knife", "matches", "energyBar", "flare"], "randomLootQuantity": 3 },
+    "pharmacy": { "randomLoot": ["bandage", "antiseptic", "painkiller"], "randomLootQuantity": 3 },
+    "police": { "randomLoot": ["ammo", "crowbar", "vest"], "randomLootQuantity": 2 }
+  },
+  "progression": {
+    "quests": [
+      { "id": "escape", "label": "Quitter l'immeuble", "steps": ["ouvrir l'appartement", "descendre", "atteindre la rue"] },
+      { "id": "evac", "label": "Trouver une extraction", "steps": ["prendre des ressources", "atteindre le parking", "lancer un signal"] }
+    ],
+    "endings": [
+      { "id": "extraction", "condition": "flare used at evacPoint and no combat active", "result": "evacuation precaire" },
+      { "id": "collapse", "condition": "hp <= 0 or hunger >= max or thirst >= max", "result": "mort par negligence" }
+    ]
+  }
+}
