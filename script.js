@@ -4271,56 +4271,10 @@ if (!enemy) {
 
         startCombatIntent("shove", { enemyId: enemy.id });
     }
-ensureCombatUIUnlocked();
-        syncCombatDistanceFromApproach();
-        const enemy = combatState.enemies?.[0];
-        if (!enemy) {
-            endCombat(true);
-            return;
-        }
-        if (combatState.distance !== 0) {
-            logMessage("Tu dois etre au contact pour repousser l'ennemi.");
-            return;
-        }
-        const now = performance.now();
-        if (now < (combatState.attackCooldownEndsAt || 0)) {
-            const remaining = Math.max(0, combatState.attackCooldownEndsAt - now);
-            logMessage(`Tu es encore en récupération pendant ${(remaining / 1000).toFixed(1)}s.`);
-            return;
-        }
-
-        const chance = computePushSuccessChance(enemy);
-        const succeeded = Math.random() < chance;
-        combatState.attackCooldownEndsAt = now + ATTACK_COOLDOWN_MS * 0.8;
-        clearPendingEnemyAttack();
-
-        if (succeeded) {
-            const newDistance = Math.min(3, combatState.distance + 1);
-            combatState.distance = newDistance;
-            combatState.approach = buildApproachState(newDistance);
-            combatState.preContactStrikeReady = false;
-            combatState.nextEnemyAttackAt = now + ENEMY_ATTACK_COOLDOWN_MS;
-            logMessage(`Tu repousses ${enemy.name}, il recule (${describeDistance(combatState.distance)}).`);
-            showToast("Poussée réussie", "success");
-            updateApproachMeterUI();
-        } else {
-            const counter = rollInRange(
-                PUSH_FAIL_DAMAGE_RANGE?.min || 1,
-                PUSH_FAIL_DAMAGE_RANGE?.max || 4
-            );
-            combatState.nextEnemyAttackAt = now + ENEMY_ATTACK_COOLDOWN_MS * 0.5;
-            applyHeroDamage(counter, { type: "normal", reason: `${enemy.name} résiste.` });
-            registerWound(Math.max(1, Math.ceil(counter / 2)));
-            logMessage(`${enemy.name} te repousse : ${counter} dégâts.`);
-            showToast("Poussée ratée", "danger");
-        }
-
-        if (combatState.active) renderCombatUI();
-    }
 
     function approachEnemy() {
         if (!combatState.active) return;
-        const enemy = combatState.enemies?.[0];
+        const enemy = getActiveEnemy();
         if (!enemy) {
             endCombat(true);
             return;
@@ -4334,37 +4288,8 @@ ensureCombatUIUnlocked();
             logMessage("Tu es deja au contact de l'ennemi.");
             return;
         }
+
         startCombatIntent("advance", { enemyId: enemy.id, label: `Avancer vers ${enemy.name}` });
-    }
-if (combatState.distance <= 0) {
-            logMessage("Tu es déjà au contact de l'ennemi.");
-            return;
-        }
-
-        combatState.distance = Math.max(0, combatState.distance - 1);
-        combatState.approach = buildApproachState(combatState.distance);
-        logMessage(
-            `Tu te rapproches de ${enemy.name} (${describeDistance(combatState.distance)}).`
-        );
-        updateApproachMeterUI();
-        startCombatApproachTimer();
-
-        if (combatState.distance === 0) {
-            if (heroWinsApproachInitiative()) {
-                const percent = Math.round(computeHeroInitiativeChance() * 100);
-                logMessage(
-                    `Ta finesse te donne l'initiative (${percent}% de chance) : tu es prêt à frapper avant ${enemy.name}.`
-                );
-            } else {
-                logMessage(
-                    `${enemy.name} profite de ton approche pour tenter de frapper en premier !`
-                );
-                enemyTurn();
-            }
-        } else {
-            enemyTurn();
-        }
-        if (combatState.active) renderCombatUI();
     }
 
     function performMeleeAttack() {
@@ -4403,52 +4328,6 @@ if (combatState.distance <= 0) {
             combatState.preContactStrikeReady = false;
         }
     }
-ensureCombatUIUnlocked();
-        syncCombatDistanceFromApproach();
-        const enemy = combatState.enemies?.[0];
-        if (!enemy) {
-            endCombat(true);
-            return;
-        }
-
-        const now = performance.now();
-        if (now < (combatState.attackCooldownEndsAt || 0)) {
-            const remaining = Math.max(0, combatState.attackCooldownEndsAt - now);
-            logMessage(`Tu dois patienter encore ${(remaining / 1000).toFixed(1)}s avant de frapper.`);
-            return;
-        }
-
-        if (!canUseMelee()) {
-            logMessage("Tu es trop loin pour frapper, rapproche-toi d'abord.");
-            return;
-        }
-
-        const roll = rollDice(6, 1);
-        const damage = computeBaseAttackPower() + roll.sum;
-        enemy.hp = Math.max(0, enemy.hp - damage);
-        logMessage(
-            `Tu attaques ${enemy.name} et infliges ${damage} dégâts (jet ${roll.rolls.join(", ")}).`
-        );
-        showToast(`Coup porté : ${damage} dégâts`, "success");
-
-        combatState.attackCooldownEndsAt = now + ATTACK_COOLDOWN_MS;
-        setTimeout(() => {
-            if (combatState.active) renderCombatUI();
-        }, ATTACK_COOLDOWN_MS);
-
-        if (enemy.hp <= 0) {
-            logMessage(`${enemy.name} s'effondre.`);
-            clearPendingEnemyAttack();
-            combatState.enemies.shift();
-            if (!combatState.enemies.length) {
-                endCombat(true);
-                return;
-            }
-        }
-
-        enemyTurn();
-        if (combatState.active) renderCombatUI();
-    }
 
     function performRangedAttack(throwable) {
         if (!combatState.active) return;
@@ -4472,9 +4351,7 @@ ensureCombatUIUnlocked();
         }
 
         const weaponEl = getEquippedWeaponElement();
-        const chosenThrowable = throwable || (weaponEl && weaponEl.dataset.throwable === "true"
-            ? weaponEl
-            : getThrowableWeaponElements()[0]);
+        const chosenThrowable = throwable || (weaponEl && weaponEl.dataset.throwable === "true" ? weaponEl : getThrowableWeaponElements()[0]);
 
         if (!canUseRanged()) {
             logMessage("La cible est trop loin pour une attaque a distance efficace.");
@@ -4495,73 +4372,6 @@ ensureCombatUIUnlocked();
         });
         if (!started) return;
     }
-const now = performance.now();
-        if (now < (combatState.attackCooldownEndsAt || 0)) {
-            const remaining = Math.max(0, combatState.attackCooldownEndsAt - now);
-            logMessage(`Ton attaque est en récupération pendant encore ${(remaining / 1000).toFixed(1)}s.`);
-            return;
-        }
-
-        const weaponEl = getEquippedWeaponElement();
-        const chosenThrowable = throwable || (weaponEl && weaponEl.dataset.throwable === "true"
-            ? weaponEl
-            : getThrowableWeaponElements()[0]);
-
-        if (!canUseRanged()) {
-            logMessage("La cible est trop loin pour une attaque à distance efficace.");
-            return;
-        }
-
-        if (!chosenThrowable) {
-            logMessage("Aucune arme de jet disponible.");
-            return;
-        }
-
-        const base = parseFloat(chosenThrowable.dataset.baseDamage || "0") || 0;
-        const finesseBonus = hero.finesse * 0.8;
-        const damage = Math.max(1, Math.round(base + finesseBonus));
-        const hitChance = computeThrowableHitChance(combatState.distance);
-        const didHit = Math.random() < hitChance;
-        const targetName = chosenThrowable.dataset.name || "arme";
-
-        if (didHit) {
-            enemy.hp = Math.max(0, enemy.hp - damage);
-            logMessage(
-                `Tu lances ${targetName} sur ${enemy.name}, infligeant ${damage} dégâts.`
-            );
-            showToast(`Lancer réussi (${Math.round(hitChance * 100)}%) : ${damage} dégâts`, "success");
-        } else {
-            logMessage(
-                `Tu lances ${targetName}, mais ${enemy.name} échappe au projectile (chance ${(hitChance * 100).toFixed(0)}%).`
-            );
-            showToast("Lancer manqué", "warning");
-        }
-
-        combatState.attackCooldownEndsAt = now + ATTACK_COOLDOWN_MS;
-        setTimeout(() => {
-            if (combatState.active) renderCombatUI();
-        }, ATTACK_COOLDOWN_MS);
-
-        registerLostThrowable(chosenThrowable);
-        if (equippedWeaponTemplateId === chosenThrowable.dataset.templateId) {
-            equippedWeaponTemplateId = null;
-        }
-        updateEquippedWeaponUI();
-        updateCapacityUI();
-
-        if (didHit && enemy.hp <= 0) {
-            logMessage(`${enemy.name} est neutralisé par ton lancer.`);
-            clearPendingEnemyAttack();
-            combatState.enemies.shift();
-            if (!combatState.enemies.length) {
-                endCombat(true);
-                return;
-            }
-        }
-
-        enemyTurn();
-        if (combatState.active) renderCombatUI();
-    }
 
     function attemptFlee() {
         if (!combatState.active) return;
@@ -4572,23 +4382,6 @@ const now = performance.now();
         const enemy = getActiveEnemy();
         const difficulty = enemy ? enemy.fleeDifficulty : 10;
         startCombatIntent("flee", { enemyId: enemy?.id, difficulty, label: "Tentative de fuite" });
-    }
-+ audace (${hero.audace}) = ${total} (difficulté ${difficulty}).`
-        );
-
-        if (total >= difficulty) {
-            logMessage("Tu parviens à te dégager du combat !");
-            showToast("Fuite réussie", "success");
-            endCombat(false);
-        } else {
-            logMessage("Tu n'arrives pas à fuir, l'ennemi en profite !");
-            showToast("Fuite ratée", "warning");
-            const forcedHit = attemptEnemyAttack({ ignoreCooldown: true, ignoreDistance: true });
-            if (!forcedHit) {
-                combatState.nextEnemyAttackAt = performance.now() + ENEMY_ATTACK_COOLDOWN_MS;
-            }
-            if (combatState.active) renderCombatUI();
-        }
     }
 
     function enemyTurn() {
